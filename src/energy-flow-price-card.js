@@ -265,13 +265,13 @@ class EnergyFlowPriceCard extends LitElement {
         </div>`;
     }
 
-    // scroll mode: cycle one node through the cars
+    // scroll mode: cycle one node through the cars with fade+slide
     const idx = this._carScrollIdx % cars.length;
     const car = cars[idx];
     return html`
       <div class="carstack">
         <div class="node-car scroll">
-          <div class="carinfos">${carRow(car)}</div>
+          <div class="carinfos caranim" data-k=${idx}>${carRow(car)}</div>
           <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
             <ha-icon icon="mdi:car-electric"></ha-icon>
           </div>
@@ -301,8 +301,139 @@ class EnergyFlowPriceCard extends LitElement {
     }, secs * 1000);
   }
 
+  updated() {
+    // Restart the fade+slide animation whenever the shown car changes.
+    const el = this.renderRoot?.querySelector?.(".caranim");
+    if (el && el.dataset.k !== this._lastCarK) {
+      this._lastCarK = el.dataset.k;
+      el.classList.remove("run");
+      // force reflow to restart the CSS animation
+      void el.offsetWidth;
+      el.classList.add("run");
+    }
+  }
+
   _renderPrice() {
     const c = this._config;
+    const mode = this._chartMode || "price";
+    const tabs = [
+      { id: "price", label: "Prijs", show: !!c.price_entity },
+      { id: "solar", label: "Solar", show: !!c.solar_power },
+      { id: "accu", label: "Accu", show: !!c.battery_soc },
+    ].filter((t) => t.show);
+    // if selected tab is unavailable, fall back to first
+    const activeMode = tabs.some((t) => t.id === mode) ? mode : (tabs[0]?.id || "price");
+
+    const tabBar = tabs.length > 1 ? html`
+      <div class="tabs">
+        ${tabs.map((t) => html`
+          <button class="tab ${t.id === activeMode ? "on" : ""}" @click=${() => this._setChartMode(t.id)}>${t.label}</button>`)}
+      </div>` : nothing;
+
+    let body;
+    if (activeMode === "price") body = this._priceChart(c);
+    else body = this._historyChart(c, activeMode);
+
+    return html`<div class="price">${tabBar}${body}</div>`;
+  }
+
+  _setChartMode(m) {
+    this._chartMode = m;
+    if (m !== "price") this._ensureHistory(m);
+    this.requestUpdate();
+  }
+
+  // Fetch today's history for solar/accu once, cache it.
+  async _ensureHistory(mode) {
+    const c = this._config;
+    const entity = mode === "solar" ? c.solar_power : c.battery_soc;
+    if (!entity || !this.hass) return;
+    this._history = this._history || {};
+    const cacheKey = mode + "|" + entity;
+    // refresh at most every 5 min
+    const cached = this._history[cacheKey];
+    if (cached && Date.now() - cached.fetched < 300000) return;
+
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    try {
+      const url = `history/period/${start.toISOString()}?filter_entity_id=${entity}&minimal_response`;
+      const res = await this.hass.callApi("GET", url);
+      const arr = Array.isArray(res) && res[0] ? res[0] : [];
+      const points = arr.map((s) => ({
+        t: new Date(s.last_changed || s.last_updated).getTime(),
+        v: parseFloat(s.state),
+      })).filter((p) => !isNaN(p.v));
+      this._history[cacheKey] = { fetched: Date.now(), points };
+      this.requestUpdate();
+    } catch (e) {
+      this._history[cacheKey] = { fetched: Date.now(), points: [], error: true };
+      this.requestUpdate();
+    }
+  }
+
+  _historyChart(c, mode) {
+    const entity = mode === "solar" ? c.solar_power : c.battery_soc;
+    const color = mode === "solar" ? c.color_solar : c.color_battery;
+    const unit = mode === "solar" ? "W" : "%";
+    const title = mode === "solar" ? "Solar vandaag" : "Accu SoC vandaag";
+
+    const cacheKey = mode + "|" + entity;
+    const cached = this._history?.[cacheKey];
+    if (!cached) { this._ensureHistory(mode); }
+    const points = cached?.points || [];
+
+    // build a smooth area/line over today 00:00 -> now
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const startMs = start.getTime();
+    const now = Date.now();
+    const span = Math.max(1, now - startMs);
+
+    let maxV = mode === "accu" ? 100 : Math.max(10, ...points.map((p) => p.v)) * 1.1;
+    const path = points.length
+      ? points.map((p, i) => {
+          const x = Math.max(0, Math.min(1, (p.t - startMs) / span)) * 100;
+          const y = 100 - Math.max(0, Math.min(1, p.v / maxV)) * 100;
+          return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+        }).join(" ")
+      : "";
+    const areaPath = path ? `${path} L100,100 L0,100 Z` : "";
+
+    const labelEvery = 3;
+    const hoursToday = Math.ceil((now - startMs) / 3600000);
+    const labels = [];
+    for (let h = 0; h <= 24; h += labelEvery) {
+      labels.push({ frac: h / 24, text: h + ":00" });
+    }
+    const nowFrac = (now - startMs) / (24 * 3600000);
+
+    const cur = num(this.hass, entity);
+    const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(maxV * f) + (mode === "accu" ? "" : ""));
+
+    return html`
+      <div class="chdr">
+        <span class="t">${title}</span>
+        ${cur !== null ? html`<span class="now">Nu: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : nothing}
+      </div>
+      <div class="chart">
+        <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
+        <div class="plot">
+          ${points.length
+            ? html`<svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path d="${areaPath}" fill="${color}22"></path>
+                <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+              </svg>`
+            : html`<div class="empty">${cached?.error ? "Geen historie beschikbaar." : "Historie laden…"}</div>`}
+          <div class="nowline" style="left:${Math.min(100, nowFrac * 100)}%"></div>
+        </div>
+        <div class="xaxis">
+          ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+        </div>
+      </div>
+    `;
+  }
+
+  _priceChart(c) {
     const { points: allPoints, current } = this._priceData();
     const now = Date.now();
     const hours = Math.max(8, Math.min(48, c.price_hours || 24));
@@ -349,40 +480,38 @@ class EnergyFlowPriceCard extends LitElement {
     const sel = this._selectedSlot;
 
     return html`
-      <div class="price">
-        <div class="chdr">
-          <span class="t">Stroomprijs (${hours}u)</span>
-          ${sel
-            ? html`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
-            : current !== null
-              ? html`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
-              : nothing}
+      <div class="chdr">
+        <span class="t">Stroomprijs (${hours}u)</span>
+        ${sel
+          ? html`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+          : current !== null
+            ? html`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+            : nothing}
+      </div>
+      <div class="chart">
+        <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
+        <div class="plot">
+          <div class="bars">
+            ${slots.map((s) => {
+              if (s.v === null) return html`<div class="bar empty-slot"></div>`;
+              const h = Math.max(2, (s.v / maxV) * 100);
+              const col = colorForValue(s.v, c.price_stops);
+              const isSel = sel && sel.t === s.t;
+              const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+              return html`<div
+                class="bar ${isSel ? "sel" : ""}"
+                style="height:${h}%;background:${col}"
+                title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+                @mouseenter=${() => this._hoverSlot(s)}
+                @mouseleave=${() => this._hoverSlot(null)}
+                @click=${() => this._tapSlot(s)}
+              ></div>`;
+            })}
+          </div>
+          <div class="nowline" style="left:${nowFrac * 100}%"></div>
         </div>
-        <div class="chart">
-          <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
-          <div class="plot">
-            <div class="bars">
-              ${slots.map((s, i) => {
-                if (s.v === null) return html`<div class="bar empty-slot"></div>`;
-                const h = Math.max(2, (s.v / maxV) * 100);
-                const col = colorForValue(s.v, c.price_stops);
-                const isSel = sel && sel.t === s.t;
-                const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-                return html`<div
-                  class="bar ${isSel ? "sel" : ""}"
-                  style="height:${h}%;background:${col}"
-                  title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
-                  @mouseenter=${() => this._hoverSlot(s)}
-                  @mouseleave=${() => this._hoverSlot(null)}
-                  @click=${() => this._tapSlot(s)}
-                ></div>`;
-              })}
-            </div>
-            <div class="nowline" style="left:${nowFrac * 100}%"></div>
-          </div>
-          <div class="xaxis">
-            ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
-          </div>
+        <div class="xaxis">
+          ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
         </div>
       </div>
     `;
@@ -434,10 +563,12 @@ class EnergyFlowPriceCard extends LitElement {
       .node-car { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; text-align: right; }
       .node-car .txt { align-items: flex-end; }
       .carinfos { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+      .caranim.run { animation: carfade .45s ease; }
+      @keyframes carfade { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
       .cardots { display: flex; gap: 4px; margin-right: 52px; }
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
-      .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+      .huis { position: absolute; left: 50%; top: calc(50% + 6px); transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
@@ -445,6 +576,10 @@ class EnergyFlowPriceCard extends LitElement {
 
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
+      .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+      .tab { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: all .2s; }
+      .tab.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
+      .hist { position: absolute; inset: 0; width: 100%; height: 100%; }
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
       .chart { position: relative; height: 168px; padding-left: 34px; }

@@ -166,7 +166,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
                     class="carname"
                     .label=${"Naam"}
                     .value=${car.name ?? ""}
-                    @input=${(e) => this._carChange(i, "name", e)}
+                    @change=${(e) => this._carChange(i, "name", e)}
                   ></ha-textfield>
                   <button class="mini" @click=${() => this._removeCar(i)} title="Verwijder auto">✕</button>
                 </div>
