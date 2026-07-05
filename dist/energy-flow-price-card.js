@@ -24,15 +24,38 @@ const t=globalThis,i$1=t=>t,s$1=t.trustedTypes,e=s$1?s$1.createPolicy("lit-html"
  * SPDX-License-Identifier: BSD-3-Clause
  */const s=globalThis;class i extends y$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0;}createRenderRoot(){const t=super.createRenderRoot();return this.renderOptions.renderBefore??=t.firstChild,t}update(t){const r=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=D(r,this.renderRoot,this.renderOptions);}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(true);}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(false);}render(){return E}}i._$litElement$=true,i["finalized"]=true,s.litElementHydrateSupport?.({LitElement:i});const o=s.litElementPolyfillSupport;o?.({LitElement:i});(s.litElementVersions??=[]).push("4.2.2");
 
+const DEFAULT_PRICE_STOPS = [
+  { value: 0.0, color: "#3b82f6" },
+  { value: 0.2, color: "#3b82f6" },
+  { value: 0.3, color: "#22c55e" },
+  { value: 0.4, color: "#eab308" },
+  { value: 0.6, color: "#ef4444" },
+];
+
+const DEFAULTS = {
+  show_flow: true,
+  show_price: true,
+  display_zero: false,
+  price_hours: 24,
+  price_unit: "€/kWh",
+  color_solar: "#f5c518",
+  color_battery: "#4caf50",
+  color_grid: "#ff6b5e",
+  color_car: "#a78bfa",
+  color_home: "#7dd3fc",
+  include_car_in_home: false,
+  price_stops: DEFAULT_PRICE_STOPS,
+};
+
 const ENTITY_FIELDS = [
   { key: "solar_power", label: "Solar vermogen (W)" },
-  { key: "home_power", label: "Huis verbruik (W)" },
-  { key: "grid_power", label: "Net vermogen (W, - = export)" },
-  { key: "battery_power", label: "Accu vermogen (W, + = laden)" },
+  { key: "grid_power", label: "Net / P1 vermogen (W, + = import, − = export)" },
+  { key: "battery_charge_power", label: "Accu laden (W)" },
+  { key: "battery_discharge_power", label: "Accu ontladen (W)" },
   { key: "battery_soc", label: "Accu SOC (%)" },
-  { key: "car_power", label: "Laadpaal vermogen (W)" },
-  { key: "car_soc", label: "Auto SOC (%)" },
-  { key: "price_entity", label: "Frank Energie prijs-sensor" },
+  { key: "car_power", label: "Laadpaal vermogen (W) — optioneel" },
+  { key: "car_soc", label: "Auto SOC (%) — optioneel" },
+  { key: "price_entity", label: "Prijs energieleverancier (€/kWh)" },
 ];
 
 const COLOR_FIELDS = [
@@ -41,14 +64,6 @@ const COLOR_FIELDS = [
   { key: "color_grid", label: "Kleur net" },
   { key: "color_car", label: "Kleur auto" },
   { key: "color_home", label: "Kleur huis" },
-  { key: "price_low_color", label: "Prijs: goedkoop" },
-  { key: "price_mid_color", label: "Prijs: gemiddeld" },
-  { key: "price_high_color", label: "Prijs: duur" },
-];
-
-const NUM_FIELDS = [
-  { key: "price_low_max", label: "Drempel goedkoop < (€/kWh)" },
-  { key: "price_mid_max", label: "Drempel gemiddeld < (€/kWh)" },
 ];
 
 class EnergyFlowPriceCardEditor extends i {
@@ -60,8 +75,8 @@ class EnergyFlowPriceCardEditor extends i {
     this._config = { ...config };
   }
 
-  _val(key) {
-    return this._config?.[key] ?? "";
+  _get(key, fallback) {
+    return this._config?.[key] ?? fallback ?? "";
   }
 
   _emit(next) {
@@ -71,9 +86,7 @@ class EnergyFlowPriceCardEditor extends i {
     );
   }
 
-  _toggle(key, ev) {
-    this._emit({ ...this._config, [key]: ev.target.checked });
-  }
+  _toggle(key, ev) { this._emit({ ...this._config, [key]: ev.target.checked }); }
 
   _pickEntity(key, ev) {
     const v = ev.detail?.value ?? ev.target.value;
@@ -82,24 +95,52 @@ class EnergyFlowPriceCardEditor extends i {
     this._emit(next);
   }
 
-  _text(key, ev) {
-    const v = ev.target.value;
+  _color(key, ev) {
+    this._emit({ ...this._config, [key]: ev.target.value });
+  }
+
+  _hours(ev) {
+    this._emit({ ...this._config, price_hours: parseInt(ev.target.value, 10) });
+  }
+
+  _resetColors() {
     const next = { ...this._config };
-    if (v === "") delete next[key]; else next[key] = v;
+    ["color_solar", "color_battery", "color_grid", "color_car", "color_home"].forEach((k) => { next[k] = DEFAULTS[k]; });
+    next.price_stops = DEFAULT_PRICE_STOPS.map((s) => ({ ...s }));
     this._emit(next);
   }
 
-  _numChange(key, ev) {
-    const v = parseFloat(ev.target.value);
-    const next = { ...this._config };
-    if (isNaN(v)) delete next[key]; else next[key] = v;
-    this._emit(next);
+  _stops() {
+    const s = this._config?.price_stops;
+    return Array.isArray(s) && s.length ? s : DEFAULT_PRICE_STOPS;
+  }
+
+  _stopChange(i, field, ev) {
+    const stops = this._stops().map((s) => ({ ...s }));
+    stops[i][field] = field === "value" ? parseFloat(ev.target.value) : ev.target.value;
+    this._emit({ ...this._config, price_stops: stops });
+  }
+
+  _addStop() {
+    const stops = this._stops().map((s) => ({ ...s }));
+    const last = stops[stops.length - 1];
+    stops.push({ value: +(last.value + 0.1).toFixed(2), color: last.color });
+    this._emit({ ...this._config, price_stops: stops });
+  }
+
+  _removeStop(i) {
+    const stops = this._stops().map((s) => ({ ...s }));
+    if (stops.length <= 2) return;
+    stops.splice(i, 1);
+    this._emit({ ...this._config, price_stops: stops });
   }
 
   render() {
     if (!this.hass || !this._config) return A;
     const showFlow = this._config.show_flow !== false;
     const showPrice = this._config.show_price !== false;
+    const displayZero = this._config.display_zero === true;
+    const hours = this._config.price_hours ?? 24;
 
     return b`
       <div class="root">
@@ -111,50 +152,66 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label="Prijzen tonen">
             <ha-switch .checked=${showPrice} @change=${(e) => this._toggle("show_price", e)}></ha-switch>
           </ha-formfield>
+          <ha-formfield label="Lege takken tonen (display zero)">
+            <ha-switch .checked=${displayZero} @change=${(e) => this._toggle("display_zero", e)}></ha-switch>
+          </ha-formfield>
         </div>
 
         <div class="section">
           <div class="head">Entiteiten</div>
+          <div class="note">Huisverbruik wordt automatisch berekend: solar + net + accu-ontladen − accu-laden.</div>
           ${ENTITY_FIELDS.map(
             (f) => b`
               <ha-entity-picker
                 .hass=${this.hass}
-                .value=${this._val(f.key)}
+                .value=${this._get(f.key)}
                 .label=${f.label}
                 allow-custom-entity
                 @value-changed=${(e) => this._pickEntity(f.key, e)}
-              ></ha-entity-picker>
-            `
+              ></ha-entity-picker>`
           )}
         </div>
 
         <div class="section">
-          <div class="head">Kleuren</div>
+          <div class="head">Prijsvenster</div>
+          <div class="slider-row">
+            <span>Uren tonen: <b>${hours}u</b></span>
+            <input type="range" min="8" max="48" step="1" .value=${hours} @input=${(e) => this._hours(e)} />
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="head">
+            Kleuren
+            <button class="reset" @click=${() => this._resetColors()}>Standaardkleuren herstellen</button>
+          </div>
           <div class="grid">
             ${COLOR_FIELDS.map(
               (f) => b`
                 <label class="color">
                   <span>${f.label}</span>
-                  <input type="color" .value=${this._val(f.key) || "#888888"}
-                    @input=${(e) => this._text(f.key, e)} />
-                </label>
-              `
+                  <input type="color" .value=${this._get(f.key, DEFAULTS[f.key])}
+                    @input=${(e) => this._color(f.key, e)} />
+                </label>`
             )}
           </div>
         </div>
 
         <div class="section">
-          <div class="head">Prijsdrempels</div>
-          ${NUM_FIELDS.map(
-            (f) => b`
-              <ha-textfield
-                type="number" step="0.01"
-                .label=${f.label}
-                .value=${this._val(f.key)}
-                @input=${(e) => this._numChange(f.key, e)}
-              ></ha-textfield>
-            `
+          <div class="head">Prijs-kleurschaal (€/kWh → kleur)</div>
+          <div class="note">Kleuren lopen vloeiend over tussen de punten. Voeg punten toe voor een fijnere overgang.</div>
+          ${this._stops().map(
+            (s, i) => b`
+              <div class="stop-row">
+                <input type="number" step="0.01" .value=${s.value}
+                  @input=${(e) => this._stopChange(i, "value", e)} />
+                <span class="unit">€/kWh</span>
+                <input type="color" .value=${s.color}
+                  @input=${(e) => this._stopChange(i, "color", e)} />
+                <button class="mini" @click=${() => this._removeStop(i)} title="Verwijder">✕</button>
+              </div>`
           )}
+          <button class="add" @click=${() => this._addStop()}>+ Punt toevoegen</button>
         </div>
       </div>
     `;
@@ -164,32 +221,27 @@ class EnergyFlowPriceCardEditor extends i {
     return i$3`
       .root { display: flex; flex-direction: column; gap: 18px; padding: 4px; }
       .section { display: flex; flex-direction: column; gap: 8px; }
-      .head { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: var(--primary-text-color); }
-      ha-entity-picker, ha-textfield { display: block; width: 100%; }
+      .head { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: var(--primary-text-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .note { font-size: 11.5px; color: var(--secondary-text-color); line-height: 1.4; }
+      ha-entity-picker { display: block; width: 100%; }
       .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
       .color { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
       .color input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
+      .slider-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+      .slider-row input[type="range"] { width: 100%; }
+      .stop-row { display: flex; align-items: center; gap: 8px; }
+      .stop-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+      .stop-row input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
+      .stop-row .unit { font-size: 12px; color: var(--secondary-text-color); }
+      .reset, .add, .mini { cursor: pointer; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 8px; padding: 5px 10px; font-size: 12px; }
+      .reset { font-weight: 500; }
+      .mini { border-color: var(--error-color, #ef4444); color: var(--error-color, #ef4444); padding: 2px 8px; }
+      .add { align-self: flex-start; }
     `;
   }
 }
 
 customElements.define("energy-flow-price-card-editor", EnergyFlowPriceCardEditor);
-
-const DEFAULTS = {
-  show_flow: true,
-  show_price: true,
-  price_unit: "€/kWh",
-  color_solar: "#f5c518",
-  color_battery: "#4caf50",
-  color_grid: "#ff6b5e",
-  color_car: "#a78bfa",
-  color_home: "#7dd3fc",
-  price_low_color: "#4caf50",
-  price_mid_color: "#f5c518",
-  price_high_color: "#ff6b5e",
-  price_low_max: 0.14,
-  price_mid_max: 0.26,
-};
 
 function num(hass, entity) {
   if (!entity || !hass || !hass.states[entity]) return null;
@@ -197,12 +249,37 @@ function num(hass, entity) {
   return isNaN(v) ? null : v;
 }
 
-// Format watts nicely: >=1000 -> kW
 function fmtPower(w) {
   if (w === null) return "–";
   const a = Math.abs(w);
   if (a >= 1000) return (w / 1000).toFixed(2).replace(".", ",") + " kW";
   return Math.round(w) + " W";
+}
+
+function hex2rgb(h) {
+  const m = h.replace("#", "");
+  const n = m.length === 3 ? m.split("").map((c) => c + c).join("") : m;
+  return [parseInt(n.slice(0, 2), 16), parseInt(n.slice(2, 4), 16), parseInt(n.slice(4, 6), 16)];
+}
+function rgb2hex(r, g, b) {
+  const c = (x) => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, "0");
+  return "#" + c(r) + c(g) + c(b);
+}
+// Interpolate a color from sorted stops for a given price value.
+function colorForValue(value, stops) {
+  if (!stops || !stops.length) return "#888";
+  const s = [...stops].sort((a, b) => a.value - b.value);
+  if (value <= s[0].value) return s[0].color;
+  if (value >= s[s.length - 1].value) return s[s.length - 1].color;
+  for (let i = 0; i < s.length - 1; i++) {
+    const a = s[i], b = s[i + 1];
+    if (value >= a.value && value <= b.value) {
+      const t = (value - a.value) / (b.value - a.value || 1);
+      const ca = hex2rgb(a.color), cb = hex2rgb(b.color);
+      return rgb2hex(ca[0] + (cb[0] - ca[0]) * t, ca[1] + (cb[1] - ca[1]) * t, ca[2] + (cb[2] - ca[2]) * t);
+    }
+  }
+  return s[s.length - 1].color;
 }
 
 class EnergyFlowPriceCard extends i {
@@ -219,9 +296,9 @@ class EnergyFlowPriceCard extends i {
       show_flow: true,
       show_price: true,
       solar_power: "",
-      home_power: "",
       grid_power: "",
-      battery_power: "",
+      battery_charge_power: "",
+      battery_discharge_power: "",
       battery_soc: "",
       car_power: "",
       car_soc: "",
@@ -232,45 +309,52 @@ class EnergyFlowPriceCard extends i {
   setConfig(config) {
     if (!config) throw new Error("Invalid configuration");
     this._config = { ...DEFAULTS, ...config };
+    if (!Array.isArray(this._config.price_stops) || !this._config.price_stops.length) {
+      this._config.price_stops = DEFAULT_PRICE_STOPS;
+    }
   }
 
   getCardSize() {
     return (this._config.show_flow ? 3 : 0) + (this._config.show_price ? 3 : 0) || 1;
   }
 
-  // ---- price data: try attribute arrays, fall back to current price ----
+  // Home = solar + grid(+/-) + discharge - charge  (+ car if included)
+  _homePower(v) {
+    if (v.solar === null && v.grid === null && v.charge === null && v.discharge === null) return null;
+    let h = 0;
+    if (v.solar !== null) h += v.solar;
+    if (v.grid !== null) h += v.grid;
+    if (v.discharge !== null) h += v.discharge;
+    if (v.charge !== null) h -= v.charge;
+    if (this._config.include_car_in_home && v.car !== null) h -= v.car;
+    return h;
+  }
+
   _priceData() {
     const cfg = this._config;
     const ent = this.hass?.states?.[cfg.price_entity];
     if (!ent) return { points: [], current: null };
     const attrs = ent.attributes || {};
-    // Frank Energie commonly exposes arrays like prices / prices_today under various keys.
     const candidates = [
-      attrs.prices, attrs.prices_today, attrs.today, attrs.raw_today, attrs.data,
+      attrs.prices, attrs.prices_today, attrs.today, attrs.raw_today,
+      attrs.data, attrs.forecast, attrs.raw_tomorrow, attrs.prices_tomorrow,
     ].filter(Boolean);
-    let arr = candidates.find((a) => Array.isArray(a) && a.length);
-    let points = [];
-    if (arr) {
-      points = arr
-        .map((p) => {
-          const from = p.from ?? p.start ?? p.time ?? p.datetime ?? p.date;
-          const price = p.price ?? p.value ?? p.total ?? p.marketPrice ?? p.market_price;
-          const t = from ? new Date(from).getTime() : null;
-          const v = typeof price === "number" ? price : parseFloat(price);
-          return t && !isNaN(v) ? { t, v } : null;
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.t - b.t);
+    // Merge today + tomorrow style arrays if both exist
+    let merged = [];
+    const seen = new Set();
+    for (const arr of candidates) {
+      if (!Array.isArray(arr)) continue;
+      for (const p of arr) {
+        const from = p.from ?? p.start ?? p.time ?? p.datetime ?? p.date;
+        const price = p.price ?? p.value ?? p.total ?? p.marketPrice ?? p.market_price ?? p.electricity;
+        const t = from ? new Date(from).getTime() : null;
+        const val = typeof price === "number" ? price : parseFloat(price);
+        if (t && !isNaN(val) && !seen.has(t)) { seen.add(t); merged.push({ t, v: val }); }
+      }
     }
+    merged.sort((a, b) => a.t - b.t);
     const current = num(this.hass, cfg.price_entity);
-    return { points, current };
-  }
-
-  _priceColor(v) {
-    const cfg = this._config;
-    if (v < cfg.price_low_max) return cfg.price_low_color;
-    if (v < cfg.price_mid_max) return cfg.price_mid_color;
-    return cfg.price_high_color;
+    return { points: merged, current };
   }
 
   render() {
@@ -285,78 +369,100 @@ class EnergyFlowPriceCard extends i {
     `;
   }
 
-  // -------------------- FLOW --------------------
   _renderFlow() {
     const c = this._config;
-    const solar = num(this.hass, c.solar_power);
-    const home = num(this.hass, c.home_power);
-    const grid = num(this.hass, c.grid_power);
-    const batt = num(this.hass, c.battery_power);
-    const soc = num(this.hass, c.battery_soc);
-    const carP = num(this.hass, c.car_power);
-    const carSoc = num(this.hass, c.car_soc);
-
-    // Active line if there's meaningful power (>5 W)
-    const act = (v) => v !== null && Math.abs(v) > 5;
-    const carActive = act(carP);
-
-    // battery: convention positive = charging. Adjust sub label.
-    const battLabel = batt === null ? "" : batt > 0 ? "laden" : "ontladen";
-    const gridLabel = grid === null ? "" : grid < 0 ? "export" : "import";
-
-    const socDash = (val, r) => {
-      const circ = 2 * Math.PI * r;
-      const pct = val === null ? 0 : Math.max(0, Math.min(100, val)) / 100;
-      return { circ, offset: circ * (1 - pct) };
+    const v = {
+      solar: num(this.hass, c.solar_power),
+      grid: num(this.hass, c.grid_power),
+      charge: num(this.hass, c.battery_charge_power),
+      discharge: num(this.hass, c.battery_discharge_power),
+      soc: num(this.hass, c.battery_soc),
+      car: num(this.hass, c.car_power),
+      carSoc: num(this.hass, c.car_soc),
     };
-    const bs = socDash(soc, 23);
+    const home = this._homePower(v);
+
+    // net battery for label/value: charging positive, discharging shown as its own
+    const battNet = (v.charge || 0) - (v.discharge || 0);
+    const battValue = Math.abs(battNet) > 0 ? Math.abs(battNet) : (v.charge ?? v.discharge);
+    const battLabel = v.charge && v.charge > 5 ? "laden" : v.discharge && v.discharge > 5 ? "ontladen" : "";
+    v.charge && v.charge > 5; // charging = good/green
+
+    const gridLabel = v.grid === null ? "" : v.grid < 0 ? "export" : "import";
+
+    const showZero = c.display_zero;
+    const act = (val) => val !== null && Math.abs(val) > 5;
+    const showNode = (val, hasEntity) => showZero ? hasEntity : act(val);
+
+    const solarOn = showNode(v.solar, !!c.solar_power);
+    const gridOn = showNode(v.grid, !!c.grid_power);
+    const battHasEnt = !!(c.battery_charge_power || c.battery_discharge_power);
+    const battOn = showZero ? battHasEnt : (act(v.charge) || act(v.discharge));
+    const carHasEnt = !!c.car_power;
+    const carOn = showZero ? carHasEnt : act(v.car);
+
+    const solarActive = act(v.solar);
+    const gridActive = act(v.grid);
+    const battActive = act(v.charge) || act(v.discharge);
+    const carActive = act(v.car);
+
+    const bs = (() => {
+      const r = 23, circ = 2 * Math.PI * r;
+      const pct = v.soc === null ? 0 : Math.max(0, Math.min(100, v.soc)) / 100;
+      return { circ, offset: circ * (1 - pct) };
+    })();
+
+    const battFlowColor = battActive ? c.color_battery : c.color_battery;
 
     return b`
       <div class="flow">
         <svg class="wires" viewBox="0 0 720 180" preserveAspectRatio="none">
           <path class="wire" d="M70,55 Q220,90 330,90"></path>
-          ${act(solar) ? w`<path class="live" style="stroke:${c.color_solar}" d="M70,55 Q220,90 330,90"></path>` : A}
+          ${solarActive ? w`<path class="live" style="stroke:${c.color_solar}" d="M70,55 Q220,90 330,90"></path>` : A}
           <path class="wire" d="M650,55 Q500,90 390,90"></path>
-          ${act(grid) ? w`<path class="live" style="stroke:${c.color_grid}" d="M390,90 Q500,90 650,55"></path>` : A}
+          ${gridActive ? w`<path class="live" style="stroke:${c.color_grid}" d="M390,90 Q500,90 650,55"></path>` : A}
           <path class="wire" d="M70,125 Q220,90 330,90"></path>
-          ${act(batt) ? w`<path class="live" style="stroke:${c.color_battery}" d="M330,90 Q220,90 70,125"></path>` : A}
-          ${carActive ? w`<path class="wire" d="M650,125 Q500,90 390,90"></path>` : A}
+          ${battActive ? w`<path class="live" style="stroke:${battFlowColor}" d="${v.charge && v.charge > 5 ? "M330,90 Q220,90 70,125" : "M70,125 Q220,90 330,90"}"></path>` : A}
+          ${carOn ? w`<path class="wire" d="M650,125 Q500,90 390,90"></path>` : A}
           ${carActive ? w`<path class="live" style="stroke:${c.color_car}" d="M390,90 Q500,90 650,125"></path>` : A}
         </svg>
 
+        ${solarOn ? b`
         <div class="node tl">
           <div class="ic" style="color:${c.color_solar};border-color:${c.color_solar}66;background:${c.color_solar}22">
             <ha-icon icon="mdi:solar-power-variant"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Solar</span><span class="val" style="color:${c.color_solar}">${fmtPower(solar)}</span></div>
-        </div>
+          <div class="txt"><span class="lbl">Solar</span><span class="val" style="color:${c.color_solar}">${fmtPower(v.solar)}</span></div>
+        </div>` : A}
 
+        ${gridOn ? b`
         <div class="node tr">
           <div class="ic" style="color:${c.color_grid};border-color:${c.color_grid}66;background:${c.color_grid}22">
             <ha-icon icon="mdi:transmission-tower"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Net</span><span class="val" style="color:${c.color_grid}">${fmtPower(grid)}</span>${gridLabel ? b`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : A}</div>
-        </div>
+          <div class="txt"><span class="lbl">Net</span><span class="val" style="color:${c.color_grid}">${fmtPower(v.grid)}</span>${gridLabel ? b`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : A}</div>
+        </div>` : A}
 
+        ${battOn ? b`
         <div class="node bl">
           <div class="socwrap">
             <svg class="socring" viewBox="0 0 52 52">
               <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
-              ${soc !== null ? w`<circle cx="26" cy="26" r="23" fill="none" stroke="${c.color_battery}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : A}
+              ${v.soc !== null ? w`<circle cx="26" cy="26" r="23" fill="none" stroke="${c.color_battery}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : A}
             </svg>
             <div class="ic" style="color:${c.color_battery};border-color:${c.color_battery}66;background:${c.color_battery}22">
               <ha-icon icon="mdi:battery-charging"></ha-icon>
             </div>
           </div>
-          <div class="txt"><span class="lbl">Accu${soc !== null ? b` · <b style="color:${c.color_battery}">${Math.round(soc)}%</b>` : A}</span><span class="val" style="color:${c.color_battery}">${fmtPower(batt)}</span>${battLabel ? b`<span class="sub" style="color:${c.color_battery}">${battLabel}</span>` : A}</div>
-        </div>
+          <div class="txt"><span class="lbl">Accu${v.soc !== null ? b` · <b style="color:${c.color_battery}">${Math.round(v.soc)}%</b>` : A}</span><span class="val" style="color:${c.color_battery}">${fmtPower(battValue)}</span>${battLabel ? b`<span class="sub" style="color:${c.color_battery}">${battLabel}</span>` : A}</div>
+        </div>` : A}
 
-        ${carActive ? b`
+        ${carOn ? b`
           <div class="node br">
             <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
               <ha-icon icon="mdi:car-electric"></ha-icon>
             </div>
-            <div class="txt"><span class="lbl">Auto${carSoc !== null ? b` · <b style="color:${c.color_car}">${Math.round(carSoc)}%</b>` : A}</span><span class="val" style="color:${c.color_car}">${fmtPower(carP)}</span><span class="sub" style="color:${c.color_car}">laden</span></div>
+            <div class="txt"><span class="lbl">Auto${v.carSoc !== null ? b` · <b style="color:${c.color_car}">${Math.round(v.carSoc)}%</b>` : A}</span><span class="val" style="color:${c.color_car}">${fmtPower(v.car)}</span>${act(v.car) ? b`<span class="sub" style="color:${c.color_car}">laden</span>` : A}</div>
           </div>` : A}
 
         <div class="huis">
@@ -370,30 +476,38 @@ class EnergyFlowPriceCard extends i {
     `;
   }
 
-  // -------------------- PRICE --------------------
   _renderPrice() {
     const c = this._config;
-    const { points, current } = this._priceData();
+    const { points: allPoints, current } = this._priceData();
     const now = Date.now();
+    const hours = Math.max(8, Math.min(48, c.price_hours || 24));
 
-    let bars = A;
-    let nowLeft = null;
-    let maxV = 0.4;
+    // window: from current slot, show `hours` ahead
+    let points = allPoints;
+    let nowIdx = -1;
+    if (allPoints.length) {
+      nowIdx = allPoints.findIndex((p, i) => {
+        const next = allPoints[i + 1];
+        return p.t <= now && (!next || next.t > now);
+      });
+      if (nowIdx < 0) nowIdx = allPoints.filter((p) => p.t <= now).length - 1;
+      // infer slot length (min) from spacing
+      const stepMs = allPoints.length > 1 ? (allPoints[1].t - allPoints[0].t) : 3600000;
+      const slots = Math.round((hours * 3600000) / stepMs);
+      const start = Math.max(0, nowIdx);
+      points = allPoints.slice(start, start + slots);
+      nowIdx = 0; // now is first bar of the window
+    }
+
+    let maxV = 0.4, bars = A, nowLeft = null;
     if (points.length) {
       maxV = Math.max(...points.map((p) => p.v), 0.1) * 1.1;
       const total = points.length;
-      let nowIdx = points.findIndex((p, i) => {
-        const next = points[i + 1];
-        return p.t <= now && (!next || next.t > now);
-      });
-      if (nowIdx < 0) nowIdx = points.filter((p) => p.t <= now).length - 1;
-      nowLeft = nowIdx >= 0 ? (nowIdx + 0.5) / total : null;
-
+      nowLeft = (nowIdx + 0.5) / total;
       bars = points.map((p, i) => {
         const h = Math.max(2, (p.v / maxV) * 100);
-        let col = this._priceColor(p.v);
-        if (i > nowIdx) col += "66"; // future dimmed
-        const title = new Date(p.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + p.v.toFixed(2).replace(".", ",");
+        let col = colorForValue(p.v, c.price_stops);
+        const title = new Date(p.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + p.v.toFixed(3).replace(".", ",");
         return b`<div class="bar" style="height:${h}%;background:${col}" title="${title}"></div>`;
       });
     }
@@ -403,18 +517,13 @@ class EnergyFlowPriceCard extends i {
     return b`
       <div class="price">
         <div class="chdr">
-          <span class="t">Stroomprijs per kwartier</span>
-          ${current !== null ? b`<span class="now">Nu: <b>${(current).toFixed(2).replace(".", ",")}</b></span>` : A}
+          <span class="t">Stroomprijs (${hours}u)</span>
+          ${current !== null ? b`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>` : A}
         </div>
         <div class="chart">
           <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
           <div class="bars">${points.length ? bars : b`<div class="empty">Geen prijsdata gevonden in dit entiteit-attribuut.</div>`}</div>
           ${nowLeft !== null ? b`<div class="nowline" style="left:calc(34px + ${nowLeft} * (100% - 34px))"></div>` : A}
-        </div>
-        <div class="legend">
-          <span><span class="dot" style="background:${c.price_low_color}"></span>goedkoop</span>
-          <span><span class="dot" style="background:${c.price_mid_color}"></span>gemiddeld</span>
-          <span><span class="dot" style="background:${c.price_high_color}"></span>duur</span>
         </div>
       </div>
     `;
@@ -424,60 +533,42 @@ class EnergyFlowPriceCard extends i {
     return i$3`
       ha-card { padding: 12px; }
       .stack { display: flex; flex-direction: column; gap: 12px; }
-
-      /* FLOW */
       .flow { position: relative; height: 180px; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-dasharray: 5 9; animation: flow 1s linear infinite; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
-
       .node { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
       .node.tl { left: 6px; top: 10px; }
       .node.tr { right: 6px; top: 10px; flex-direction: row-reverse; text-align: right; }
       .node.bl { left: 6px; bottom: 10px; }
       .node.br { right: 6px; bottom: 10px; flex-direction: row-reverse; text-align: right; }
-      .node .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto;
-        display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
+      .node .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
       .node .ic ha-icon { --mdc-icon-size: 24px; }
       .txt { display: flex; flex-direction: column; gap: 1px; }
       .node.tr .txt, .node.br .txt { align-items: flex-end; }
       .txt .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
       .txt .val { font-size: 15px; font-weight: 700; line-height: 1.1; }
       .txt .sub { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; opacity: .85; }
-
       .socwrap { position: relative; width: 44px; height: 44px; flex: 0 0 auto; }
       .socwrap .ic { position: absolute; inset: 0; }
       .socring { position: absolute; inset: -4px; }
-
-      .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);
-        z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-      .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent;
-        display: flex; align-items: center; justify-content: center; }
+      .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
       .huis .val { font-size: 16px; font-weight: 700; }
-
-      /* PRICE */
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
       .chart { position: relative; height: 150px; padding-left: 34px; }
-      .yaxis { position: absolute; left: 0; top: 0; bottom: 20px; width: 30px;
-        display: flex; flex-direction: column; justify-content: space-between;
-        font-size: 9px; color: var(--secondary-text-color); text-align: right; }
-      .bars { position: absolute; left: 34px; right: 0; top: 0; bottom: 20px;
-        display: flex; align-items: flex-end; gap: 1px; }
+      .yaxis { position: absolute; left: 0; top: 0; bottom: 20px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
+      .bars { position: absolute; left: 34px; right: 0; top: 0; bottom: 20px; display: flex; align-items: flex-end; gap: 1px; }
       .bar { flex: 1; border-radius: 2px 2px 0 0; }
       .empty { color: var(--secondary-text-color); font-size: 11px; align-self: center; margin: auto; }
-      .nowline { position: absolute; top: 0; bottom: 20px; width: 2px;
-        background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
-      .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px;
-        background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
-      .legend { display: flex; gap: 16px; margin-top: 8px; font-size: 10px; color: var(--secondary-text-color); }
-      .legend span { display: flex; align-items: center; gap: 5px; }
-      .dot { width: 9px; height: 9px; border-radius: 2px; }
+      .nowline { position: absolute; top: 0; bottom: 20px; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
+      .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
     `;
   }
 }
@@ -488,7 +579,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",
   name: "Energy Flow & Price Card",
-  description: "Compacte energie-flow (solar/accu/huis/net/auto) plus kwartierprijzen.",
+  description: "Compacte energie-flow (solar/accu/huis/net/auto) plus dynamische prijzen.",
   preview: true,
-  documentationURL: "https://github.com/USERNAME/energy-flow-price-card",
+  documentationURL: "https://github.com/dennisbest85/energy-flow-price-card",
 });
