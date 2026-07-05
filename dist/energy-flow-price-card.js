@@ -573,26 +573,28 @@ class EnergyFlowPriceCard extends i {
       </div>`;
 
     if (mode === "merged" || cars.length === 1) {
-      // one icon on top, info of all cars below
+      // icon in corner, info to the left (mirror of accu)
       return b`
-        <div class="carnode">
-          ${icon}
-          <div class="carinfos">
+        <div class="node br car">
+          <div class="txt carinfos">
             ${cars.map((car) => b`<div class="cartxt">${carInfo(car)}</div>`)}
           </div>
+          ${icon}
         </div>`;
     }
 
-    // scroll mode: icon on top, cycling info below with fade+slide
+    // scroll mode: icon fixed in corner, cycling info to the left
     const idx = this._carScrollIdx % cars.length;
     const car = cars[idx];
     return b`
-      <div class="carnode">
-        ${icon}
-        <div class="cartxt caranim" data-k=${idx}>${carInfo(car)}</div>
-        <div class="cardots">
-          ${cars.map((_, i) => b`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? c.color_car : "rgba(255,255,255,.25)"}"></span>`)}
+      <div class="node br car">
+        <div class="txt">
+          <div class="cartxt caranim" data-k=${idx}>${carInfo(car)}</div>
+          <div class="cardots">
+            ${cars.map((_, i) => b`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? c.color_car : "rgba(255,255,255,.25)"}"></span>`)}
+          </div>
         </div>
+        ${icon}
       </div>`;
   }
 
@@ -864,6 +866,8 @@ class EnergyFlowPriceCard extends i {
       .node.tl { left: 6px; top: 8px; }
       .node.tr { right: 6px; top: 8px; flex-direction: row-reverse; text-align: right; }
       .node.bl { left: 6px; bottom: 8px; }
+      .node.br { right: 6px; bottom: 8px; flex-direction: row-reverse; text-align: right; }
+      .node.br .txt { align-items: flex-end; }
       .node .ic, .node-car .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
       .node .ic ha-icon, .node-car .ic ha-icon { --mdc-icon-size: 24px; }
       .txt { display: flex; flex-direction: column; gap: 1px; }
@@ -876,15 +880,12 @@ class EnergyFlowPriceCard extends i {
       .socwrap .ic.round { border: none; background: none; border-radius: 50%; }
       .socring { position: absolute; inset: 0; }
 
-      /* car node bottom-right: icon on top, info centered below (like huis) */
-      .carnode { position: absolute; right: 14px; bottom: 6px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-      .carnode .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
-      .carnode .ic ha-icon { --mdc-icon-size: 24px; }
-      .cartxt { display: flex; flex-direction: column; gap: 1px; align-items: center; }
-      .carinfos { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+      /* car node bottom-right: mirror of accu (icon in corner, text left) */
+      .cartxt { display: flex; flex-direction: column; gap: 1px; align-items: flex-end; }
+      .carinfos { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
       .caranim.run { animation: carfade .45s ease; }
-      @keyframes carfade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-      .cardots { display: flex; gap: 4px; margin-top: 2px; }
+      @keyframes carfade { from { opacity: 0; transform: translateX(6px); } to { opacity: 1; transform: translateX(0); } }
+      .cardots { display: flex; gap: 4px; margin-top: 3px; justify-content: flex-end; }
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: calc(50% + 6px); transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
@@ -923,7 +924,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.1.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
