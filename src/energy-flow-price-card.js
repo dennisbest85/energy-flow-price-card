@@ -548,7 +548,7 @@ class EnergyFlowPriceCard extends LitElement {
       .node.tl { left: 6px; top: 8px; }
       .node.tr { right: 6px; top: 8px; flex-direction: row-reverse; text-align: right; }
       .node.bl { left: 6px; bottom: 8px; }
-      .node.br { right: 6px; bottom: 8px; flex-direction: row-reverse; text-align: right; }
+      .node.br { right: 6px; bottom: 8px; text-align: right; }
       .node.br .txt { align-items: flex-end; }
       .node .ic, .node-car .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
       .node .ic ha-icon, .node-car .ic ha-icon { --mdc-icon-size: 24px; }
@@ -606,7 +606,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.1.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
