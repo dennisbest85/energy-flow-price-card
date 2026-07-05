@@ -1,0 +1,20 @@
+{
+  "name": "energy-flow-price-card",
+  "version": "1.0.0",
+  "description": "Compact energy flow + quarter-hour price card for Home Assistant (Frank Energie friendly).",
+  "type": "module",
+  "main": "dist/energy-flow-price-card.js",
+  "scripts": {
+    "build": "rollup -c",
+    "watch": "rollup -c --watch"
+  },
+  "keywords": ["home-assistant", "lovelace", "custom-card", "energy", "solar", "frank-energie"],
+  "license": "MIT",
+  "devDependencies": {
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.9.6"
+  },
+  "dependencies": {
+    "lit": "^3.1.0"
+  }
+}
