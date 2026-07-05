@@ -383,7 +383,7 @@ class EnergyFlowPriceCard extends LitElement {
     if (!cached) { this._ensureHistory(mode); }
     const points = cached?.points || [];
 
-    // build a smooth area/line over today 00:00 -> now
+    // build a smooth area/line over today 00:00 -> now (axis ends at NOW)
     const start = new Date(); start.setHours(0, 0, 0, 0);
     const startMs = start.getTime();
     const now = Date.now();
@@ -399,13 +399,17 @@ class EnergyFlowPriceCard extends LitElement {
       : "";
     const areaPath = path ? `${path} L100,100 L0,100 Z` : "";
 
-    const labelEvery = 3;
-    const hoursToday = Math.ceil((now - startMs) / 3600000);
+    // labels only up to the current hour; axis runs 00:00 -> now
+    const nowHour = now / 3600000 - startMs / 3600000; // hours since midnight (fractional)
+    const labelEvery = nowHour <= 8 ? 2 : 3;
     const labels = [];
-    for (let h = 0; h <= 24; h += labelEvery) {
-      labels.push({ frac: h / 24, text: h + ":00" });
+    for (let h = 0; h <= Math.floor(nowHour); h += labelEvery) {
+      labels.push({ frac: (h * 3600000) / span, text: h + ":00" });
     }
-    const nowFrac = (now - startMs) / (24 * 3600000);
+    // always show the current time at the far right
+    const curD = new Date(now);
+    labels.push({ frac: 1, text: curD.getHours() + ":" + String(curD.getMinutes()).padStart(2, "0") });
+    const nowFrac = 1; // now is the right edge
 
     const cur = num(this.hass, entity);
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(maxV * f) + (mode === "accu" ? "" : ""));
@@ -424,10 +428,10 @@ class EnergyFlowPriceCard extends LitElement {
                 <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
               </svg>`
             : html`<div class="empty">${cached?.error ? "Geen historie beschikbaar." : "Historie laden…"}</div>`}
-          <div class="nowline" style="left:${Math.min(100, nowFrac * 100)}%"></div>
+          <div class="nowline right" style="left:${Math.min(100, nowFrac * 100)}%"></div>
         </div>
         <div class="xaxis">
-          ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          ${labels.map((l) => html`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
         </div>
       </div>
     `;
@@ -593,8 +597,10 @@ class EnergyFlowPriceCard extends LitElement {
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
+      .nowline.right::before { left: auto; right: 3px; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
-      .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); }
+      .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
+      .xaxis .tick:last-child { transform: translateX(-100%); }
       .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
     `;
   }
