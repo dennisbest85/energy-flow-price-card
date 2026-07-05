@@ -608,6 +608,8 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
+console.info("%c energy-flow-price-card %c v1.0.7 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",

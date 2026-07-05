@@ -211,12 +211,13 @@ class EnergyFlowPriceCardEditor extends i {
             (car, i) => b`
               <div class="carblock">
                 <div class="carhead">
-                  <ha-textfield
-                    class="carname"
-                    .label=${"Naam"}
+                  <input
+                    type="text"
+                    class="carname-input"
+                    placeholder="Naam"
                     .value=${car.name ?? ""}
                     @change=${(e) => this._carChange(i, "name", e)}
-                  ></ha-textfield>
+                  />
                   <button class="mini" @click=${() => this._removeCar(i)} title="Verwijder auto">✕</button>
                 </div>
                 <ha-entity-picker
@@ -295,8 +296,10 @@ class EnergyFlowPriceCardEditor extends i {
       .section { display: flex; flex-direction: column; gap: 8px; }
       .head { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: var(--primary-text-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       .note { font-size: 11.5px; color: var(--secondary-text-color); line-height: 1.4; }
-      ha-entity-picker, ha-textfield { display: block; width: 100%; }
+      ha-entity-picker { display: block; width: 100%; }
       .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+      .carname-input { flex: 1; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color, #1c1c2e); color: var(--primary-text-color); font-size: 14px; }
+      .carname-input::placeholder { color: var(--secondary-text-color); }
       .color { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
       .color input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
       .slider-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
@@ -305,7 +308,6 @@ class EnergyFlowPriceCardEditor extends i {
       .sel-row select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
       .carblock { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
       .carhead { display: flex; align-items: center; gap: 8px; }
-      .carname { flex: 1; }
       .stop-row { display: flex; align-items: center; gap: 8px; }
       .stop-row input[type="number"] { width: 80px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
       .stop-row input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
@@ -923,6 +925,8 @@ class EnergyFlowPriceCard extends i {
 }
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
+
+console.info("%c energy-flow-price-card %c v1.0.7 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
