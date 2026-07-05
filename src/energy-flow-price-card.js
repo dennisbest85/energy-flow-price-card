@@ -1,7 +1,6 @@
 import { LitElement, html, css, svg, nothing } from "lit";
-import "./energy-flow-price-card-editor.js";
-
 import { DEFAULTS, DEFAULT_PRICE_STOPS } from "./constants.js";
+import "./energy-flow-price-card-editor.js";
 
 function num(hass, entity) {
   if (!entity || !hass || !hass.states[entity]) return null;
@@ -25,7 +24,6 @@ function rgb2hex(r, g, b) {
   const c = (x) => Math.round(Math.max(0, Math.min(255, x))).toString(16).padStart(2, "0");
   return "#" + c(r) + c(g) + c(b);
 }
-// Interpolate a color from sorted stops for a given price value.
 function colorForValue(value, stops) {
   if (!stops || !stops.length) return "#888";
   const s = [...stops].sort((a, b) => a.value - b.value);
@@ -60,8 +58,7 @@ class EnergyFlowPriceCard extends LitElement {
       battery_charge_power: "",
       battery_discharge_power: "",
       battery_soc: "",
-      car_power: "",
-      car_soc: "",
+      cars: [],
       price_entity: "",
     };
   }
@@ -72,13 +69,13 @@ class EnergyFlowPriceCard extends LitElement {
     if (!Array.isArray(this._config.price_stops) || !this._config.price_stops.length) {
       this._config.price_stops = DEFAULT_PRICE_STOPS;
     }
+    if (!Array.isArray(this._config.cars)) this._config.cars = [];
   }
 
   getCardSize() {
     return (this._config.show_flow ? 3 : 0) + (this._config.show_price ? 3 : 0) || 1;
   }
 
-  // Home = solar + grid(+/-) + discharge - charge  (+ car if included)
   _homePower(v) {
     if (v.solar === null && v.grid === null && v.charge === null && v.discharge === null) return null;
     let h = 0;
@@ -86,8 +83,17 @@ class EnergyFlowPriceCard extends LitElement {
     if (v.grid !== null) h += v.grid;
     if (v.discharge !== null) h += v.discharge;
     if (v.charge !== null) h -= v.charge;
-    if (this._config.include_car_in_home && v.car !== null) h -= v.car;
+    if (this._config.include_car_in_home) {
+      for (const car of this._cars()) {
+        const p = num(this.hass, car.power);
+        if (p !== null) h -= p;
+      }
+    }
     return h;
+  }
+
+  _cars() {
+    return Array.isArray(this._config.cars) ? this._config.cars : [];
   }
 
   _priceData() {
@@ -97,9 +103,8 @@ class EnergyFlowPriceCard extends LitElement {
     const attrs = ent.attributes || {};
     const candidates = [
       attrs.prices, attrs.prices_today, attrs.today, attrs.raw_today,
-      attrs.data, attrs.forecast, attrs.raw_tomorrow, attrs.prices_tomorrow,
+      attrs.data, attrs.forecast, attrs.raw_tomorrow, attrs.prices_tomorrow, attrs.tomorrow,
     ].filter(Boolean);
-    // Merge today + tomorrow style arrays if both exist
     let merged = [];
     const seen = new Set();
     for (const arr of candidates) {
@@ -137,34 +142,34 @@ class EnergyFlowPriceCard extends LitElement {
       charge: num(this.hass, c.battery_charge_power),
       discharge: num(this.hass, c.battery_discharge_power),
       soc: num(this.hass, c.battery_soc),
-      car: num(this.hass, c.car_power),
-      carSoc: num(this.hass, c.car_soc),
     };
     const home = this._homePower(v);
 
-    // net battery for label/value: charging positive, discharging shown as its own
-    const battNet = (v.charge || 0) - (v.discharge || 0);
-    const battValue = Math.abs(battNet) > 0 ? Math.abs(battNet) : (v.charge ?? v.discharge);
+    const battValue = (v.charge && v.charge > 5) ? v.charge : (v.discharge && v.discharge > 5) ? v.discharge : (v.charge ?? v.discharge);
     const battLabel = v.charge && v.charge > 5 ? "laden" : v.discharge && v.discharge > 5 ? "ontladen" : "";
-    const battColorPos = v.charge && v.charge > 5; // charging = good/green
 
     const gridLabel = v.grid === null ? "" : v.grid < 0 ? "export" : "import";
 
     const showZero = c.display_zero;
     const act = (val) => val !== null && Math.abs(val) > 5;
-    const showNode = (val, hasEntity) => showZero ? hasEntity : act(val);
-
-    const solarOn = showNode(v.solar, !!c.solar_power);
-    const gridOn = showNode(v.grid, !!c.grid_power);
-    const battHasEnt = !!(c.battery_charge_power || c.battery_discharge_power);
-    const battOn = showZero ? battHasEnt : (act(v.charge) || act(v.discharge));
-    const carHasEnt = !!c.car_power;
-    const carOn = showZero ? carHasEnt : act(v.car);
 
     const solarActive = act(v.solar);
     const gridActive = act(v.grid);
     const battActive = act(v.charge) || act(v.discharge);
-    const carActive = act(v.car);
+
+    const solarOn = showZero ? !!c.solar_power : solarActive;
+    const gridOn = showZero ? !!c.grid_power : gridActive;
+    const battHasEnt = !!(c.battery_charge_power || c.battery_discharge_power);
+    const battOn = showZero ? battHasEnt : battActive;
+
+    // Cars
+    const cars = this._cars().map((car, i) => {
+      const p = num(this.hass, car.power);
+      const soc = num(this.hass, car.soc);
+      return { name: car.name || `Auto ${i + 1}`, power: p, soc, active: act(p), hasEnt: !!car.power };
+    });
+    const anyCarActive = cars.some((c2) => c2.active);
+    const carsShown = cars.filter((c2) => (showZero ? c2.hasEnt : c2.active));
 
     const bs = (() => {
       const r = 23, circ = 2 * Math.PI * r;
@@ -172,19 +177,23 @@ class EnergyFlowPriceCard extends LitElement {
       return { circ, offset: circ * (1 - pct) };
     })();
 
-    const battFlowColor = battActive ? c.color_battery : c.color_battery;
+    // Heart of the house is at (360, 95) in the 720x190 viewBox.
+    const HX = 360, HY = 95;
 
     return html`
       <div class="flow">
-        <svg class="wires" viewBox="0 0 720 180" preserveAspectRatio="none">
-          <path class="wire" d="M70,55 Q220,90 330,90"></path>
-          ${solarActive ? svg`<path class="live" style="stroke:${c.color_solar}" d="M70,55 Q220,90 330,90"></path>` : nothing}
-          <path class="wire" d="M650,55 Q500,90 390,90"></path>
-          ${gridActive ? svg`<path class="live" style="stroke:${c.color_grid}" d="M390,90 Q500,90 650,55"></path>` : nothing}
-          <path class="wire" d="M70,125 Q220,90 330,90"></path>
-          ${battActive ? svg`<path class="live" style="stroke:${battFlowColor}" d="${v.charge && v.charge > 5 ? "M330,90 Q220,90 70,125" : "M70,125 Q220,90 330,90"}"></path>` : nothing}
-          ${carOn ? svg`<path class="wire" d="M650,125 Q500,90 390,90"></path>` : nothing}
-          ${carActive ? svg`<path class="live" style="stroke:${c.color_car}" d="M390,90 Q500,90 650,125"></path>` : nothing}
+        <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
+          <path class="wire" d="M70,52 Q220,${HY} ${HX - 6},${HY}"></path>
+          ${solarActive ? svg`<path class="live" style="stroke:${c.color_solar}" d="M70,52 Q220,${HY} ${HX - 6},${HY}"></path>` : nothing}
+
+          <path class="wire" d="M650,52 Q500,${HY} ${HX + 6},${HY}"></path>
+          ${gridActive ? svg`<path class="live" style="stroke:${c.color_grid}" d="M${HX + 6},${HY} Q500,${HY} 650,52"></path>` : nothing}
+
+          <path class="wire" d="M70,138 Q220,${HY} ${HX - 6},${HY}"></path>
+          ${battActive ? svg`<path class="live" style="stroke:${c.color_battery}" d="${v.charge && v.charge > 5 ? `M${HX - 6},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HX - 6},${HY}`}"></path>` : nothing}
+
+          ${carsShown.length ? svg`<path class="wire" d="M650,138 Q500,${HY} ${HX + 6},${HY}"></path>` : nothing}
+          ${anyCarActive ? svg`<path class="live" style="stroke:${c.color_car}" d="M${HX + 6},${HY} Q500,${HY} 650,138"></path>` : nothing}
         </svg>
 
         ${solarOn ? html`
@@ -217,12 +226,19 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="txt"><span class="lbl">Accu${v.soc !== null ? html` · <b style="color:${c.color_battery}">${Math.round(v.soc)}%</b>` : nothing}</span><span class="val" style="color:${c.color_battery}">${fmtPower(battValue)}</span>${battLabel ? html`<span class="sub" style="color:${c.color_battery}">${battLabel}</span>` : nothing}</div>
         </div>` : nothing}
 
-        ${carOn ? html`
-          <div class="node br">
-            <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
-              <ha-icon icon="mdi:car-electric"></ha-icon>
-            </div>
-            <div class="txt"><span class="lbl">Auto${v.carSoc !== null ? html` · <b style="color:${c.color_car}">${Math.round(v.carSoc)}%</b>` : nothing}</span><span class="val" style="color:${c.color_car}">${fmtPower(v.car)}</span>${act(v.car) ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}</div>
+        ${carsShown.length ? html`
+          <div class="carstack">
+            ${carsShown.map((car) => html`
+              <div class="node-car">
+                <div class="txt">
+                  <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
+                  <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
+                  ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
+                </div>
+                <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+                  <ha-icon icon="mdi:car-electric"></ha-icon>
+                </div>
+              </div>`)}
           </div>` : nothing}
 
         <div class="huis">
@@ -242,34 +258,37 @@ class EnergyFlowPriceCard extends LitElement {
     const now = Date.now();
     const hours = Math.max(8, Math.min(48, c.price_hours || 24));
 
-    // window: from current slot, show `hours` ahead
-    let points = allPoints;
-    let nowIdx = -1;
-    if (allPoints.length) {
-      nowIdx = allPoints.findIndex((p, i) => {
-        const next = allPoints[i + 1];
-        return p.t <= now && (!next || next.t > now);
-      });
-      if (nowIdx < 0) nowIdx = allPoints.filter((p) => p.t <= now).length - 1;
-      // infer slot length (min) from spacing
-      const stepMs = allPoints.length > 1 ? (allPoints[1].t - allPoints[0].t) : 3600000;
-      const slots = Math.round((hours * 3600000) / stepMs);
-      const start = Math.max(0, nowIdx);
-      points = allPoints.slice(start, start + slots);
-      nowIdx = 0; // now is first bar of the window
+    // Fixed axis: from start of current hour to +hours.
+    const axisStart = new Date();
+    axisStart.setMinutes(0, 0, 0);
+    const startMs = axisStart.getTime();
+    const endMs = startMs + hours * 3600000;
+
+    // slot length from data (default hourly)
+    const stepMs = allPoints.length > 1 ? (allPoints[1].t - allPoints[0].t) : 3600000;
+    const slotCount = Math.max(1, Math.round((endMs - startMs) / stepMs));
+
+    // Build fixed slots; fill with data where available
+    const byTime = new Map(allPoints.map((p) => [Math.floor(p.t / stepMs) * stepMs, p.v]));
+    const slots = [];
+    for (let i = 0; i < slotCount; i++) {
+      const t = startMs + i * stepMs;
+      const key = Math.floor(t / stepMs) * stepMs;
+      const v = byTime.has(key) ? byTime.get(key) : null;
+      slots.push({ t, v });
     }
 
-    let maxV = 0.4, bars = nothing, nowLeft = null;
-    if (points.length) {
-      maxV = Math.max(...points.map((p) => p.v), 0.1) * 1.1;
-      const total = points.length;
-      nowLeft = (nowIdx + 0.5) / total;
-      bars = points.map((p, i) => {
-        const h = Math.max(2, (p.v / maxV) * 100);
-        let col = colorForValue(p.v, c.price_stops);
-        const title = new Date(p.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + p.v.toFixed(3).replace(".", ",");
-        return html`<div class="bar" style="height:${h}%;background:${col}" title="${title}"></div>`;
-      });
+    const withData = slots.filter((s) => s.v !== null);
+    const maxV = withData.length ? Math.max(...withData.map((s) => s.v), 0.1) * 1.1 : 0.4;
+
+    const nowFrac = Math.max(0, Math.min(1, (now - startMs) / (endMs - startMs)));
+
+    // Hour labels: choose interval by width (more hours -> sparser labels)
+    const labelEvery = hours <= 12 ? 2 : hours <= 24 ? 3 : 6;
+    const labels = [];
+    for (let h = 0; h <= hours; h += labelEvery) {
+      const d = new Date(startMs + h * 3600000);
+      labels.push({ frac: h / hours, text: String(d.getHours()).padStart(2, "0") });
     }
 
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
@@ -282,8 +301,21 @@ class EnergyFlowPriceCard extends LitElement {
         </div>
         <div class="chart">
           <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
-          <div class="bars">${points.length ? bars : html`<div class="empty">Geen prijsdata gevonden in dit entiteit-attribuut.</div>`}</div>
-          ${nowLeft !== null ? html`<div class="nowline" style="left:calc(34px + ${nowLeft} * (100% - 34px))"></div>` : nothing}
+          <div class="plot">
+            <div class="bars">
+              ${slots.map((s) => {
+                if (s.v === null) return html`<div class="bar empty-slot"></div>`;
+                const h = Math.max(2, (s.v / maxV) * 100);
+                const col = colorForValue(s.v, c.price_stops);
+                const title = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + s.v.toFixed(3).replace(".", ",");
+                return html`<div class="bar" style="height:${h}%;background:${col}" title="${title}"></div>`;
+              })}
+            </div>
+            <div class="nowline" style="left:${nowFrac * 100}%"></div>
+          </div>
+          <div class="xaxis">
+            ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          </div>
         </div>
       </div>
     `;
@@ -293,42 +325,52 @@ class EnergyFlowPriceCard extends LitElement {
     return css`
       ha-card { padding: 12px; }
       .stack { display: flex; flex-direction: column; gap: 12px; }
-      .flow { position: relative; height: 180px; }
+      .flow { position: relative; height: 190px; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-dasharray: 5 9; animation: flow 1s linear infinite; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
       .node { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
-      .node.tl { left: 6px; top: 10px; }
-      .node.tr { right: 6px; top: 10px; flex-direction: row-reverse; text-align: right; }
-      .node.bl { left: 6px; bottom: 10px; }
-      .node.br { right: 6px; bottom: 10px; flex-direction: row-reverse; text-align: right; }
-      .node .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
-      .node .ic ha-icon { --mdc-icon-size: 24px; }
+      .node.tl { left: 6px; top: 8px; }
+      .node.tr { right: 6px; top: 8px; flex-direction: row-reverse; text-align: right; }
+      .node.bl { left: 6px; bottom: 8px; }
+      .node .ic, .node-car .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
+      .node .ic ha-icon, .node-car .ic ha-icon { --mdc-icon-size: 24px; }
       .txt { display: flex; flex-direction: column; gap: 1px; }
-      .node.tr .txt, .node.br .txt { align-items: flex-end; }
+      .node.tr .txt { align-items: flex-end; }
       .txt .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
       .txt .val { font-size: 15px; font-weight: 700; line-height: 1.1; }
       .txt .sub { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; opacity: .85; }
       .socwrap { position: relative; width: 44px; height: 44px; flex: 0 0 auto; }
       .socwrap .ic { position: absolute; inset: 0; }
       .socring { position: absolute; inset: -4px; }
-      .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+
+      /* multiple cars stacked bottom-right */
+      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+      .node-car { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; text-align: right; }
+      .node-car .txt { align-items: flex-end; }
+
+      .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
       .huis .val { font-size: 16px; font-weight: 700; }
+
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
-      .chart { position: relative; height: 150px; padding-left: 34px; }
-      .yaxis { position: absolute; left: 0; top: 0; bottom: 20px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
-      .bars { position: absolute; left: 34px; right: 0; top: 0; bottom: 20px; display: flex; align-items: flex-end; gap: 1px; }
+      .chart { position: relative; height: 168px; padding-left: 34px; }
+      .yaxis { position: absolute; left: 0; top: 0; bottom: 34px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
+      .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
+      .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
       .bar { flex: 1; border-radius: 2px 2px 0 0; }
-      .empty { color: var(--secondary-text-color); font-size: 11px; align-self: center; margin: auto; }
-      .nowline { position: absolute; top: 0; bottom: 20px; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
+      .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
+      .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
+      .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); }
+      .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
     `;
   }
 }
@@ -339,7 +381,7 @@ window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",
   name: "Energy Flow & Price Card",
-  description: "Compacte energie-flow (solar/accu/huis/net/auto) plus dynamische prijzen.",
+  description: "Compacte energie-flow (solar/accu/huis/net/auto's) plus dynamische prijzen.",
   preview: true,
   documentationURL: "https://github.com/dennisbest85/energy-flow-price-card",
 });
