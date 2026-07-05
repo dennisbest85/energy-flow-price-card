@@ -221,7 +221,7 @@ class EnergyFlowPriceCard extends LitElement {
               <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
               ${v.soc !== null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${c.color_battery}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : nothing}
             </svg>
-            <div class="ic" style="color:${c.color_battery};border-color:${c.color_battery}66;background:${c.color_battery}22">
+            <div class="ic round" style="color:${c.color_battery}">
               <ha-icon icon="mdi:battery-charging"></ha-icon>
             </div>
           </div>
@@ -243,39 +243,34 @@ class EnergyFlowPriceCard extends LitElement {
 
   _renderCars(cars, c) {
     const mode = c.car_mode === "merged" ? "merged" : "scroll";
-    const carRow = (car) => html`
-      <div class="node-car">
-        <div class="txt">
-          <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
-          <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
-          ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
-        </div>
+    const carInfo = (car) => html`
+      <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
+      <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
+      ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
+    `;
+    const icon = html`
+      <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+        <ha-icon icon="mdi:car-electric"></ha-icon>
       </div>`;
 
     if (mode === "merged" || cars.length === 1) {
-      // one icon, info of all cars beside it
+      // one icon on top, info of all cars below
       return html`
-        <div class="carstack">
-          <div class="node-car merged">
-            <div class="carinfos">${cars.map((car) => carRow(car))}</div>
-            <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
-              <ha-icon icon="mdi:car-electric"></ha-icon>
-            </div>
+        <div class="carnode">
+          ${icon}
+          <div class="carinfos">
+            ${cars.map((car) => html`<div class="cartxt">${carInfo(car)}</div>`)}
           </div>
         </div>`;
     }
 
-    // scroll mode: cycle one node through the cars with fade+slide
+    // scroll mode: icon on top, cycling info below with fade+slide
     const idx = this._carScrollIdx % cars.length;
     const car = cars[idx];
     return html`
-      <div class="carstack">
-        <div class="node-car scroll">
-          <div class="carinfos caranim" data-k=${idx}>${carRow(car)}</div>
-          <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
-            <ha-icon icon="mdi:car-electric"></ha-icon>
-          </div>
-        </div>
+      <div class="carnode">
+        ${icon}
+        <div class="cartxt caranim" data-k=${idx}>${carInfo(car)}</div>
         <div class="cardots">
           ${cars.map((_, i) => html`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? c.color_car : "rgba(255,255,255,.25)"}"></span>`)}
         </div>
@@ -560,16 +555,18 @@ class EnergyFlowPriceCard extends LitElement {
       .txt .sub { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; opacity: .85; }
       .socwrap { position: relative; width: 44px; height: 44px; flex: 0 0 auto; }
       .socwrap .ic { position: absolute; inset: 0; }
-      .socring { position: absolute; inset: -4px; }
+      .socwrap .ic.round { border: none; background: none; border-radius: 50%; }
+      .socring { position: absolute; inset: 0; }
 
-      /* multiple cars stacked bottom-right */
-      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-      .node-car { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; text-align: right; }
-      .node-car .txt { align-items: flex-end; }
-      .carinfos { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+      /* car node bottom-right: icon on top, info centered below (like huis) */
+      .carnode { position: absolute; right: 14px; bottom: 6px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+      .carnode .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
+      .carnode .ic ha-icon { --mdc-icon-size: 24px; }
+      .cartxt { display: flex; flex-direction: column; gap: 1px; align-items: center; }
+      .carinfos { display: flex; flex-direction: column; gap: 6px; align-items: center; }
       .caranim.run { animation: carfade .45s ease; }
-      @keyframes carfade { from { opacity: 0; transform: translateX(8px); } to { opacity: 1; transform: translateX(0); } }
-      .cardots { display: flex; gap: 4px; margin-right: 52px; }
+      @keyframes carfade { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+      .cardots { display: flex; gap: 4px; margin-top: 2px; }
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: calc(50% + 6px); transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
@@ -608,7 +605,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.0.7 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.1.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
