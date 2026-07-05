@@ -37,6 +37,9 @@ const DEFAULTS = {
   show_price: true,
   display_zero: false,
   price_hours: 24,
+  price_start: "midnight", // "now" | "midnight"
+  car_mode: "scroll",       // "scroll" | "merged"
+  car_scroll_interval: 5,   // seconds
   price_unit: "€/kWh",
   color_solar: "#f5c518",
   color_battery: "#4caf50",
@@ -190,6 +193,19 @@ class EnergyFlowPriceCardEditor extends i {
             <button class="add" @click=${() => this._addCar()}>+ Auto toevoegen</button>
           </div>
           <div class="note">Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).</div>
+          <label class="sel-row">
+            <span>Weergave bij meerdere auto's</span>
+            <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
+              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>Auto-scroll (wisselt vanzelf)</option>
+              <option value="merged" ?selected=${this._config.car_mode === "merged"}>Statisch (1 icoon, beide info)</option>
+            </select>
+          </label>
+          ${(this._config.car_mode ?? "scroll") === "scroll" ? b`
+            <div class="slider-row">
+              <span>Wisselinterval: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
+              <input type="range" min="2" max="15" step="1" .value=${this._config.car_scroll_interval ?? 5}
+                @input=${(e) => this._emit({ ...this._config, car_scroll_interval: parseInt(e.target.value, 10) })} />
+            </div>` : A}
           ${this._cars().length === 0 ? b`<div class="note">Nog geen auto's toegevoegd.</div>` : A}
           ${this._cars().map(
             (car, i) => b`
@@ -227,6 +243,13 @@ class EnergyFlowPriceCardEditor extends i {
             <span>Uren tonen: <b>${hours}u</b></span>
             <input type="range" min="8" max="48" step="1" .value=${hours} @input=${(e) => this._hours(e)} />
           </div>
+          <label class="sel-row">
+            <span>Startpunt grafiek</span>
+            <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
+              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>Vanaf middernacht (dagen)</option>
+              <option value="now" ?selected=${this._config.price_start === "now"}>Vanaf nu</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
@@ -278,6 +301,8 @@ class EnergyFlowPriceCardEditor extends i {
       .color input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
       .slider-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
       .slider-row input[type="range"] { width: 100%; }
+      .sel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+      .sel-row select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
       .carblock { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
       .carhead { display: flex; align-items: center; gap: 8px; }
       .carname { flex: 1; }
@@ -362,6 +387,8 @@ class EnergyFlowPriceCard extends i {
       this._config.price_stops = DEFAULT_PRICE_STOPS;
     }
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
+    if (this._carScrollIdx == null) this._carScrollIdx = 0;
+    this._startCarScroll();
   }
 
   getCardSize() {
@@ -518,20 +545,7 @@ class EnergyFlowPriceCard extends i {
           <div class="txt"><span class="lbl">Accu${v.soc !== null ? b` · <b style="color:${c.color_battery}">${Math.round(v.soc)}%</b>` : A}</span><span class="val" style="color:${c.color_battery}">${fmtPower(battValue)}</span>${battLabel ? b`<span class="sub" style="color:${c.color_battery}">${battLabel}</span>` : A}</div>
         </div>` : A}
 
-        ${carsShown.length ? b`
-          <div class="carstack">
-            ${carsShown.map((car) => b`
-              <div class="node-car">
-                <div class="txt">
-                  <span class="lbl">${car.name}${car.soc !== null ? b` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : A}</span>
-                  <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
-                  ${car.active ? b`<span class="sub" style="color:${c.color_car}">laden</span>` : A}
-                </div>
-                <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
-                  <ha-icon icon="mdi:car-electric"></ha-icon>
-                </div>
-              </div>`)}
-          </div>` : A}
+        ${carsShown.length ? this._renderCars(carsShown, c) : A}
 
         <div class="huis">
           <div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
@@ -544,6 +558,66 @@ class EnergyFlowPriceCard extends i {
     `;
   }
 
+  _renderCars(cars, c) {
+    const mode = c.car_mode === "merged" ? "merged" : "scroll";
+    const carRow = (car) => b`
+      <div class="node-car">
+        <div class="txt">
+          <span class="lbl">${car.name}${car.soc !== null ? b` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : A}</span>
+          <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
+          ${car.active ? b`<span class="sub" style="color:${c.color_car}">laden</span>` : A}
+        </div>
+      </div>`;
+
+    if (mode === "merged" || cars.length === 1) {
+      // one icon, info of all cars beside it
+      return b`
+        <div class="carstack">
+          <div class="node-car merged">
+            <div class="carinfos">${cars.map((car) => carRow(car))}</div>
+            <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+              <ha-icon icon="mdi:car-electric"></ha-icon>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // scroll mode: cycle one node through the cars
+    const idx = this._carScrollIdx % cars.length;
+    const car = cars[idx];
+    return b`
+      <div class="carstack">
+        <div class="node-car scroll">
+          <div class="carinfos">${carRow(car)}</div>
+          <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+            <ha-icon icon="mdi:car-electric"></ha-icon>
+          </div>
+        </div>
+        <div class="cardots">
+          ${cars.map((_, i) => b`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? c.color_car : "rgba(255,255,255,.25)"}"></span>`)}
+        </div>
+      </div>`;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._startCarScroll();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._carTimer) { clearInterval(this._carTimer); this._carTimer = null; }
+  }
+
+  _startCarScroll() {
+    if (this._carTimer) clearInterval(this._carTimer);
+    const secs = Math.max(2, this._config?.car_scroll_interval || 5);
+    this._carTimer = setInterval(() => {
+      this._carScrollIdx = (this._carScrollIdx || 0) + 1;
+      this.requestUpdate();
+    }, secs * 1000);
+  }
+
   _renderPrice() {
     const c = this._config;
     const { points: allPoints, current } = this._priceData();
@@ -552,7 +626,11 @@ class EnergyFlowPriceCard extends i {
 
     // Fixed axis: from start of current hour to +hours.
     const axisStart = new Date();
-    axisStart.setMinutes(0, 0, 0);
+    if (c.price_start === "midnight") {
+      axisStart.setHours(0, 0, 0, 0); // today 00:00
+    } else {
+      axisStart.setMinutes(0, 0, 0);  // start of current hour
+    }
     const startMs = axisStart.getTime();
     const endMs = startMs + hours * 3600000;
 
@@ -580,27 +658,41 @@ class EnergyFlowPriceCard extends i {
     const labels = [];
     for (let h = 0; h <= hours; h += labelEvery) {
       const d = new Date(startMs + h * 3600000);
-      labels.push({ frac: h / hours, text: String(d.getHours()).padStart(2, "0") });
+      labels.push({ frac: h / hours, text: d.getHours() + ":00" });
     }
 
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
+
+    const sel = this._selectedSlot;
 
     return b`
       <div class="price">
         <div class="chdr">
           <span class="t">Stroomprijs (${hours}u)</span>
-          ${current !== null ? b`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>` : A}
+          ${sel
+            ? b`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            : current !== null
+              ? b`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              : A}
         </div>
         <div class="chart">
           <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
           <div class="plot">
             <div class="bars">
-              ${slots.map((s) => {
+              ${slots.map((s, i) => {
                 if (s.v === null) return b`<div class="bar empty-slot"></div>`;
                 const h = Math.max(2, (s.v / maxV) * 100);
                 const col = colorForValue(s.v, c.price_stops);
-                const title = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + s.v.toFixed(3).replace(".", ",");
-                return b`<div class="bar" style="height:${h}%;background:${col}" title="${title}"></div>`;
+                const isSel = sel && sel.t === s.t;
+                const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                return b`<div
+                  class="bar ${isSel ? "sel" : ""}"
+                  style="height:${h}%;background:${col}"
+                  title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+                  @mouseenter=${() => this._hoverSlot(s)}
+                  @mouseleave=${() => this._hoverSlot(null)}
+                  @click=${() => this._tapSlot(s)}
+                ></div>`;
               })}
             </div>
             <div class="nowline" style="left:${nowFrac * 100}%"></div>
@@ -611,6 +703,23 @@ class EnergyFlowPriceCard extends i {
         </div>
       </div>
     `;
+  }
+
+  _hoverSlot(s) {
+    if (this._tapLock) return; // don't override a tapped selection with hover-out
+    this._selectedSlot = s;
+    this.requestUpdate();
+  }
+
+  _tapSlot(s) {
+    if (this._selectedSlot && this._selectedSlot.t === s.t && this._tapLock) {
+      this._selectedSlot = null;
+      this._tapLock = false;
+    } else {
+      this._selectedSlot = s;
+      this._tapLock = true;
+    }
+    this.requestUpdate();
   }
 
   static get styles() {
@@ -638,9 +747,12 @@ class EnergyFlowPriceCard extends i {
       .socring { position: absolute; inset: -4px; }
 
       /* multiple cars stacked bottom-right */
-      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
       .node-car { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; text-align: right; }
       .node-car .txt { align-items: flex-end; }
+      .carinfos { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+      .cardots { display: flex; gap: 4px; margin-right: 52px; }
+      .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
@@ -656,7 +768,10 @@ class EnergyFlowPriceCard extends i {
       .yaxis { position: absolute; left: 0; top: 0; bottom: 34px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
       .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
-      .bar { flex: 1; border-radius: 2px 2px 0 0; }
+      .bar { flex: 1; border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .15s; }
+      .bar:hover { opacity: .8; }
+      .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
+      .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }

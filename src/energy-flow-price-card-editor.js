@@ -144,6 +144,19 @@ class EnergyFlowPriceCardEditor extends LitElement {
             <button class="add" @click=${() => this._addCar()}>+ Auto toevoegen</button>
           </div>
           <div class="note">Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).</div>
+          <label class="sel-row">
+            <span>Weergave bij meerdere auto's</span>
+            <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
+              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>Auto-scroll (wisselt vanzelf)</option>
+              <option value="merged" ?selected=${this._config.car_mode === "merged"}>Statisch (1 icoon, beide info)</option>
+            </select>
+          </label>
+          ${(this._config.car_mode ?? "scroll") === "scroll" ? html`
+            <div class="slider-row">
+              <span>Wisselinterval: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
+              <input type="range" min="2" max="15" step="1" .value=${this._config.car_scroll_interval ?? 5}
+                @input=${(e) => this._emit({ ...this._config, car_scroll_interval: parseInt(e.target.value, 10) })} />
+            </div>` : nothing}
           ${this._cars().length === 0 ? html`<div class="note">Nog geen auto's toegevoegd.</div>` : nothing}
           ${this._cars().map(
             (car, i) => html`
@@ -181,6 +194,13 @@ class EnergyFlowPriceCardEditor extends LitElement {
             <span>Uren tonen: <b>${hours}u</b></span>
             <input type="range" min="8" max="48" step="1" .value=${hours} @input=${(e) => this._hours(e)} />
           </div>
+          <label class="sel-row">
+            <span>Startpunt grafiek</span>
+            <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
+              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>Vanaf middernacht (dagen)</option>
+              <option value="now" ?selected=${this._config.price_start === "now"}>Vanaf nu</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
@@ -232,6 +252,8 @@ class EnergyFlowPriceCardEditor extends LitElement {
       .color input[type="color"] { width: 42px; height: 28px; border: none; background: none; cursor: pointer; }
       .slider-row { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
       .slider-row input[type="range"] { width: 100%; }
+      .sel-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 13px; }
+      .sel-row select { padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
       .carblock { border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
       .carhead { display: flex; align-items: center; gap: 8px; }
       .carname { flex: 1; }

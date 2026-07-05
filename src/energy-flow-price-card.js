@@ -70,6 +70,8 @@ class EnergyFlowPriceCard extends LitElement {
       this._config.price_stops = DEFAULT_PRICE_STOPS;
     }
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
+    if (this._carScrollIdx == null) this._carScrollIdx = 0;
+    this._startCarScroll();
   }
 
   getCardSize() {
@@ -226,20 +228,7 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="txt"><span class="lbl">Accu${v.soc !== null ? html` · <b style="color:${c.color_battery}">${Math.round(v.soc)}%</b>` : nothing}</span><span class="val" style="color:${c.color_battery}">${fmtPower(battValue)}</span>${battLabel ? html`<span class="sub" style="color:${c.color_battery}">${battLabel}</span>` : nothing}</div>
         </div>` : nothing}
 
-        ${carsShown.length ? html`
-          <div class="carstack">
-            ${carsShown.map((car) => html`
-              <div class="node-car">
-                <div class="txt">
-                  <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
-                  <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
-                  ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
-                </div>
-                <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
-                  <ha-icon icon="mdi:car-electric"></ha-icon>
-                </div>
-              </div>`)}
-          </div>` : nothing}
+        ${carsShown.length ? this._renderCars(carsShown, c) : nothing}
 
         <div class="huis">
           <div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
@@ -252,6 +241,66 @@ class EnergyFlowPriceCard extends LitElement {
     `;
   }
 
+  _renderCars(cars, c) {
+    const mode = c.car_mode === "merged" ? "merged" : "scroll";
+    const carRow = (car) => html`
+      <div class="node-car">
+        <div class="txt">
+          <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
+          <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
+          ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
+        </div>
+      </div>`;
+
+    if (mode === "merged" || cars.length === 1) {
+      // one icon, info of all cars beside it
+      return html`
+        <div class="carstack">
+          <div class="node-car merged">
+            <div class="carinfos">${cars.map((car) => carRow(car))}</div>
+            <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+              <ha-icon icon="mdi:car-electric"></ha-icon>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // scroll mode: cycle one node through the cars
+    const idx = this._carScrollIdx % cars.length;
+    const car = cars[idx];
+    return html`
+      <div class="carstack">
+        <div class="node-car scroll">
+          <div class="carinfos">${carRow(car)}</div>
+          <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
+            <ha-icon icon="mdi:car-electric"></ha-icon>
+          </div>
+        </div>
+        <div class="cardots">
+          ${cars.map((_, i) => html`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? c.color_car : "rgba(255,255,255,.25)"}"></span>`)}
+        </div>
+      </div>`;
+  }
+
+  connectedCallback() {
+    super.connectedCallback();
+    this._startCarScroll();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this._carTimer) { clearInterval(this._carTimer); this._carTimer = null; }
+  }
+
+  _startCarScroll() {
+    if (this._carTimer) clearInterval(this._carTimer);
+    const secs = Math.max(2, this._config?.car_scroll_interval || 5);
+    this._carTimer = setInterval(() => {
+      this._carScrollIdx = (this._carScrollIdx || 0) + 1;
+      this.requestUpdate();
+    }, secs * 1000);
+  }
+
   _renderPrice() {
     const c = this._config;
     const { points: allPoints, current } = this._priceData();
@@ -260,7 +309,11 @@ class EnergyFlowPriceCard extends LitElement {
 
     // Fixed axis: from start of current hour to +hours.
     const axisStart = new Date();
-    axisStart.setMinutes(0, 0, 0);
+    if (c.price_start === "midnight") {
+      axisStart.setHours(0, 0, 0, 0); // today 00:00
+    } else {
+      axisStart.setMinutes(0, 0, 0);  // start of current hour
+    }
     const startMs = axisStart.getTime();
     const endMs = startMs + hours * 3600000;
 
@@ -288,27 +341,41 @@ class EnergyFlowPriceCard extends LitElement {
     const labels = [];
     for (let h = 0; h <= hours; h += labelEvery) {
       const d = new Date(startMs + h * 3600000);
-      labels.push({ frac: h / hours, text: String(d.getHours()).padStart(2, "0") });
+      labels.push({ frac: h / hours, text: d.getHours() + ":00" });
     }
 
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
+
+    const sel = this._selectedSlot;
 
     return html`
       <div class="price">
         <div class="chdr">
           <span class="t">Stroomprijs (${hours}u)</span>
-          ${current !== null ? html`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>` : nothing}
+          ${sel
+            ? html`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            : current !== null
+              ? html`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              : nothing}
         </div>
         <div class="chart">
           <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
           <div class="plot">
             <div class="bars">
-              ${slots.map((s) => {
+              ${slots.map((s, i) => {
                 if (s.v === null) return html`<div class="bar empty-slot"></div>`;
                 const h = Math.max(2, (s.v / maxV) * 100);
                 const col = colorForValue(s.v, c.price_stops);
-                const title = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) + " — " + s.v.toFixed(3).replace(".", ",");
-                return html`<div class="bar" style="height:${h}%;background:${col}" title="${title}"></div>`;
+                const isSel = sel && sel.t === s.t;
+                const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                return html`<div
+                  class="bar ${isSel ? "sel" : ""}"
+                  style="height:${h}%;background:${col}"
+                  title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+                  @mouseenter=${() => this._hoverSlot(s)}
+                  @mouseleave=${() => this._hoverSlot(null)}
+                  @click=${() => this._tapSlot(s)}
+                ></div>`;
               })}
             </div>
             <div class="nowline" style="left:${nowFrac * 100}%"></div>
@@ -319,6 +386,23 @@ class EnergyFlowPriceCard extends LitElement {
         </div>
       </div>
     `;
+  }
+
+  _hoverSlot(s) {
+    if (this._tapLock) return; // don't override a tapped selection with hover-out
+    this._selectedSlot = s;
+    this.requestUpdate();
+  }
+
+  _tapSlot(s) {
+    if (this._selectedSlot && this._selectedSlot.t === s.t && this._tapLock) {
+      this._selectedSlot = null;
+      this._tapLock = false;
+    } else {
+      this._selectedSlot = s;
+      this._tapLock = true;
+    }
+    this.requestUpdate();
   }
 
   static get styles() {
@@ -346,9 +430,12 @@ class EnergyFlowPriceCard extends LitElement {
       .socring { position: absolute; inset: -4px; }
 
       /* multiple cars stacked bottom-right */
-      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+      .carstack { position: absolute; right: 6px; bottom: 8px; z-index: 2; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
       .node-car { display: flex; align-items: center; gap: 8px; flex-direction: row-reverse; text-align: right; }
       .node-car .txt { align-items: flex-end; }
+      .carinfos { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+      .cardots { display: flex; gap: 4px; margin-right: 52px; }
+      .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
@@ -364,7 +451,10 @@ class EnergyFlowPriceCard extends LitElement {
       .yaxis { position: absolute; left: 0; top: 0; bottom: 34px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
       .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
-      .bar { flex: 1; border-radius: 2px 2px 0 0; }
+      .bar { flex: 1; border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .15s; }
+      .bar:hover { opacity: .8; }
+      .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
+      .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }

@@ -11,6 +11,9 @@ export const DEFAULTS = {
   show_price: true,
   display_zero: false,
   price_hours: 24,
+  price_start: "midnight", // "now" | "midnight"
+  car_mode: "scroll",       // "scroll" | "merged"
+  car_scroll_interval: 5,   // seconds
   price_unit: "€/kWh",
   color_solar: "#f5c518",
   color_battery: "#4caf50",
