@@ -1,6 +1,6 @@
 # Energy Flow & Price Card
 
-![Energy Flow & Price Card](images/EnergyFlowPriceCard.gif)
+![Energy Flow & Price Card](images/EnergyFLowPriceCard.gif)
 
 *(Nederlands hieronder / Dutch below)*
 
