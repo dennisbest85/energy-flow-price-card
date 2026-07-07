@@ -2,7 +2,7 @@
 
 Alle noemenswaardige wijzigingen aan de Energy Flow & Price Card.
 
-## v1.2.0
+## v1.1.6
 
 ### Nieuw
 - **Meertalig (NL / EN / DE).** De card volgt automatisch de taal van Home Assistant en valt terug op Engels als de taal niet wordt ondersteund. In de editor kun je de taal ook handmatig forceren.

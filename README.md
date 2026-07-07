@@ -1,7 +1,5 @@
 # Energy Flow & Price Card
 
-![Energy Flow & Price Card](images/EnergyFLowPriceCard.gif)
-
 *(Nederlands hieronder / Dutch below)*
 
 A compact Lovelace card for Home Assistant that combines two things in one block:
@@ -98,4 +96,3 @@ Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul i
 - **Huisverbruik** wordt automatisch berekend: `solar + net + accu_ontladen - accu_laden` (net is +/-). Geen aparte entiteit nodig.
 - **Solar-/accu-historie** gebruikt de Home Assistant history API voor vandaag (00:00 tot nu); zorg dat de recorder die entiteiten bijhoudt.
 - **Prijsdata:** de card zoekt in het prijs-entiteit naar een array-attribuut (`prices`, `prices_today`, `today`, `raw_today`, `data` e.a.) met velden als `from`/`start` en `price`/`value`. Frank Energie levert dit doorgaans. Werkt de grafiek niet? Kijk in Ontwikkelhulpmiddelen -> Statussen welke attribuutnaam jouw sensor gebruikt.
-
