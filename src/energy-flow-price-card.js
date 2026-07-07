@@ -179,23 +179,25 @@ class EnergyFlowPriceCard extends LitElement {
       return { circ, offset: circ * (1 - pct) };
     })();
 
-    // Heart of the house is at (360, 95) in the 720x190 viewBox.
-    const HX = 360, HY = 95;
+    // House square center in the 720x190 viewBox. Lowered a bit.
+    // Icon ~58px; horizontal half-width in viewBox units ≈ 34.
+    const HX = 360, HY = 104;          // vertical center of the house square (lowered)
+    const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
 
     return html`
       <div class="flow">
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <path class="wire" d="M70,52 Q220,${HY} ${HX - 6},${HY}"></path>
-          ${solarActive ? svg`<path class="live" style="stroke:${c.color_solar}" d="M70,52 Q220,${HY} ${HX - 6},${HY}"></path>` : nothing}
+          <path class="wire" d="M70,52 Q220,${HY} ${HL},${HY}"></path>
+          ${solarActive ? svg`<path class="live" style="stroke:${c.color_solar}" d="M70,52 Q220,${HY} ${HL},${HY}"></path>` : nothing}
 
-          <path class="wire" d="M650,52 Q500,${HY} ${HX + 6},${HY}"></path>
-          ${gridActive ? svg`<path class="live" style="stroke:${c.color_grid}" d="M${HX + 6},${HY} Q500,${HY} 650,52"></path>` : nothing}
+          <path class="wire" d="M650,52 Q500,${HY} ${HR},${HY}"></path>
+          ${gridActive ? svg`<path class="live" style="stroke:${c.color_grid}" d="M${HR},${HY} Q500,${HY} 650,52"></path>` : nothing}
 
-          <path class="wire" d="M70,138 Q220,${HY} ${HX - 6},${HY}"></path>
-          ${battActive ? svg`<path class="live" style="stroke:${c.color_battery}" d="${v.charge && v.charge > 5 ? `M${HX - 6},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HX - 6},${HY}`}"></path>` : nothing}
+          <path class="wire" d="M70,138 Q220,${HY} ${HL},${HY}"></path>
+          ${battActive ? svg`<path class="live" style="stroke:${c.color_battery}" d="${v.charge && v.charge > 5 ? `M${HL},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HL},${HY}`}"></path>` : nothing}
 
-          ${carsShown.length ? svg`<path class="wire" d="M650,138 Q500,${HY} ${HX + 6},${HY}"></path>` : nothing}
-          ${anyCarActive ? svg`<path class="live" style="stroke:${c.color_car}" d="M${HX + 6},${HY} Q500,${HY} 650,138"></path>` : nothing}
+          ${carsShown.length ? svg`<path class="wire" d="M650,138 Q500,${HY} ${HR},${HY}"></path>` : nothing}
+          ${anyCarActive ? svg`<path class="live" style="stroke:${c.color_car}" d="M${HR},${HY} Q500,${HY} 650,138"></path>` : nothing}
         </svg>
 
         ${solarOn ? html`
@@ -570,7 +572,7 @@ class EnergyFlowPriceCard extends LitElement {
       .cardots { display: flex; gap: 4px; margin-top: 3px; justify-content: flex-end; }
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
-      .huis { position: absolute; left: 50%; top: calc(50% + 6px); transform: translate(-50%, -50%); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+      .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
@@ -606,7 +608,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.1.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
