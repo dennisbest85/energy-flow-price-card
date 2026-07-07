@@ -1,5 +1,6 @@
 import { LitElement, html, css, svg, nothing } from "lit";
 import { DEFAULTS, DEFAULT_PRICE_STOPS } from "./constants.js";
+import { t, resolveLang } from "./translations.js";
 import "./energy-flow-price-card-editor.js";
 
 function num(hass, entity) {
@@ -98,6 +99,10 @@ class EnergyFlowPriceCard extends LitElement {
     return Array.isArray(this._config.cars) ? this._config.cars : [];
   }
 
+  _t(key) {
+    return t(resolveLang(this._config?.language, this.hass), key);
+  }
+
   _priceData() {
     const cfg = this._config;
     const ent = this.hass?.states?.[cfg.price_entity];
@@ -148,9 +153,9 @@ class EnergyFlowPriceCard extends LitElement {
     const home = this._homePower(v);
 
     const battValue = (v.charge && v.charge > 5) ? v.charge : (v.discharge && v.discharge > 5) ? v.discharge : (v.charge ?? v.discharge);
-    const battLabel = v.charge && v.charge > 5 ? "laden" : v.discharge && v.discharge > 5 ? "ontladen" : "";
+    const battLabel = v.charge && v.charge > 5 ? this._t("charging") : v.discharge && v.discharge > 5 ? this._t("discharging") : "";
 
-    const gridLabel = v.grid === null ? "" : v.grid < 0 ? "export" : "import";
+    const gridLabel = v.grid === null ? "" : v.grid < 0 ? this._t("export") : this._t("import");
 
     const showZero = c.display_zero;
     const act = (val) => val !== null && Math.abs(val) > 5;
@@ -205,7 +210,7 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="ic" style="color:${c.color_solar};border-color:${c.color_solar}66;background:${c.color_solar}22">
             <ha-icon icon="mdi:solar-power-variant"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Solar</span><span class="val" style="color:${c.color_solar}">${fmtPower(v.solar)}</span></div>
+          <div class="txt"><span class="lbl">${this._t("solar")}</span><span class="val" style="color:${c.color_solar}">${fmtPower(v.solar)}</span></div>
         </div>` : nothing}
 
         ${gridOn ? html`
@@ -213,7 +218,7 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="ic" style="color:${c.color_grid};border-color:${c.color_grid}66;background:${c.color_grid}22">
             <ha-icon icon="mdi:transmission-tower"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Net</span><span class="val" style="color:${c.color_grid}">${fmtPower(v.grid)}</span>${gridLabel ? html`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : nothing}</div>
+          <div class="txt"><span class="lbl">${this._t("grid")}</span><span class="val" style="color:${c.color_grid}">${fmtPower(v.grid)}</span>${gridLabel ? html`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : nothing}</div>
         </div>` : nothing}
 
         ${battOn ? html`
@@ -236,7 +241,7 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>
-          <span class="lbl">Huis</span>
+          <span class="lbl">${this._t("home")}</span>
           <span class="val" style="color:${c.color_home}">${fmtPower(home)}</span>
         </div>
       </div>
@@ -248,7 +253,7 @@ class EnergyFlowPriceCard extends LitElement {
     const carInfo = (car) => html`
       <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : nothing}</span>
       <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
-      ${car.active ? html`<span class="sub" style="color:${c.color_car}">laden</span>` : nothing}
+      ${car.active ? html`<span class="sub" style="color:${c.color_car}">${this._t("charging")}</span>` : nothing}
     `;
     const icon = html`
       <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
@@ -316,9 +321,9 @@ class EnergyFlowPriceCard extends LitElement {
     const c = this._config;
     const mode = this._chartMode || "price";
     const tabs = [
-      { id: "price", label: "Prijs", show: !!c.price_entity },
-      { id: "solar", label: "Solar", show: !!c.solar_power },
-      { id: "accu", label: "Accu", show: !!c.battery_soc },
+      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
+      { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
+      { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
     ].filter((t) => t.show);
     // if selected tab is unavailable, fall back to first
     const activeMode = tabs.some((t) => t.id === mode) ? mode : (tabs[0]?.id || "price");
@@ -375,7 +380,7 @@ class EnergyFlowPriceCard extends LitElement {
     const entity = mode === "solar" ? c.solar_power : c.battery_soc;
     const color = mode === "solar" ? c.color_solar : c.color_battery;
     const unit = mode === "solar" ? "W" : "%";
-    const title = mode === "solar" ? "Solar vandaag" : "Accu SoC vandaag";
+    const title = mode === "solar" ? this._t("solar_today") : this._t("battery_today");
 
     const cacheKey = mode + "|" + entity;
     const cached = this._history?.[cacheKey];
@@ -416,7 +421,7 @@ class EnergyFlowPriceCard extends LitElement {
     return html`
       <div class="chdr">
         <span class="t">${title}</span>
-        ${cur !== null ? html`<span class="now">Nu: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : nothing}
+        ${cur !== null ? html`<span class="now">${this._t("now")}: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : nothing}
       </div>
       <div class="chart">
         <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
@@ -426,8 +431,8 @@ class EnergyFlowPriceCard extends LitElement {
                 <path d="${areaPath}" fill="${color}22"></path>
                 <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
               </svg>`
-            : html`<div class="empty">${cached?.error ? "Geen historie beschikbaar." : "Historie laden…"}</div>`}
-          <div class="nowline right" style="left:${Math.min(100, nowFrac * 100)}%"></div>
+            : html`<div class="empty">${cached?.error ? this._t("history_none") : this._t("history_loading")}</div>`}
+          <div class="nowline right" data-now="${this._t("now")}" style="left:${Math.min(100, nowFrac * 100)}%"></div>
         </div>
         <div class="xaxis">
           ${labels.map((l) => html`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
@@ -484,11 +489,11 @@ class EnergyFlowPriceCard extends LitElement {
 
     return html`
       <div class="chdr">
-        <span class="t">Stroomprijs (${hours}u)</span>
+        <span class="t">${this._t("price_title")} (${hours}u)</span>
         ${sel
           ? html`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
           : current !== null
-            ? html`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+            ? html`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
             : nothing}
       </div>
       <div class="chart">
@@ -511,7 +516,7 @@ class EnergyFlowPriceCard extends LitElement {
               ></div>`;
             })}
           </div>
-          <div class="nowline" style="left:${nowFrac * 100}%"></div>
+          <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
         </div>
         <div class="xaxis">
           ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
@@ -596,7 +601,7 @@ class EnergyFlowPriceCard extends LitElement {
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
-      .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
+      .nowline::before { content: attr(data-now); position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
       .nowline.right::before { left: auto; right: 3px; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
       .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
@@ -608,7 +613,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.2.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

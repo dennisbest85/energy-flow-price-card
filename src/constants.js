@@ -1,9 +1,9 @@
 export const DEFAULT_PRICE_STOPS = [
-  { value: 0.0, color: "#3b82f6" },
-  { value: 0.2, color: "#3b82f6" },
-  { value: 0.3, color: "#22c55e" },
-  { value: 0.4, color: "#eab308" },
-  { value: 0.6, color: "#ef4444" },
+  { value: 0.0, color: "#3b82f6" },  // blauw
+  { value: 0.2, color: "#3b82f6" },  // blauw tot 0,20
+  { value: 0.25, color: "#22c55e" }, // groen
+  { value: 0.35, color: "#eab308" }, // geel
+  { value: 0.7, color: "#ef4444" },  // rood
 ];
 
 export const DEFAULTS = {
@@ -14,6 +14,7 @@ export const DEFAULTS = {
   price_start: "midnight", // "now" | "midnight"
   car_mode: "scroll",       // "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
+  language: "auto",         // "auto" | "nl" | "en" | "de"
   price_unit: "€/kWh",
   color_solar: "#f5c518",
   color_battery: "#4caf50",

@@ -1,22 +1,6 @@
 import { LitElement, html, css, nothing } from "lit";
 import { DEFAULTS, DEFAULT_PRICE_STOPS } from "./constants.js";
-
-const ENTITY_FIELDS = [
-  { key: "solar_power", label: "Solar vermogen (W)" },
-  { key: "grid_power", label: "Net / P1 vermogen (W, + = import, − = export)" },
-  { key: "battery_charge_power", label: "Accu laden (W)" },
-  { key: "battery_discharge_power", label: "Accu ontladen (W)" },
-  { key: "battery_soc", label: "Accu SOC (%)" },
-  { key: "price_entity", label: "Prijs energieleverancier (€/kWh)" },
-];
-
-const COLOR_FIELDS = [
-  { key: "color_solar", label: "Kleur solar" },
-  { key: "color_battery", label: "Kleur accu" },
-  { key: "color_grid", label: "Kleur net" },
-  { key: "color_car", label: "Kleur auto" },
-  { key: "color_home", label: "Kleur huis" },
-];
+import { t, resolveLang, SUPPORTED_LANGS } from "./translations.js";
 
 class EnergyFlowPriceCardEditor extends LitElement {
   static get properties() {
@@ -26,6 +10,10 @@ class EnergyFlowPriceCardEditor extends LitElement {
   setConfig(config) {
     this._config = { ...config };
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
+  }
+
+  _t(key) {
+    return t(resolveLang(this._config?.language, this.hass), key);
   }
 
   _get(key, fallback) { return this._config?.[key] ?? fallback ?? ""; }
@@ -56,7 +44,6 @@ class EnergyFlowPriceCardEditor extends LitElement {
     this._emit(next);
   }
 
-  // ----- cars -----
   _cars() { return Array.isArray(this._config?.cars) ? this._config.cars : []; }
 
   _carChange(i, field, ev) {
@@ -68,7 +55,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
 
   _addCar() {
     const cars = this._cars().map((c) => ({ ...c }));
-    cars.push({ name: `Auto ${cars.length + 1}`, power: "", soc: "" });
+    cars.push({ name: `${this._t("car")} ${cars.length + 1}`, power: "", soc: "" });
     this._emit({ ...this._config, cars });
   }
 
@@ -78,7 +65,6 @@ class EnergyFlowPriceCardEditor extends LitElement {
     this._emit({ ...this._config, cars });
   }
 
-  // ----- price stops -----
   _stops() {
     const s = this._config?.price_stops;
     return Array.isArray(s) && s.length ? s : DEFAULT_PRICE_STOPS;
@@ -103,30 +89,57 @@ class EnergyFlowPriceCardEditor extends LitElement {
 
   render() {
     if (!this.hass || !this._config) return nothing;
+    const T = (k) => this._t(k);
     const showFlow = this._config.show_flow !== false;
     const showPrice = this._config.show_price !== false;
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
+    const lang = this._config.language ?? "auto";
+
+    const entityFields = [
+      { key: "solar_power", label: T("ed_solar_power") },
+      { key: "grid_power", label: T("ed_grid_power") },
+      { key: "battery_charge_power", label: T("ed_battery_charge") },
+      { key: "battery_discharge_power", label: T("ed_battery_discharge") },
+      { key: "battery_soc", label: T("ed_battery_soc") },
+      { key: "price_entity", label: T("ed_price_entity") },
+    ];
+    const colorFields = [
+      { key: "color_solar", label: T("ed_color_solar") },
+      { key: "color_battery", label: T("ed_color_battery") },
+      { key: "color_grid", label: T("ed_color_grid") },
+      { key: "color_car", label: T("ed_color_car") },
+      { key: "color_home", label: T("ed_color_home") },
+    ];
 
     return html`
       <div class="root">
         <div class="section">
-          <div class="head">Weergave</div>
-          <ha-formfield label="Flow tonen">
+          <div class="head">${T("ed_display")}</div>
+          <ha-formfield label=${T("ed_show_flow")}>
             <ha-switch .checked=${showFlow} @change=${(e) => this._toggle("show_flow", e)}></ha-switch>
           </ha-formfield>
-          <ha-formfield label="Prijzen tonen">
+          <ha-formfield label=${T("ed_show_price")}>
             <ha-switch .checked=${showPrice} @change=${(e) => this._toggle("show_price", e)}></ha-switch>
           </ha-formfield>
-          <ha-formfield label="Lege takken tonen (display zero)">
+          <ha-formfield label=${T("ed_display_zero")}>
             <ha-switch .checked=${displayZero} @change=${(e) => this._toggle("display_zero", e)}></ha-switch>
           </ha-formfield>
+          <label class="sel-row">
+            <span>${T("ed_language")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
+              <option value="auto" ?selected=${lang === "auto"}>${T("ed_lang_auto")}</option>
+              <option value="nl" ?selected=${lang === "nl"}>Nederlands</option>
+              <option value="en" ?selected=${lang === "en"}>English</option>
+              <option value="de" ?selected=${lang === "de"}>Deutsch</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
-          <div class="head">Entiteiten</div>
-          <div class="note">Huisverbruik wordt automatisch berekend: solar + net + accu-ontladen − accu-laden.</div>
-          ${ENTITY_FIELDS.map(
+          <div class="head">${T("ed_entities")}</div>
+          <div class="note">${T("ed_home_note")}</div>
+          ${entityFields.map(
             (f) => html`
               <ha-entity-picker
                 .hass=${this.hass}
@@ -140,24 +153,24 @@ class EnergyFlowPriceCardEditor extends LitElement {
 
         <div class="section">
           <div class="head">
-            Auto's
-            <button class="add" @click=${() => this._addCar()}>+ Auto toevoegen</button>
+            ${T("ed_cars")}
+            <button class="add" @click=${() => this._addCar()}>${T("ed_add_car")}</button>
           </div>
-          <div class="note">Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).</div>
+          <div class="note">${T("ed_car_note")}</div>
           <label class="sel-row">
-            <span>Weergave bij meerdere auto's</span>
+            <span>${T("ed_car_display")}</span>
             <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
-              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>Auto-scroll (wisselt vanzelf)</option>
-              <option value="merged" ?selected=${this._config.car_mode === "merged"}>Statisch (1 icoon, beide info)</option>
+              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>${T("ed_car_scroll")}</option>
+              <option value="merged" ?selected=${this._config.car_mode === "merged"}>${T("ed_car_merged")}</option>
             </select>
           </label>
           ${(this._config.car_mode ?? "scroll") === "scroll" ? html`
             <div class="slider-row">
-              <span>Wisselinterval: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
+              <span>${T("ed_car_interval")}: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
               <input type="range" min="2" max="15" step="1" .value=${this._config.car_scroll_interval ?? 5}
                 @input=${(e) => this._emit({ ...this._config, car_scroll_interval: parseInt(e.target.value, 10) })} />
             </div>` : nothing}
-          ${this._cars().length === 0 ? html`<div class="note">Nog geen auto's toegevoegd.</div>` : nothing}
+          ${this._cars().length === 0 ? html`<div class="note">${T("ed_no_cars")}</div>` : nothing}
           ${this._cars().map(
             (car, i) => html`
               <div class="carblock">
@@ -165,23 +178,23 @@ class EnergyFlowPriceCardEditor extends LitElement {
                   <input
                     type="text"
                     class="carname-input"
-                    placeholder="Naam"
+                    placeholder=${T("ed_car_name")}
                     .value=${car.name ?? ""}
                     @change=${(e) => this._carChange(i, "name", e)}
                   />
-                  <button class="mini" @click=${() => this._removeCar(i)} title="Verwijder auto">✕</button>
+                  <button class="mini" @click=${() => this._removeCar(i)} title=${T("ed_remove_car")}>✕</button>
                 </div>
                 <ha-entity-picker
                   .hass=${this.hass}
                   .value=${car.power ?? ""}
-                  .label=${"Laadvermogen (W)"}
+                  .label=${T("ed_car_power")}
                   allow-custom-entity
                   @value-changed=${(e) => this._carChange(i, "power", e)}
                 ></ha-entity-picker>
                 <ha-entity-picker
                   .hass=${this.hass}
                   .value=${car.soc ?? ""}
-                  .label=${"Auto SOC (%) — optioneel"}
+                  .label=${T("ed_car_soc")}
                   allow-custom-entity
                   @value-changed=${(e) => this._carChange(i, "soc", e)}
                 ></ha-entity-picker>
@@ -190,27 +203,27 @@ class EnergyFlowPriceCardEditor extends LitElement {
         </div>
 
         <div class="section">
-          <div class="head">Prijsvenster</div>
+          <div class="head">${T("ed_price_window")}</div>
           <div class="slider-row">
-            <span>Uren tonen: <b>${hours}u</b></span>
+            <span>${T("ed_hours_shown")}: <b>${hours}u</b></span>
             <input type="range" min="8" max="48" step="1" .value=${hours} @input=${(e) => this._hours(e)} />
           </div>
           <label class="sel-row">
-            <span>Startpunt grafiek</span>
+            <span>${T("ed_start_point")}</span>
             <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
-              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>Vanaf middernacht (dagen)</option>
-              <option value="now" ?selected=${this._config.price_start === "now"}>Vanaf nu</option>
+              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>${T("ed_start_midnight")}</option>
+              <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
         </div>
 
         <div class="section">
           <div class="head">
-            Kleuren
-            <button class="reset" @click=${() => this._resetColors()}>Standaardkleuren herstellen</button>
+            ${T("ed_colors")}
+            <button class="reset" @click=${() => this._resetColors()}>${T("ed_reset_colors")}</button>
           </div>
           <div class="grid">
-            ${COLOR_FIELDS.map(
+            ${colorFields.map(
               (f) => html`
                 <label class="color">
                   <span>${f.label}</span>
@@ -222,8 +235,8 @@ class EnergyFlowPriceCardEditor extends LitElement {
         </div>
 
         <div class="section">
-          <div class="head">Prijs-kleurschaal (€/kWh → kleur)</div>
-          <div class="note">Kleuren lopen vloeiend over tussen de punten. Voeg punten toe voor een fijnere overgang.</div>
+          <div class="head">${T("ed_price_scale")}</div>
+          <div class="note">${T("ed_price_scale_note")}</div>
           ${this._stops().map(
             (s, i) => html`
               <div class="stop-row">
@@ -232,10 +245,10 @@ class EnergyFlowPriceCardEditor extends LitElement {
                 <span class="unit">€/kWh</span>
                 <input type="color" .value=${s.color}
                   @input=${(e) => this._stopChange(i, "color", e)} />
-                <button class="mini" @click=${() => this._removeStop(i)} title="Verwijder">✕</button>
+                <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
               </div>`
           )}
-          <button class="add" @click=${() => this._addStop()}>+ Punt toevoegen</button>
+          <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
         </div>
       </div>
     `;

@@ -3,7 +3,7 @@
  * Copyright 2019 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t$1=globalThis,e$2=t$1.ShadowRoot&&(void 0===t$1.ShadyCSS||t$1.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s$2=Symbol(),o$3=new WeakMap;let n$2 = class n{constructor(t,e,o){if(this._$cssResult$=true,o!==s$2)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e;}get styleSheet(){let t=this.o;const s=this.t;if(e$2&&void 0===t){const e=void 0!==s&&1===s.length;e&&(t=o$3.get(s)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&o$3.set(s,t));}return t}toString(){return this.cssText}};const r$2=t=>new n$2("string"==typeof t?t:t+"",void 0,s$2),i$3=(t,...e)=>{const o=1===t.length?t[0]:e.reduce((e,s,o)=>e+(t=>{if(true===t._$cssResult$)return t.cssText;if("number"==typeof t)return t;throw Error("Value passed to 'css' function must be a 'css' function result: "+t+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+t[o+1],t[0]);return new n$2(o,t,s$2)},S$1=(s,o)=>{if(e$2)s.adoptedStyleSheets=o.map(t=>t instanceof CSSStyleSheet?t:t.styleSheet);else for(const e of o){const o=document.createElement("style"),n=t$1.litNonce;void 0!==n&&o.setAttribute("nonce",n),o.textContent=e.cssText,s.appendChild(o);}},c$2=e$2?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const s of t.cssRules)e+=s.cssText;return r$2(e)})(t):t;
+const t$2=globalThis,e$2=t$2.ShadowRoot&&(void 0===t$2.ShadyCSS||t$2.ShadyCSS.nativeShadow)&&"adoptedStyleSheets"in Document.prototype&&"replace"in CSSStyleSheet.prototype,s$2=Symbol(),o$3=new WeakMap;let n$2 = class n{constructor(t,e,o){if(this._$cssResult$=true,o!==s$2)throw Error("CSSResult is not constructable. Use `unsafeCSS` or `css` instead.");this.cssText=t,this.t=e;}get styleSheet(){let t=this.o;const s=this.t;if(e$2&&void 0===t){const e=void 0!==s&&1===s.length;e&&(t=o$3.get(s)),void 0===t&&((this.o=t=new CSSStyleSheet).replaceSync(this.cssText),e&&o$3.set(s,t));}return t}toString(){return this.cssText}};const r$2=t=>new n$2("string"==typeof t?t:t+"",void 0,s$2),i$3=(t,...e)=>{const o=1===t.length?t[0]:e.reduce((e,s,o)=>e+(t=>{if(true===t._$cssResult$)return t.cssText;if("number"==typeof t)return t;throw Error("Value passed to 'css' function must be a 'css' function result: "+t+". Use 'unsafeCSS' to pass non-literal values, but take care to ensure page security.")})(s)+t[o+1],t[0]);return new n$2(o,t,s$2)},S$1=(s,o)=>{if(e$2)s.adoptedStyleSheets=o.map(t=>t instanceof CSSStyleSheet?t:t.styleSheet);else for(const e of o){const o=document.createElement("style"),n=t$2.litNonce;void 0!==n&&o.setAttribute("nonce",n),o.textContent=e.cssText,s.appendChild(o);}},c$2=e$2?t=>t:t=>t instanceof CSSStyleSheet?(t=>{let e="";for(const s of t.cssRules)e+=s.cssText;return r$2(e)})(t):t;
 
 /**
  * @license
@@ -16,7 +16,7 @@ const t$1=globalThis,e$2=t$1.ShadowRoot&&(void 0===t$1.ShadyCSS||t$1.ShadyCSS.na
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */
-const t=globalThis,i$1=t=>t,s$1=t.trustedTypes,e=s$1?s$1.createPolicy("lit-html",{createHTML:t=>t}):void 0,h="$lit$",o$1=`lit$${Math.random().toFixed(9).slice(2)}$`,n="?"+o$1,r=`<${n}>`,l=document,c=()=>l.createComment(""),a=t=>null===t||"object"!=typeof t&&"function"!=typeof t,u=Array.isArray,d=t=>u(t)||"function"==typeof t?.[Symbol.iterator],f="[ \t\n\f\r]",v=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,_=/-->/g,m=/>/g,p=RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),g=/'/g,$=/"/g,y=/^(?:script|style|textarea|title)$/i,x=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),b=x(1),w=x(2),E=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),C=new WeakMap,P=l.createTreeWalker(l,129);function V(t,i){if(!u(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==e?e.createHTML(i):i}const N=(t,i)=>{const s=t.length-1,e=[];let n,l=2===i?"<svg>":3===i?"<math>":"",c=v;for(let i=0;i<s;i++){const s=t[i];let a,u,d=-1,f=0;for(;f<s.length&&(c.lastIndex=f,u=c.exec(s),null!==u);)f=c.lastIndex,c===v?"!--"===u[1]?c=_:void 0!==u[1]?c=m:void 0!==u[2]?(y.test(u[2])&&(n=RegExp("</"+u[2],"g")),c=p):void 0!==u[3]&&(c=p):c===p?">"===u[0]?(c=n??v,d=-1):void 0===u[1]?d=-2:(d=c.lastIndex-u[2].length,a=u[1],c=void 0===u[3]?p:'"'===u[3]?$:g):c===$||c===g?c=p:c===_||c===m?c=v:(c=p,n=void 0);const x=c===p&&t[i+1].startsWith("/>")?" ":"";l+=c===v?s+r:d>=0?(e.push(a),s.slice(0,d)+h+s.slice(d)+o$1+x):s+o$1+(-2===d?i:x);}return [V(t,l+(t[s]||"<?>")+(2===i?"</svg>":3===i?"</math>":"")),e]};class S{constructor({strings:t,_$litType$:i},e){let r;this.parts=[];let l=0,a=0;const u=t.length-1,d=this.parts,[f,v]=N(t,i);if(this.el=S.createElement(f,e),P.currentNode=this.el.content,2===i||3===i){const t=this.el.content.firstChild;t.replaceWith(...t.childNodes);}for(;null!==(r=P.nextNode())&&d.length<u;){if(1===r.nodeType){if(r.hasAttributes())for(const t of r.getAttributeNames())if(t.endsWith(h)){const i=v[a++],s=r.getAttribute(t).split(o$1),e=/([.?@])?(.*)/.exec(i);d.push({type:1,index:l,name:e[2],strings:s,ctor:"."===e[1]?I:"?"===e[1]?L:"@"===e[1]?z:H}),r.removeAttribute(t);}else t.startsWith(o$1)&&(d.push({type:6,index:l}),r.removeAttribute(t));if(y.test(r.tagName)){const t=r.textContent.split(o$1),i=t.length-1;if(i>0){r.textContent=s$1?s$1.emptyScript:"";for(let s=0;s<i;s++)r.append(t[s],c()),P.nextNode(),d.push({type:2,index:++l});r.append(t[i],c());}}}else if(8===r.nodeType)if(r.data===n)d.push({type:2,index:l});else {let t=-1;for(;-1!==(t=r.data.indexOf(o$1,t+1));)d.push({type:7,index:l}),t+=o$1.length-1;}l++;}}static createElement(t,i){const s=l.createElement("template");return s.innerHTML=t,s}}function M(t,i,s=t,e){if(i===E)return i;let h=void 0!==e?s._$Co?.[e]:s._$Cl;const o=a(i)?void 0:i._$litDirective$;return h?.constructor!==o&&(h?._$AO?.(false),void 0===o?h=void 0:(h=new o(t),h._$AT(t,s,e)),void 0!==e?(s._$Co??=[])[e]=h:s._$Cl=h),void 0!==h&&(i=M(t,h._$AS(t,i.values),h,e)),i}class R{constructor(t,i){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){const{el:{content:i},parts:s}=this._$AD,e=(t?.creationScope??l).importNode(i,true);P.currentNode=e;let h=P.nextNode(),o=0,n=0,r=s[0];for(;void 0!==r;){if(o===r.index){let i;2===r.type?i=new k(h,h.nextSibling,this,t):1===r.type?i=new r.ctor(h,r.name,r.strings,this,t):6===r.type&&(i=new Z(h,this,t)),this._$AV.push(i),r=s[++n];}o!==r?.index&&(h=P.nextNode(),o++);}return P.currentNode=l,e}p(t){let i=0;for(const s of this._$AV) void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class k{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,i,s,e){this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cv=e?.isConnected??true;}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===t?.nodeType&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=M(this,t,i),a(t)?t===A||null==t||""===t?(this._$AH!==A&&this._$AR(),this._$AH=A):t!==this._$AH&&t!==E&&this._(t):void 0!==t._$litType$?this.$(t):void 0!==t.nodeType?this.T(t):d(t)?this.k(t):this._(t);}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t));}_(t){this._$AH!==A&&a(this._$AH)?this._$AA.nextSibling.data=t:this.T(l.createTextNode(t)),this._$AH=t;}$(t){const{values:i,_$litType$:s}=t,e="number"==typeof s?this._$AC(t):(void 0===s.el&&(s.el=S.createElement(V(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===e)this._$AH.p(i);else {const t=new R(e,this),s=t.u(this.options);t.p(i),this.T(s),this._$AH=t;}}_$AC(t){let i=C.get(t.strings);return void 0===i&&C.set(t.strings,i=new S(t)),i}k(t){u(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const h of t)e===i.length?i.push(s=new k(this.O(c()),this.O(c()),this,this.options)):s=i[e],s._$AI(h),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,s){for(this._$AP?.(false,true,s);t!==this._$AB;){const s=i$1(t).nextSibling;i$1(t).remove(),t=s;}}setConnected(t){ void 0===this._$AM&&(this._$Cv=t,this._$AP?.(t));}}class H{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,i,s,e,h){this.type=1,this._$AH=A,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=h,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=A;}_$AI(t,i=this,s,e){const h=this.strings;let o=false;if(void 0===h)t=M(this,t,i,0),o=!a(t)||t!==this._$AH&&t!==E,o&&(this._$AH=t);else {const e=t;let n,r;for(t=h[0],n=0;n<h.length-1;n++)r=M(this,e[s+n],i,n),r===E&&(r=this._$AH[n]),o||=!a(r)||r!==this._$AH[n],r===A?t=A:t!==A&&(t+=(r??"")+h[n+1]),this._$AH[n]=r;}o&&!e&&this.j(t);}j(t){t===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"");}}class I extends H{constructor(){super(...arguments),this.type=3;}j(t){this.element[this.name]=t===A?void 0:t;}}class L extends H{constructor(){super(...arguments),this.type=4;}j(t){this.element.toggleAttribute(this.name,!!t&&t!==A);}}class z extends H{constructor(t,i,s,e,h){super(t,i,s,e,h),this.type=5;}_$AI(t,i=this){if((t=M(this,t,i,0)??A)===E)return;const s=this._$AH,e=t===A&&s!==A||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,h=t!==A&&(s===A||e);e&&this.element.removeEventListener(this.name,this,s),h&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t);}}class Z{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){M(this,t);}}const B=t.litHtmlPolyfillSupport;B?.(S,k),(t.litHtmlVersions??=[]).push("3.3.3");const D=(t,i,s)=>{const e=s?.renderBefore??i;let h=e._$litPart$;if(void 0===h){const t=s?.renderBefore??null;e._$litPart$=h=new k(i.insertBefore(c(),t),t,void 0,s??{});}return h._$AI(t),h};
+const t$1=globalThis,i$1=t=>t,s$1=t$1.trustedTypes,e=s$1?s$1.createPolicy("lit-html",{createHTML:t=>t}):void 0,h="$lit$",o$1=`lit$${Math.random().toFixed(9).slice(2)}$`,n="?"+o$1,r=`<${n}>`,l=document,c=()=>l.createComment(""),a=t=>null===t||"object"!=typeof t&&"function"!=typeof t,u=Array.isArray,d=t=>u(t)||"function"==typeof t?.[Symbol.iterator],f="[ \t\n\f\r]",v=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,_=/-->/g,m=/>/g,p=RegExp(`>|${f}(?:([^\\s"'>=/]+)(${f}*=${f}*(?:[^ \t\n\f\r"'\`<>=]|("|')|))|$)`,"g"),g=/'/g,$=/"/g,y=/^(?:script|style|textarea|title)$/i,x=t=>(i,...s)=>({_$litType$:t,strings:i,values:s}),b=x(1),w=x(2),E=Symbol.for("lit-noChange"),A=Symbol.for("lit-nothing"),C=new WeakMap,P=l.createTreeWalker(l,129);function V(t,i){if(!u(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return void 0!==e?e.createHTML(i):i}const N=(t,i)=>{const s=t.length-1,e=[];let n,l=2===i?"<svg>":3===i?"<math>":"",c=v;for(let i=0;i<s;i++){const s=t[i];let a,u,d=-1,f=0;for(;f<s.length&&(c.lastIndex=f,u=c.exec(s),null!==u);)f=c.lastIndex,c===v?"!--"===u[1]?c=_:void 0!==u[1]?c=m:void 0!==u[2]?(y.test(u[2])&&(n=RegExp("</"+u[2],"g")),c=p):void 0!==u[3]&&(c=p):c===p?">"===u[0]?(c=n??v,d=-1):void 0===u[1]?d=-2:(d=c.lastIndex-u[2].length,a=u[1],c=void 0===u[3]?p:'"'===u[3]?$:g):c===$||c===g?c=p:c===_||c===m?c=v:(c=p,n=void 0);const x=c===p&&t[i+1].startsWith("/>")?" ":"";l+=c===v?s+r:d>=0?(e.push(a),s.slice(0,d)+h+s.slice(d)+o$1+x):s+o$1+(-2===d?i:x);}return [V(t,l+(t[s]||"<?>")+(2===i?"</svg>":3===i?"</math>":"")),e]};class S{constructor({strings:t,_$litType$:i},e){let r;this.parts=[];let l=0,a=0;const u=t.length-1,d=this.parts,[f,v]=N(t,i);if(this.el=S.createElement(f,e),P.currentNode=this.el.content,2===i||3===i){const t=this.el.content.firstChild;t.replaceWith(...t.childNodes);}for(;null!==(r=P.nextNode())&&d.length<u;){if(1===r.nodeType){if(r.hasAttributes())for(const t of r.getAttributeNames())if(t.endsWith(h)){const i=v[a++],s=r.getAttribute(t).split(o$1),e=/([.?@])?(.*)/.exec(i);d.push({type:1,index:l,name:e[2],strings:s,ctor:"."===e[1]?I:"?"===e[1]?L:"@"===e[1]?z:H}),r.removeAttribute(t);}else t.startsWith(o$1)&&(d.push({type:6,index:l}),r.removeAttribute(t));if(y.test(r.tagName)){const t=r.textContent.split(o$1),i=t.length-1;if(i>0){r.textContent=s$1?s$1.emptyScript:"";for(let s=0;s<i;s++)r.append(t[s],c()),P.nextNode(),d.push({type:2,index:++l});r.append(t[i],c());}}}else if(8===r.nodeType)if(r.data===n)d.push({type:2,index:l});else {let t=-1;for(;-1!==(t=r.data.indexOf(o$1,t+1));)d.push({type:7,index:l}),t+=o$1.length-1;}l++;}}static createElement(t,i){const s=l.createElement("template");return s.innerHTML=t,s}}function M(t,i,s=t,e){if(i===E)return i;let h=void 0!==e?s._$Co?.[e]:s._$Cl;const o=a(i)?void 0:i._$litDirective$;return h?.constructor!==o&&(h?._$AO?.(false),void 0===o?h=void 0:(h=new o(t),h._$AT(t,s,e)),void 0!==e?(s._$Co??=[])[e]=h:s._$Cl=h),void 0!==h&&(i=M(t,h._$AS(t,i.values),h,e)),i}class R{constructor(t,i){this._$AV=[],this._$AN=void 0,this._$AD=t,this._$AM=i;}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(t){const{el:{content:i},parts:s}=this._$AD,e=(t?.creationScope??l).importNode(i,true);P.currentNode=e;let h=P.nextNode(),o=0,n=0,r=s[0];for(;void 0!==r;){if(o===r.index){let i;2===r.type?i=new k(h,h.nextSibling,this,t):1===r.type?i=new r.ctor(h,r.name,r.strings,this,t):6===r.type&&(i=new Z(h,this,t)),this._$AV.push(i),r=s[++n];}o!==r?.index&&(h=P.nextNode(),o++);}return P.currentNode=l,e}p(t){let i=0;for(const s of this._$AV) void 0!==s&&(void 0!==s.strings?(s._$AI(t,s,i),i+=s.strings.length-2):s._$AI(t[i])),i++;}}class k{get _$AU(){return this._$AM?._$AU??this._$Cv}constructor(t,i,s,e){this.type=2,this._$AH=A,this._$AN=void 0,this._$AA=t,this._$AB=i,this._$AM=s,this.options=e,this._$Cv=e?.isConnected??true;}get parentNode(){let t=this._$AA.parentNode;const i=this._$AM;return void 0!==i&&11===t?.nodeType&&(t=i.parentNode),t}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(t,i=this){t=M(this,t,i),a(t)?t===A||null==t||""===t?(this._$AH!==A&&this._$AR(),this._$AH=A):t!==this._$AH&&t!==E&&this._(t):void 0!==t._$litType$?this.$(t):void 0!==t.nodeType?this.T(t):d(t)?this.k(t):this._(t);}O(t){return this._$AA.parentNode.insertBefore(t,this._$AB)}T(t){this._$AH!==t&&(this._$AR(),this._$AH=this.O(t));}_(t){this._$AH!==A&&a(this._$AH)?this._$AA.nextSibling.data=t:this.T(l.createTextNode(t)),this._$AH=t;}$(t){const{values:i,_$litType$:s}=t,e="number"==typeof s?this._$AC(t):(void 0===s.el&&(s.el=S.createElement(V(s.h,s.h[0]),this.options)),s);if(this._$AH?._$AD===e)this._$AH.p(i);else {const t=new R(e,this),s=t.u(this.options);t.p(i),this.T(s),this._$AH=t;}}_$AC(t){let i=C.get(t.strings);return void 0===i&&C.set(t.strings,i=new S(t)),i}k(t){u(this._$AH)||(this._$AH=[],this._$AR());const i=this._$AH;let s,e=0;for(const h of t)e===i.length?i.push(s=new k(this.O(c()),this.O(c()),this,this.options)):s=i[e],s._$AI(h),e++;e<i.length&&(this._$AR(s&&s._$AB.nextSibling,e),i.length=e);}_$AR(t=this._$AA.nextSibling,s){for(this._$AP?.(false,true,s);t!==this._$AB;){const s=i$1(t).nextSibling;i$1(t).remove(),t=s;}}setConnected(t){ void 0===this._$AM&&(this._$Cv=t,this._$AP?.(t));}}class H{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(t,i,s,e,h){this.type=1,this._$AH=A,this._$AN=void 0,this.element=t,this.name=i,this._$AM=e,this.options=h,s.length>2||""!==s[0]||""!==s[1]?(this._$AH=Array(s.length-1).fill(new String),this.strings=s):this._$AH=A;}_$AI(t,i=this,s,e){const h=this.strings;let o=false;if(void 0===h)t=M(this,t,i,0),o=!a(t)||t!==this._$AH&&t!==E,o&&(this._$AH=t);else {const e=t;let n,r;for(t=h[0],n=0;n<h.length-1;n++)r=M(this,e[s+n],i,n),r===E&&(r=this._$AH[n]),o||=!a(r)||r!==this._$AH[n],r===A?t=A:t!==A&&(t+=(r??"")+h[n+1]),this._$AH[n]=r;}o&&!e&&this.j(t);}j(t){t===A?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,t??"");}}class I extends H{constructor(){super(...arguments),this.type=3;}j(t){this.element[this.name]=t===A?void 0:t;}}class L extends H{constructor(){super(...arguments),this.type=4;}j(t){this.element.toggleAttribute(this.name,!!t&&t!==A);}}class z extends H{constructor(t,i,s,e,h){super(t,i,s,e,h),this.type=5;}_$AI(t,i=this){if((t=M(this,t,i,0)??A)===E)return;const s=this._$AH,e=t===A&&s!==A||t.capture!==s.capture||t.once!==s.once||t.passive!==s.passive,h=t!==A&&(s===A||e);e&&this.element.removeEventListener(this.name,this,s),h&&this.element.addEventListener(this.name,this,t),this._$AH=t;}handleEvent(t){"function"==typeof this._$AH?this._$AH.call(this.options?.host??this.element,t):this._$AH.handleEvent(t);}}class Z{constructor(t,i,s){this.element=t,this.type=6,this._$AN=void 0,this._$AM=i,this.options=s;}get _$AU(){return this._$AM._$AU}_$AI(t){M(this,t);}}const B=t$1.litHtmlPolyfillSupport;B?.(S,k),(t$1.litHtmlVersions??=[]).push("3.3.3");const D=(t,i,s)=>{const e=s?.renderBefore??i;let h=e._$litPart$;if(void 0===h){const t=s?.renderBefore??null;e._$litPart$=h=new k(i.insertBefore(c(),t),t,void 0,s??{});}return h._$AI(t),h};
 
 /**
  * @license
@@ -25,11 +25,11 @@ const t=globalThis,i$1=t=>t,s$1=t.trustedTypes,e=s$1?s$1.createPolicy("lit-html"
  */const s=globalThis;class i extends y$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0;}createRenderRoot(){const t=super.createRenderRoot();return this.renderOptions.renderBefore??=t.firstChild,t}update(t){const r=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=D(r,this.renderRoot,this.renderOptions);}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(true);}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(false);}render(){return E}}i._$litElement$=true,i["finalized"]=true,s.litElementHydrateSupport?.({LitElement:i});const o=s.litElementPolyfillSupport;o?.({LitElement:i});(s.litElementVersions??=[]).push("4.2.2");
 
 const DEFAULT_PRICE_STOPS = [
-  { value: 0.0, color: "#3b82f6" },
-  { value: 0.2, color: "#3b82f6" },
-  { value: 0.3, color: "#22c55e" },
-  { value: 0.4, color: "#eab308" },
-  { value: 0.6, color: "#ef4444" },
+  { value: 0.0, color: "#3b82f6" },  // blauw
+  { value: 0.2, color: "#3b82f6" },  // blauw tot 0,20
+  { value: 0.25, color: "#22c55e" }, // groen
+  { value: 0.35, color: "#eab308" }, // geel
+  { value: 0.7, color: "#ef4444" },  // rood
 ];
 
 const DEFAULTS = {
@@ -40,6 +40,7 @@ const DEFAULTS = {
   price_start: "midnight", // "now" | "midnight"
   car_mode: "scroll",       // "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
+  language: "auto",         // "auto" | "nl" | "en" | "de"
   price_unit: "€/kWh",
   color_solar: "#f5c518",
   color_battery: "#4caf50",
@@ -50,22 +51,210 @@ const DEFAULTS = {
   price_stops: DEFAULT_PRICE_STOPS,
 };
 
-const ENTITY_FIELDS = [
-  { key: "solar_power", label: "Solar vermogen (W)" },
-  { key: "grid_power", label: "Net / P1 vermogen (W, + = import, − = export)" },
-  { key: "battery_charge_power", label: "Accu laden (W)" },
-  { key: "battery_discharge_power", label: "Accu ontladen (W)" },
-  { key: "battery_soc", label: "Accu SOC (%)" },
-  { key: "price_entity", label: "Prijs energieleverancier (€/kWh)" },
-];
+const TRANSLATIONS = {
+  en: {
+    // flow
+    solar: "Solar",
+    home: "Home",
+    grid: "Grid",
+    battery: "Battery",
+    car: "Car",
+    import: "import",
+    export: "export",
+    charging: "charging",
+    discharging: "discharging",
+    // charts
+    price_title: "Electricity price",
+    solar_today: "Solar today",
+    battery_today: "Battery SoC today",
+    now: "Now",
+    tab_price: "Price",
+    tab_solar: "Solar",
+    tab_battery: "Battery",
+    history_loading: "Loading history…",
+    history_none: "No history available.",
+    // editor
+    ed_display: "Display",
+    ed_show_flow: "Show flow",
+    ed_show_price: "Show charts",
+    ed_display_zero: "Show empty branches (display zero)",
+    ed_entities: "Entities",
+    ed_home_note: "Home usage is calculated automatically: solar + grid + battery-discharge − battery-charge.",
+    ed_solar_power: "Solar power (W)",
+    ed_grid_power: "Grid / P1 power (W, + = import, − = export)",
+    ed_battery_charge: "Battery charge (W)",
+    ed_battery_discharge: "Battery discharge (W)",
+    ed_battery_soc: "Battery SoC (%)",
+    ed_price_entity: "Price provider entity (€/kWh or your currency)",
+    ed_cars: "Cars",
+    ed_add_car: "+ Add car",
+    ed_car_note: "Each car gets its own name. The node appears when charging (or always with display zero on).",
+    ed_no_cars: "No cars added yet.",
+    ed_car_display: "Display with multiple cars",
+    ed_car_scroll: "Auto-scroll (cycles automatically)",
+    ed_car_merged: "Static (1 icon, info of all)",
+    ed_car_interval: "Cycle interval",
+    ed_car_name: "Name",
+    ed_car_power: "Charge power (W)",
+    ed_car_soc: "Car SoC (%) — optional",
+    ed_remove_car: "Remove car",
+    ed_price_window: "Price window",
+    ed_hours_shown: "Hours shown",
+    ed_start_point: "Chart start point",
+    ed_start_midnight: "From midnight (days)",
+    ed_start_now: "From now",
+    ed_colors: "Colors",
+    ed_reset_colors: "Restore default colors",
+    ed_color_solar: "Solar color",
+    ed_color_battery: "Battery color",
+    ed_color_grid: "Grid color",
+    ed_color_car: "Car color",
+    ed_color_home: "Home color",
+    ed_price_scale: "Price color scale (price → color)",
+    ed_price_scale_note: "Colors blend smoothly between points. Add points for a finer gradient.",
+    ed_add_point: "+ Add point",
+    ed_remove: "Remove",
+    ed_language: "Language",
+    ed_lang_auto: "Automatic (follow Home Assistant)",
+  },
+  nl: {
+    solar: "Solar",
+    home: "Huis",
+    grid: "Net",
+    battery: "Accu",
+    car: "Auto",
+    import: "import",
+    export: "export",
+    charging: "laden",
+    discharging: "ontladen",
+    price_title: "Stroomprijs",
+    solar_today: "Solar vandaag",
+    battery_today: "Accu SoC vandaag",
+    now: "Nu",
+    tab_price: "Prijs",
+    tab_solar: "Solar",
+    tab_battery: "Accu",
+    history_loading: "Historie laden…",
+    history_none: "Geen historie beschikbaar.",
+    ed_display: "Weergave",
+    ed_show_flow: "Flow tonen",
+    ed_show_price: "Grafieken tonen",
+    ed_display_zero: "Lege takken tonen (display zero)",
+    ed_entities: "Entiteiten",
+    ed_home_note: "Huisverbruik wordt automatisch berekend: solar + net + accu-ontladen − accu-laden.",
+    ed_solar_power: "Solar vermogen (W)",
+    ed_grid_power: "Net / P1 vermogen (W, + = import, − = export)",
+    ed_battery_charge: "Accu laden (W)",
+    ed_battery_discharge: "Accu ontladen (W)",
+    ed_battery_soc: "Accu SoC (%)",
+    ed_price_entity: "Prijs energieleverancier (€/kWh)",
+    ed_cars: "Auto's",
+    ed_add_car: "+ Auto toevoegen",
+    ed_car_note: "Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).",
+    ed_no_cars: "Nog geen auto's toegevoegd.",
+    ed_car_display: "Weergave bij meerdere auto's",
+    ed_car_scroll: "Auto-scroll (wisselt vanzelf)",
+    ed_car_merged: "Statisch (1 icoon, beide info)",
+    ed_car_interval: "Wisselinterval",
+    ed_car_name: "Naam",
+    ed_car_power: "Laadvermogen (W)",
+    ed_car_soc: "Auto SoC (%) — optioneel",
+    ed_remove_car: "Verwijder auto",
+    ed_price_window: "Prijsvenster",
+    ed_hours_shown: "Uren tonen",
+    ed_start_point: "Startpunt grafiek",
+    ed_start_midnight: "Vanaf middernacht (dagen)",
+    ed_start_now: "Vanaf nu",
+    ed_colors: "Kleuren",
+    ed_reset_colors: "Standaardkleuren herstellen",
+    ed_color_solar: "Kleur solar",
+    ed_color_battery: "Kleur accu",
+    ed_color_grid: "Kleur net",
+    ed_color_car: "Kleur auto",
+    ed_color_home: "Kleur huis",
+    ed_price_scale: "Prijs-kleurschaal (€/kWh → kleur)",
+    ed_price_scale_note: "Kleuren lopen vloeiend over tussen de punten. Voeg punten toe voor een fijnere overgang.",
+    ed_add_point: "+ Punt toevoegen",
+    ed_remove: "Verwijder",
+    ed_language: "Taal",
+    ed_lang_auto: "Automatisch (volg Home Assistant)",
+  },
+  de: {
+    solar: "Solar",
+    home: "Haus",
+    grid: "Netz",
+    battery: "Akku",
+    car: "Auto",
+    import: "Import",
+    export: "Export",
+    charging: "laden",
+    discharging: "entladen",
+    price_title: "Strompreis",
+    solar_today: "Solar heute",
+    battery_today: "Akku SoC heute",
+    now: "Jetzt",
+    tab_price: "Preis",
+    tab_solar: "Solar",
+    tab_battery: "Akku",
+    history_loading: "Verlauf wird geladen…",
+    history_none: "Kein Verlauf verfügbar.",
+    ed_display: "Anzeige",
+    ed_show_flow: "Fluss anzeigen",
+    ed_show_price: "Diagramme anzeigen",
+    ed_display_zero: "Leere Zweige anzeigen (display zero)",
+    ed_entities: "Entitäten",
+    ed_home_note: "Hausverbrauch wird automatisch berechnet: Solar + Netz + Akku-Entladung − Akku-Ladung.",
+    ed_solar_power: "Solar-Leistung (W)",
+    ed_grid_power: "Netz / P1 Leistung (W, + = Import, − = Export)",
+    ed_battery_charge: "Akku laden (W)",
+    ed_battery_discharge: "Akku entladen (W)",
+    ed_battery_soc: "Akku SoC (%)",
+    ed_price_entity: "Preis-Anbieter Entität (€/kWh)",
+    ed_cars: "Autos",
+    ed_add_car: "+ Auto hinzufügen",
+    ed_car_note: "Jedes Auto erhält einen eigenen Namen. Der Knoten erscheint beim Laden (oder immer mit display zero).",
+    ed_no_cars: "Noch keine Autos hinzugefügt.",
+    ed_car_display: "Anzeige bei mehreren Autos",
+    ed_car_scroll: "Auto-Scroll (wechselt automatisch)",
+    ed_car_merged: "Statisch (1 Icon, alle Infos)",
+    ed_car_interval: "Wechselintervall",
+    ed_car_name: "Name",
+    ed_car_power: "Ladeleistung (W)",
+    ed_car_soc: "Auto SoC (%) — optional",
+    ed_remove_car: "Auto entfernen",
+    ed_price_window: "Preisfenster",
+    ed_hours_shown: "Stunden anzeigen",
+    ed_start_point: "Startpunkt Diagramm",
+    ed_start_midnight: "Ab Mitternacht (Tage)",
+    ed_start_now: "Ab jetzt",
+    ed_colors: "Farben",
+    ed_reset_colors: "Standardfarben wiederherstellen",
+    ed_color_solar: "Farbe Solar",
+    ed_color_battery: "Farbe Akku",
+    ed_color_grid: "Farbe Netz",
+    ed_color_car: "Farbe Auto",
+    ed_color_home: "Farbe Haus",
+    ed_price_scale: "Preis-Farbskala (Preis → Farbe)",
+    ed_price_scale_note: "Farben gehen fließend zwischen den Punkten über. Punkte hinzufügen für einen feineren Verlauf.",
+    ed_add_point: "+ Punkt hinzufügen",
+    ed_remove: "Entfernen",
+    ed_language: "Sprache",
+    ed_lang_auto: "Automatisch (Home Assistant folgen)",
+  },
+};
 
-const COLOR_FIELDS = [
-  { key: "color_solar", label: "Kleur solar" },
-  { key: "color_battery", label: "Kleur accu" },
-  { key: "color_grid", label: "Kleur net" },
-  { key: "color_car", label: "Kleur auto" },
-  { key: "color_home", label: "Kleur huis" },
-];
+// Resolve language: explicit config override > HA language > 'en'
+function resolveLang(configLang, hass) {
+  const supported = ["nl", "en", "de"];
+  if (configLang && configLang !== "auto" && supported.includes(configLang)) return configLang;
+  const haLang = (hass?.language || hass?.locale?.language || "en").slice(0, 2).toLowerCase();
+  return supported.includes(haLang) ? haLang : "en";
+}
+
+function t(lang, key) {
+  const table = TRANSLATIONS[lang] || TRANSLATIONS.en;
+  return table[key] ?? TRANSLATIONS.en[key] ?? key;
+}
 
 class EnergyFlowPriceCardEditor extends i {
   static get properties() {
@@ -75,6 +264,10 @@ class EnergyFlowPriceCardEditor extends i {
   setConfig(config) {
     this._config = { ...config };
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
+  }
+
+  _t(key) {
+    return t(resolveLang(this._config?.language, this.hass), key);
   }
 
   _get(key, fallback) { return this._config?.[key] ?? fallback ?? ""; }
@@ -105,7 +298,6 @@ class EnergyFlowPriceCardEditor extends i {
     this._emit(next);
   }
 
-  // ----- cars -----
   _cars() { return Array.isArray(this._config?.cars) ? this._config.cars : []; }
 
   _carChange(i, field, ev) {
@@ -117,7 +309,7 @@ class EnergyFlowPriceCardEditor extends i {
 
   _addCar() {
     const cars = this._cars().map((c) => ({ ...c }));
-    cars.push({ name: `Auto ${cars.length + 1}`, power: "", soc: "" });
+    cars.push({ name: `${this._t("car")} ${cars.length + 1}`, power: "", soc: "" });
     this._emit({ ...this._config, cars });
   }
 
@@ -127,7 +319,6 @@ class EnergyFlowPriceCardEditor extends i {
     this._emit({ ...this._config, cars });
   }
 
-  // ----- price stops -----
   _stops() {
     const s = this._config?.price_stops;
     return Array.isArray(s) && s.length ? s : DEFAULT_PRICE_STOPS;
@@ -152,30 +343,57 @@ class EnergyFlowPriceCardEditor extends i {
 
   render() {
     if (!this.hass || !this._config) return A;
+    const T = (k) => this._t(k);
     const showFlow = this._config.show_flow !== false;
     const showPrice = this._config.show_price !== false;
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
+    const lang = this._config.language ?? "auto";
+
+    const entityFields = [
+      { key: "solar_power", label: T("ed_solar_power") },
+      { key: "grid_power", label: T("ed_grid_power") },
+      { key: "battery_charge_power", label: T("ed_battery_charge") },
+      { key: "battery_discharge_power", label: T("ed_battery_discharge") },
+      { key: "battery_soc", label: T("ed_battery_soc") },
+      { key: "price_entity", label: T("ed_price_entity") },
+    ];
+    const colorFields = [
+      { key: "color_solar", label: T("ed_color_solar") },
+      { key: "color_battery", label: T("ed_color_battery") },
+      { key: "color_grid", label: T("ed_color_grid") },
+      { key: "color_car", label: T("ed_color_car") },
+      { key: "color_home", label: T("ed_color_home") },
+    ];
 
     return b`
       <div class="root">
         <div class="section">
-          <div class="head">Weergave</div>
-          <ha-formfield label="Flow tonen">
+          <div class="head">${T("ed_display")}</div>
+          <ha-formfield label=${T("ed_show_flow")}>
             <ha-switch .checked=${showFlow} @change=${(e) => this._toggle("show_flow", e)}></ha-switch>
           </ha-formfield>
-          <ha-formfield label="Prijzen tonen">
+          <ha-formfield label=${T("ed_show_price")}>
             <ha-switch .checked=${showPrice} @change=${(e) => this._toggle("show_price", e)}></ha-switch>
           </ha-formfield>
-          <ha-formfield label="Lege takken tonen (display zero)">
+          <ha-formfield label=${T("ed_display_zero")}>
             <ha-switch .checked=${displayZero} @change=${(e) => this._toggle("display_zero", e)}></ha-switch>
           </ha-formfield>
+          <label class="sel-row">
+            <span>${T("ed_language")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
+              <option value="auto" ?selected=${lang === "auto"}>${T("ed_lang_auto")}</option>
+              <option value="nl" ?selected=${lang === "nl"}>Nederlands</option>
+              <option value="en" ?selected=${lang === "en"}>English</option>
+              <option value="de" ?selected=${lang === "de"}>Deutsch</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
-          <div class="head">Entiteiten</div>
-          <div class="note">Huisverbruik wordt automatisch berekend: solar + net + accu-ontladen − accu-laden.</div>
-          ${ENTITY_FIELDS.map(
+          <div class="head">${T("ed_entities")}</div>
+          <div class="note">${T("ed_home_note")}</div>
+          ${entityFields.map(
             (f) => b`
               <ha-entity-picker
                 .hass=${this.hass}
@@ -189,24 +407,24 @@ class EnergyFlowPriceCardEditor extends i {
 
         <div class="section">
           <div class="head">
-            Auto's
-            <button class="add" @click=${() => this._addCar()}>+ Auto toevoegen</button>
+            ${T("ed_cars")}
+            <button class="add" @click=${() => this._addCar()}>${T("ed_add_car")}</button>
           </div>
-          <div class="note">Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).</div>
+          <div class="note">${T("ed_car_note")}</div>
           <label class="sel-row">
-            <span>Weergave bij meerdere auto's</span>
+            <span>${T("ed_car_display")}</span>
             <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
-              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>Auto-scroll (wisselt vanzelf)</option>
-              <option value="merged" ?selected=${this._config.car_mode === "merged"}>Statisch (1 icoon, beide info)</option>
+              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>${T("ed_car_scroll")}</option>
+              <option value="merged" ?selected=${this._config.car_mode === "merged"}>${T("ed_car_merged")}</option>
             </select>
           </label>
           ${(this._config.car_mode ?? "scroll") === "scroll" ? b`
             <div class="slider-row">
-              <span>Wisselinterval: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
+              <span>${T("ed_car_interval")}: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
               <input type="range" min="2" max="15" step="1" .value=${this._config.car_scroll_interval ?? 5}
                 @input=${(e) => this._emit({ ...this._config, car_scroll_interval: parseInt(e.target.value, 10) })} />
             </div>` : A}
-          ${this._cars().length === 0 ? b`<div class="note">Nog geen auto's toegevoegd.</div>` : A}
+          ${this._cars().length === 0 ? b`<div class="note">${T("ed_no_cars")}</div>` : A}
           ${this._cars().map(
             (car, i) => b`
               <div class="carblock">
@@ -214,23 +432,23 @@ class EnergyFlowPriceCardEditor extends i {
                   <input
                     type="text"
                     class="carname-input"
-                    placeholder="Naam"
+                    placeholder=${T("ed_car_name")}
                     .value=${car.name ?? ""}
                     @change=${(e) => this._carChange(i, "name", e)}
                   />
-                  <button class="mini" @click=${() => this._removeCar(i)} title="Verwijder auto">✕</button>
+                  <button class="mini" @click=${() => this._removeCar(i)} title=${T("ed_remove_car")}>✕</button>
                 </div>
                 <ha-entity-picker
                   .hass=${this.hass}
                   .value=${car.power ?? ""}
-                  .label=${"Laadvermogen (W)"}
+                  .label=${T("ed_car_power")}
                   allow-custom-entity
                   @value-changed=${(e) => this._carChange(i, "power", e)}
                 ></ha-entity-picker>
                 <ha-entity-picker
                   .hass=${this.hass}
                   .value=${car.soc ?? ""}
-                  .label=${"Auto SOC (%) — optioneel"}
+                  .label=${T("ed_car_soc")}
                   allow-custom-entity
                   @value-changed=${(e) => this._carChange(i, "soc", e)}
                 ></ha-entity-picker>
@@ -239,27 +457,27 @@ class EnergyFlowPriceCardEditor extends i {
         </div>
 
         <div class="section">
-          <div class="head">Prijsvenster</div>
+          <div class="head">${T("ed_price_window")}</div>
           <div class="slider-row">
-            <span>Uren tonen: <b>${hours}u</b></span>
+            <span>${T("ed_hours_shown")}: <b>${hours}u</b></span>
             <input type="range" min="8" max="48" step="1" .value=${hours} @input=${(e) => this._hours(e)} />
           </div>
           <label class="sel-row">
-            <span>Startpunt grafiek</span>
+            <span>${T("ed_start_point")}</span>
             <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
-              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>Vanaf middernacht (dagen)</option>
-              <option value="now" ?selected=${this._config.price_start === "now"}>Vanaf nu</option>
+              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>${T("ed_start_midnight")}</option>
+              <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
         </div>
 
         <div class="section">
           <div class="head">
-            Kleuren
-            <button class="reset" @click=${() => this._resetColors()}>Standaardkleuren herstellen</button>
+            ${T("ed_colors")}
+            <button class="reset" @click=${() => this._resetColors()}>${T("ed_reset_colors")}</button>
           </div>
           <div class="grid">
-            ${COLOR_FIELDS.map(
+            ${colorFields.map(
               (f) => b`
                 <label class="color">
                   <span>${f.label}</span>
@@ -271,8 +489,8 @@ class EnergyFlowPriceCardEditor extends i {
         </div>
 
         <div class="section">
-          <div class="head">Prijs-kleurschaal (€/kWh → kleur)</div>
-          <div class="note">Kleuren lopen vloeiend over tussen de punten. Voeg punten toe voor een fijnere overgang.</div>
+          <div class="head">${T("ed_price_scale")}</div>
+          <div class="note">${T("ed_price_scale_note")}</div>
           ${this._stops().map(
             (s, i) => b`
               <div class="stop-row">
@@ -281,10 +499,10 @@ class EnergyFlowPriceCardEditor extends i {
                 <span class="unit">€/kWh</span>
                 <input type="color" .value=${s.color}
                   @input=${(e) => this._stopChange(i, "color", e)} />
-                <button class="mini" @click=${() => this._removeStop(i)} title="Verwijder">✕</button>
+                <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
               </div>`
           )}
-          <button class="add" @click=${() => this._addStop()}>+ Punt toevoegen</button>
+          <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
         </div>
       </div>
     `;
@@ -417,6 +635,10 @@ class EnergyFlowPriceCard extends i {
     return Array.isArray(this._config.cars) ? this._config.cars : [];
   }
 
+  _t(key) {
+    return t(resolveLang(this._config?.language, this.hass), key);
+  }
+
   _priceData() {
     const cfg = this._config;
     const ent = this.hass?.states?.[cfg.price_entity];
@@ -467,9 +689,9 @@ class EnergyFlowPriceCard extends i {
     const home = this._homePower(v);
 
     const battValue = (v.charge && v.charge > 5) ? v.charge : (v.discharge && v.discharge > 5) ? v.discharge : (v.charge ?? v.discharge);
-    const battLabel = v.charge && v.charge > 5 ? "laden" : v.discharge && v.discharge > 5 ? "ontladen" : "";
+    const battLabel = v.charge && v.charge > 5 ? this._t("charging") : v.discharge && v.discharge > 5 ? this._t("discharging") : "";
 
-    const gridLabel = v.grid === null ? "" : v.grid < 0 ? "export" : "import";
+    const gridLabel = v.grid === null ? "" : v.grid < 0 ? this._t("export") : this._t("import");
 
     const showZero = c.display_zero;
     const act = (val) => val !== null && Math.abs(val) > 5;
@@ -524,7 +746,7 @@ class EnergyFlowPriceCard extends i {
           <div class="ic" style="color:${c.color_solar};border-color:${c.color_solar}66;background:${c.color_solar}22">
             <ha-icon icon="mdi:solar-power-variant"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Solar</span><span class="val" style="color:${c.color_solar}">${fmtPower(v.solar)}</span></div>
+          <div class="txt"><span class="lbl">${this._t("solar")}</span><span class="val" style="color:${c.color_solar}">${fmtPower(v.solar)}</span></div>
         </div>` : A}
 
         ${gridOn ? b`
@@ -532,7 +754,7 @@ class EnergyFlowPriceCard extends i {
           <div class="ic" style="color:${c.color_grid};border-color:${c.color_grid}66;background:${c.color_grid}22">
             <ha-icon icon="mdi:transmission-tower"></ha-icon>
           </div>
-          <div class="txt"><span class="lbl">Net</span><span class="val" style="color:${c.color_grid}">${fmtPower(v.grid)}</span>${gridLabel ? b`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : A}</div>
+          <div class="txt"><span class="lbl">${this._t("grid")}</span><span class="val" style="color:${c.color_grid}">${fmtPower(v.grid)}</span>${gridLabel ? b`<span class="sub" style="color:${c.color_grid}">${gridLabel}</span>` : A}</div>
         </div>` : A}
 
         ${battOn ? b`
@@ -555,7 +777,7 @@ class EnergyFlowPriceCard extends i {
           <div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>
-          <span class="lbl">Huis</span>
+          <span class="lbl">${this._t("home")}</span>
           <span class="val" style="color:${c.color_home}">${fmtPower(home)}</span>
         </div>
       </div>
@@ -567,7 +789,7 @@ class EnergyFlowPriceCard extends i {
     const carInfo = (car) => b`
       <span class="lbl">${car.name}${car.soc !== null ? b` · <b style="color:${c.color_car}">${Math.round(car.soc)}%</b>` : A}</span>
       <span class="val" style="color:${c.color_car}">${fmtPower(car.power)}</span>
-      ${car.active ? b`<span class="sub" style="color:${c.color_car}">laden</span>` : A}
+      ${car.active ? b`<span class="sub" style="color:${c.color_car}">${this._t("charging")}</span>` : A}
     `;
     const icon = b`
       <div class="ic" style="color:${c.color_car};border-color:${c.color_car}66;background:${c.color_car}22">
@@ -635,9 +857,9 @@ class EnergyFlowPriceCard extends i {
     const c = this._config;
     const mode = this._chartMode || "price";
     const tabs = [
-      { id: "price", label: "Prijs", show: !!c.price_entity },
-      { id: "solar", label: "Solar", show: !!c.solar_power },
-      { id: "accu", label: "Accu", show: !!c.battery_soc },
+      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
+      { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
+      { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
     ].filter((t) => t.show);
     // if selected tab is unavailable, fall back to first
     const activeMode = tabs.some((t) => t.id === mode) ? mode : (tabs[0]?.id || "price");
@@ -693,7 +915,7 @@ class EnergyFlowPriceCard extends i {
   _historyChart(c, mode) {
     const entity = mode === "solar" ? c.solar_power : c.battery_soc;
     const color = mode === "solar" ? c.color_solar : c.color_battery;
-    const title = mode === "solar" ? "Solar vandaag" : "Accu SoC vandaag";
+    const title = mode === "solar" ? this._t("solar_today") : this._t("battery_today");
 
     const cacheKey = mode + "|" + entity;
     const cached = this._history?.[cacheKey];
@@ -734,7 +956,7 @@ class EnergyFlowPriceCard extends i {
     return b`
       <div class="chdr">
         <span class="t">${title}</span>
-        ${cur !== null ? b`<span class="now">Nu: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : A}
+        ${cur !== null ? b`<span class="now">${this._t("now")}: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : A}
       </div>
       <div class="chart">
         <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
@@ -744,8 +966,8 @@ class EnergyFlowPriceCard extends i {
                 <path d="${areaPath}" fill="${color}22"></path>
                 <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
               </svg>`
-            : b`<div class="empty">${cached?.error ? "Geen historie beschikbaar." : "Historie laden…"}</div>`}
-          <div class="nowline right" style="left:${Math.min(100, nowFrac * 100)}%"></div>
+            : b`<div class="empty">${cached?.error ? this._t("history_none") : this._t("history_loading")}</div>`}
+          <div class="nowline right" data-now="${this._t("now")}" style="left:${Math.min(100, nowFrac * 100)}%"></div>
         </div>
         <div class="xaxis">
           ${labels.map((l) => b`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
@@ -802,11 +1024,11 @@ class EnergyFlowPriceCard extends i {
 
     return b`
       <div class="chdr">
-        <span class="t">Stroomprijs (${hours}u)</span>
+        <span class="t">${this._t("price_title")} (${hours}u)</span>
         ${sel
           ? b`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
           : current !== null
-            ? b`<span class="now">Nu: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+            ? b`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
             : A}
       </div>
       <div class="chart">
@@ -829,7 +1051,7 @@ class EnergyFlowPriceCard extends i {
               ></div>`;
             })}
           </div>
-          <div class="nowline" style="left:${nowFrac * 100}%"></div>
+          <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
         </div>
         <div class="xaxis">
           ${labels.map((l) => b`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
@@ -914,7 +1136,7 @@ class EnergyFlowPriceCard extends i {
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
-      .nowline::before { content: "Nu"; position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
+      .nowline::before { content: attr(data-now); position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
       .nowline.right::before { left: auto; right: 3px; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
       .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
@@ -926,7 +1148,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.2.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
