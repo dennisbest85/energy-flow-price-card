@@ -1,5 +1,7 @@
 # Energy Flow & Price Card
 
+![Energy Flow & Price Card](images/EnergyFLowPriceCard.gif)
+
 *(Nederlands hieronder / Dutch below)*
 
 A compact Lovelace card for Home Assistant that combines two things in one block:
