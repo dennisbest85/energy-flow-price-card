@@ -2,6 +2,15 @@
 
 Alle noemenswaardige wijzigingen aan de Energy Flow & Price Card.
 
+## v1.1.8
+
+### Nieuw
+- **Lege nodes altijd zichtbaar in grijs.** Solar, accu, net en auto worden nu altijd getoond. Is een entiteit niet ingevuld, dan staat de node grijs en het lijntje statisch grijs (uit). Zodra er stroom loopt, kleurt de node en beweegt het lijntje.
+
+### Fixes
+- **Zonneplan-prijzen werken nu.** De prijsgrafiek herkent nu ook het veld `electricity_price` en de geneste `price_tax_included`/`price_tax_excluded` velden, en rekent Zonneplan's schaal (x10.000.000) automatisch om naar €/kWh. Dit geldt ook voor andere leveranciers die de prijs als geschaald geheel getal aanleveren.
+- README-afbeelding toegevoegd (vereist voor HACS-validatie).
+
 ## v1.1.6
 
 ### Nieuw
