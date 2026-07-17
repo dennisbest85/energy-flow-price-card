@@ -63,6 +63,10 @@ const TRANSLATIONS = {
     ed_remove: "Remove",
     ed_language: "Language",
     ed_lang_auto: "Automatic (follow Home Assistant)",
+    ed_flow: "Flow animation",
+    ed_flow_speed: "Flow speed",
+    ed_flow_max_power: "Full-speed power (W)",
+    ed_flow_off_delay: "Turn off after (s)",
   },
   nl: {
     solar: "Solar",
@@ -125,6 +129,10 @@ const TRANSLATIONS = {
     ed_remove: "Verwijder",
     ed_language: "Taal",
     ed_lang_auto: "Automatisch (volg Home Assistant)",
+    ed_flow: "Flow-animatie",
+    ed_flow_speed: "Flow-snelheid",
+    ed_flow_max_power: "Vermogen voor topsnelheid (W)",
+    ed_flow_off_delay: "Uitschakelen na (s)",
   },
   de: {
     solar: "Solar",
@@ -187,6 +195,10 @@ const TRANSLATIONS = {
     ed_remove: "Entfernen",
     ed_language: "Sprache",
     ed_lang_auto: "Automatisch (Home Assistant folgen)",
+    ed_flow: "Fluss-Animation",
+    ed_flow_speed: "Fluss-Geschwindigkeit",
+    ed_flow_max_power: "Leistung für Höchstgeschwindigkeit (W)",
+    ed_flow_off_delay: "Ausschalten nach (s)",
   },
 };
 

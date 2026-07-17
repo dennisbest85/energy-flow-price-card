@@ -218,6 +218,25 @@ class EnergyFlowPriceCardEditor extends LitElement {
         </div>
 
         <div class="section">
+          <div class="head">${T("ed_flow")}</div>
+          <div class="slider-row">
+            <span>${T("ed_flow_speed")}: <b>${(this._config.flow_speed ?? 1).toFixed(1)}×</b></span>
+            <input type="range" min="0.2" max="3" step="0.1" .value=${this._config.flow_speed ?? 1}
+              @input=${(e) => this._emit({ ...this._config, flow_speed: parseFloat(e.target.value) })} />
+          </div>
+          <div class="slider-row">
+            <span>${T("ed_flow_max_power")}: <b>${this._config.flow_max_power ?? 5000} W</b></span>
+            <input type="range" min="500" max="15000" step="500" .value=${this._config.flow_max_power ?? 5000}
+              @input=${(e) => this._emit({ ...this._config, flow_max_power: parseInt(e.target.value, 10) })} />
+          </div>
+          <div class="slider-row">
+            <span>${T("ed_flow_off_delay")}: <b>${this._config.flow_off_delay ?? 20}s</b></span>
+            <input type="range" min="0" max="120" step="5" .value=${this._config.flow_off_delay ?? 20}
+              @input=${(e) => this._emit({ ...this._config, flow_off_delay: parseInt(e.target.value, 10) })} />
+          </div>
+        </div>
+
+        <div class="section">
           <div class="head">
             ${T("ed_colors")}
             <button class="reset" @click=${() => this._resetColors()}>${T("ed_reset_colors")}</button>

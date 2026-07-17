@@ -41,6 +41,9 @@ const DEFAULTS = {
   car_mode: "scroll",       // "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
   language: "auto",         // "auto" | "nl" | "en" | "de"
+  flow_speed: 1.0,          // overall speed multiplier for the flowing dashes
+  flow_max_power: 5000,     // W at which flow runs at full speed (and above)
+  flow_off_delay: 20,       // seconds at ~0 W before a line fades out
   price_unit: "€/kWh",
   color_solar: "#f5c518",
   color_battery: "#4caf50",
@@ -116,6 +119,10 @@ const TRANSLATIONS = {
     ed_remove: "Remove",
     ed_language: "Language",
     ed_lang_auto: "Automatic (follow Home Assistant)",
+    ed_flow: "Flow animation",
+    ed_flow_speed: "Flow speed",
+    ed_flow_max_power: "Full-speed power (W)",
+    ed_flow_off_delay: "Turn off after (s)",
   },
   nl: {
     solar: "Solar",
@@ -178,6 +185,10 @@ const TRANSLATIONS = {
     ed_remove: "Verwijder",
     ed_language: "Taal",
     ed_lang_auto: "Automatisch (volg Home Assistant)",
+    ed_flow: "Flow-animatie",
+    ed_flow_speed: "Flow-snelheid",
+    ed_flow_max_power: "Vermogen voor topsnelheid (W)",
+    ed_flow_off_delay: "Uitschakelen na (s)",
   },
   de: {
     solar: "Solar",
@@ -240,6 +251,10 @@ const TRANSLATIONS = {
     ed_remove: "Entfernen",
     ed_language: "Sprache",
     ed_lang_auto: "Automatisch (Home Assistant folgen)",
+    ed_flow: "Fluss-Animation",
+    ed_flow_speed: "Fluss-Geschwindigkeit",
+    ed_flow_max_power: "Leistung für Höchstgeschwindigkeit (W)",
+    ed_flow_off_delay: "Ausschalten nach (s)",
   },
 };
 
@@ -472,6 +487,25 @@ class EnergyFlowPriceCardEditor extends i {
         </div>
 
         <div class="section">
+          <div class="head">${T("ed_flow")}</div>
+          <div class="slider-row">
+            <span>${T("ed_flow_speed")}: <b>${(this._config.flow_speed ?? 1).toFixed(1)}×</b></span>
+            <input type="range" min="0.2" max="3" step="0.1" .value=${this._config.flow_speed ?? 1}
+              @input=${(e) => this._emit({ ...this._config, flow_speed: parseFloat(e.target.value) })} />
+          </div>
+          <div class="slider-row">
+            <span>${T("ed_flow_max_power")}: <b>${this._config.flow_max_power ?? 5000} W</b></span>
+            <input type="range" min="500" max="15000" step="500" .value=${this._config.flow_max_power ?? 5000}
+              @input=${(e) => this._emit({ ...this._config, flow_max_power: parseInt(e.target.value, 10) })} />
+          </div>
+          <div class="slider-row">
+            <span>${T("ed_flow_off_delay")}: <b>${this._config.flow_off_delay ?? 20}s</b></span>
+            <input type="range" min="0" max="120" step="5" .value=${this._config.flow_off_delay ?? 20}
+              @input=${(e) => this._emit({ ...this._config, flow_off_delay: parseInt(e.target.value, 10) })} />
+          </div>
+        </div>
+
+        <div class="section">
           <div class="head">
             ${T("ed_colors")}
             <button class="reset" @click=${() => this._resetColors()}>${T("ed_reset_colors")}</button>
@@ -661,6 +695,57 @@ class EnergyFlowPriceCard extends i {
     return t(resolveLang(this._config?.language, this.hass), key);
   }
 
+  // Per-wire animation state: tracks last time a wire had meaningful power,
+  // so lines can fade in when active and fade out after flow_off_delay seconds.
+  // Returns { show, moving, duration (s), fade ('in'|'out'|null) }.
+  _wireState(key, power) {
+    this._wires = this._wires || {};
+    const now = Date.now();
+    const c = this._config;
+    const p = power === null ? 0 : Math.abs(power);
+    const active = p > 5;
+    let w = this._wires[key];
+    if (!w) w = this._wires[key] = { lastActive: active ? now : 0, shownSince: active ? now : 0, wasShown: active };
+
+    if (active) {
+      w.lastActive = now;
+      if (!w.wasShown) { w.wasShown = true; w.shownSince = now; }
+    }
+    const offDelay = Math.max(0, (c.flow_off_delay ?? 20)) * 1000;
+    const sinceActive = now - w.lastActive;
+    const show = active || (w.wasShown && sinceActive < offDelay);
+    if (!show) w.wasShown = false;
+
+    // speed: linear from 0..flow_max_power, scaled by flow_speed multiplier.
+    const maxP = Math.max(100, c.flow_max_power ?? 5000);
+    const frac = Math.max(0, Math.min(1, p / maxP));
+    const speedMul = Math.max(0.1, c.flow_speed ?? 1.0);
+    // duration: fast (small number) at high power, slow (large) near zero.
+    // frac 1 -> ~0.5s, frac ~0 -> ~6s. Divided by the user multiplier.
+    const duration = active ? (6 - 5.5 * frac) / speedMul : 0;
+
+    // fade direction
+    let fade = null;
+    if (active && now - w.shownSince < 800) fade = "in";
+    else if (!active && show) fade = "out";
+
+    return { show, moving: active, duration, fade };
+  }
+
+  // Ensure the card keeps repainting while any wire is counting down to fade-out,
+  // even if Home Assistant sends no new state updates.
+  _scheduleFlowTick() {
+    if (this._flowTimer) return;
+    this._flowTimer = setInterval(() => {
+      const wires = this._wires || {};
+      const now = Date.now();
+      const offDelay = Math.max(0, (this._config?.flow_off_delay ?? 20)) * 1000;
+      const pending = Object.values(wires).some((w) => w.wasShown && now - w.lastActive < offDelay + 1000);
+      this.requestUpdate();
+      if (!pending) { clearInterval(this._flowTimer); this._flowTimer = null; }
+    }, 1000);
+  }
+
   _priceData() {
     const cfg = this._config;
     const ent = this.hass?.states?.[cfg.price_entity];
@@ -726,9 +811,9 @@ class EnergyFlowPriceCard extends i {
     c.display_zero;
     const act = (val) => val !== null && Math.abs(val) > 5;
 
-    const solarActive = act(v.solar);
-    const gridActive = act(v.grid);
-    const battActive = act(v.charge) || act(v.discharge);
+    act(v.solar);
+    act(v.grid);
+    act(v.charge) || act(v.discharge);
 
     // Which entities are configured at all
     const solarHasEnt = !!c.solar_power;
@@ -749,7 +834,7 @@ class EnergyFlowPriceCard extends i {
       const soc = num(this.hass, car.soc);
       return { name: car.name || `${this._t("car")} ${i + 1}`, power: p, soc, active: act(p), hasEnt: !!car.power };
     });
-    const anyCarActive = cars.some((c2) => c2.active);
+    cars.some((c2) => c2.active);
     const carHasEnt = cars.some((c2) => c2.hasEnt);
     // Always show at least one car node; if none added, show a single placeholder.
     const carsShown = cars.length ? cars : [{ name: this._t("car"), power: null, soc: null, active: false, hasEnt: false }];
@@ -765,20 +850,36 @@ class EnergyFlowPriceCard extends i {
     const HX = 360, HY = 104;          // vertical center of the house square (lowered)
     const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
 
+    // Per-wire animation states
+    const solarPow = v.solar;
+    const gridPow = v.grid;
+    const battPow = v.charge && v.charge > 5 ? v.charge : (v.discharge && v.discharge > 5 ? v.discharge : 0);
+    const carPow = (() => { let m = 0; for (const c2 of cars) { if (c2.active && Math.abs(c2.power) > m) m = Math.abs(c2.power); } return m; })();
+
+    const wSolar = this._wireState("solar", solarPow);
+    const wGrid = this._wireState("grid", gridPow);
+    const wBatt = this._wireState("batt", battPow);
+    const wCar = this._wireState("car", carPow);
+    if (wSolar.show || wGrid.show || wBatt.show || wCar.show) this._scheduleFlowTick();
+
+    const liveStyle = (st, color) =>
+      `stroke:${color};animation-duration:${st.duration}s;${st.moving ? "" : "animation-play-state:paused;"}`;
+    const liveClass = (st) => `live${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
+
     return b`
       <div class="flow">
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
           <path class="wire" d="M70,52 Q220,${HY} ${HL},${HY}"></path>
-          ${solarActive ? w`<path class="live" style="stroke:${c.color_solar}" d="M70,52 Q220,${HY} ${HL},${HY}"></path>` : A}
+          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="M70,52 Q220,${HY} ${HL},${HY}"></path>` : A}
 
           <path class="wire" d="M650,52 Q500,${HY} ${HR},${HY}"></path>
-          ${gridActive ? w`<path class="live" style="stroke:${c.color_grid}" d="M${HR},${HY} Q500,${HY} 650,52"></path>` : A}
+          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${gridPow < 0 ? `M${HR},${HY} Q500,${HY} 650,52` : `M650,52 Q500,${HY} ${HR},${HY}`}"></path>` : A}
 
           <path class="wire" d="M70,138 Q220,${HY} ${HL},${HY}"></path>
-          ${battActive ? w`<path class="live" style="stroke:${c.color_battery}" d="${v.charge && v.charge > 5 ? `M${HL},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HL},${HY}`}"></path>` : A}
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${v.charge && v.charge > 5 ? `M${HL},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HL},${HY}`}"></path>` : A}
 
           <path class="wire" d="M650,138 Q500,${HY} ${HR},${HY}"></path>
-          ${anyCarActive ? w`<path class="live" style="stroke:${c.color_car}" d="M${HR},${HY} Q500,${HY} 650,138"></path>` : A}
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="M${HR},${HY} Q500,${HY} 650,138"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -869,6 +970,7 @@ class EnergyFlowPriceCard extends i {
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._carTimer) { clearInterval(this._carTimer); this._carTimer = null; }
+    if (this._flowTimer) { clearInterval(this._flowTimer); this._flowTimer = null; }
   }
 
   _startCarScroll() {
@@ -1123,7 +1225,10 @@ class EnergyFlowPriceCard extends i {
       .flow { position: relative; height: 190px; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
-      .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-dasharray: 5 9; animation: flow 1s linear infinite; }
+      .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; opacity: 1; transition: opacity 1s ease; }
+      .live.still { stroke-dashoffset: 0; }
+      .live.fade-in { opacity: 1; }
+      .live.fade-out { opacity: 0; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
       .node { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
       .node.tl { left: 6px; top: 8px; }
@@ -1189,7 +1294,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.1.8 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.2.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

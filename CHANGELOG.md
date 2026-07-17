@@ -2,6 +2,13 @@
 
 Alle noemenswaardige wijzigingen aan de Energy Flow & Price Card.
 
+## v1.2.0
+
+### Nieuw
+- **Slimmere flow-animatie.** De snelheid van een lijntje schaalt nu mee met het vermogen: hoe hoger het vermogen, hoe sneller de puntjes lopen, tot een instelbare drempel (standaard 5000 W). Onder de drempel wordt het evenredig langzamer.
+- **Lijntje staat stil bij ~0 W** maar blijft eerst zichtbaar; na een instelbare vertraging (standaard 20 s) zonder stroom faadt het lijntje uit. Wordt een lijntje weer actief, dan faadt het in.
+- **Drie nieuwe instellingen** in de editor: flow-snelheid (algemene factor), vermogen voor topsnelheid, en de uitschakelvertraging.
+
 ## v1.1.8
 
 ### Nieuw
