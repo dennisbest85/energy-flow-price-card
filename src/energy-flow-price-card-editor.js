@@ -1,5 +1,5 @@
 import { LitElement, html, css, nothing } from "lit";
-import { DEFAULTS, DEFAULT_PRICE_STOPS } from "./constants.js";
+import { DEFAULTS, DEFAULT_PRICE_STOPS, PRICE_PROFILES } from "./constants.js";
 import { t, resolveLang, SUPPORTED_LANGS } from "./translations.js";
 
 class EnergyFlowPriceCardEditor extends LitElement {
@@ -95,6 +95,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
     const lang = this._config.language ?? "auto";
+    const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
 
     const entityFields = [
       { key: "solar_power", label: T("ed_solar_power") },
@@ -215,6 +216,23 @@ class EnergyFlowPriceCardEditor extends LitElement {
               <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
+          <ha-formfield label=${T("ed_relative_hours")}>
+            <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
+          </ha-formfield>
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_layout")}</div>
+          <div class="note">${T("ed_layout_note")}</div>
+          <label class="sel-row">
+            <span>${T("ed_layout_profile")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
+              <option value="default" ?selected=${priceProfile === "default"}>${T("ed_profile_default")}</option>
+              <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
+              <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
+              <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
@@ -253,22 +271,24 @@ class EnergyFlowPriceCardEditor extends LitElement {
           </div>
         </div>
 
-        <div class="section">
-          <div class="head">${T("ed_price_scale")}</div>
-          <div class="note">${T("ed_price_scale_note")}</div>
-          ${this._stops().map(
-            (s, i) => html`
-              <div class="stop-row">
-                <input type="number" step="0.01" .value=${s.value}
-                  @input=${(e) => this._stopChange(i, "value", e)} />
-                <span class="unit">€/kWh</span>
-                <input type="color" .value=${s.color}
-                  @input=${(e) => this._stopChange(i, "color", e)} />
-                <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
-              </div>`
-          )}
-          <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
-        </div>
+        ${priceProfile === "default" ? html`
+          <div class="section">
+            <div class="head">${T("ed_price_scale")}</div>
+            <div class="note">${T("ed_price_scale_note")}</div>
+            ${this._stops().map(
+              (s, i) => html`
+                <div class="stop-row">
+                  <input type="number" step="0.01" .value=${s.value}
+                    @input=${(e) => this._stopChange(i, "value", e)} />
+                  <span class="unit">€/kWh</span>
+                  <input type="color" .value=${s.color}
+                    @input=${(e) => this._stopChange(i, "color", e)} />
+                  <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
+                </div>`
+            )}
+            <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
+          </div>
+        ` : nothing}
       </div>
     `;
   }

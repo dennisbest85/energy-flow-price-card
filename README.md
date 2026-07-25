@@ -31,6 +31,8 @@ show_price: true
 display_zero: false          # true = empty branches (and idle car charger) stay visible
 price_hours: 24              # 8 to 48
 price_start: midnight        # "midnight" (from 00:00) or "now"
+price_profile: default       # "default" | "zonneplan" | "tibber" | "frank"
+price_relative_hours: false  # true = extra axis row counting hours from now ("now", 1, 2, 3…), Zonneplan-style
 language: auto               # "auto" (follow HA) | nl | en | de
 solar_power: sensor.solar_power
 grid_power: sensor.p1_power                   # +/- : positive = import, negative = export
@@ -59,6 +61,8 @@ price_stops:
 
 ## Notes
 
+- **Layout profiles:** `price_profile` swaps the price chart's style and colors to match a known provider's app: `default` (bar chart, fully customizable colors/thresholds via `price_stops`), `zonneplan` (bar chart with Zonneplan's green palette), `frank` (smooth single-color line, Frank Energie style), `tibber` (smooth line/area colored teal below and orange above today's average price, Tibber style). Pick it in the editor's **Layout** section — when a profile other than "Default" is selected, the manual price color scale is hidden because the profile's colors are fixed.
+- **Relative hour row:** `price_relative_hours` (off by default) adds a second axis row under the price chart counting hours from now ("now", 1, 2, 3…) instead of clock times — handy for "in how many hours is it cheapest", like Zonneplan's app. Works with every layout profile.
 - **Cars:** add one or more via the editor, each with its own name. With multiple cars you can choose auto-scroll (cycles automatically) or a static view. A car node appears only while charging (`power` > 5 W), unless *display zero* is on.
 - **Price:** works with any provider (Frank, Tibber, Nord Pool, ENTSO-e, Zonneplan...) as long as the value is in EUR/kWh. Window is adjustable from 8 to 48 hours, starting at midnight or now.
 - **Battery:** two separate sensors (charge W and discharge W), both positive.
@@ -92,6 +96,8 @@ Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul i
 
 ## Opmerkingen
 
+- **Layout-profielen:** `price_profile` verandert de stijl en kleuren van de prijsgrafiek naar het voorbeeld van een bekende leverancier-app: `default` (staafgrafiek, kleuren/drempels volledig aanpasbaar via `price_stops`), `zonneplan` (staafgrafiek met het groene Zonneplan-palet), `frank` (vloeiende lijn in één kleur, stijl Frank Energie), `tibber` (vloeiende lijn/vlak, teal onder en oranje boven het gemiddelde van vandaag, stijl Tibber). Kies dit in de **Layout**-sectie van de editor — bij een ander profiel dan "Standaard" verdwijnt de handmatige prijs-kleurschaal, omdat de kleuren dan vastliggen.
+- **Relatieve-uren-rij:** `price_relative_hours` (standaard uit) voegt een tweede as-rij onder de prijsgrafiek toe die uren vanaf nu telt ("nu", 1, 2, 3…) in plaats van kloktijden — handig om te zien over hoeveel uur het goedkoopst is, zoals in de Zonneplan-app. Werkt met elk layout-profiel.
 - **Auto's:** voeg er een of meer toe via de editor, elk met een eigen naam. Bij meerdere auto's kies je auto-scroll (wisselt vanzelf) of een statische weergave. Een auto-node verschijnt alleen bij actief laden (`power` > 5 W), tenzij *display zero* aan staat.
 - **Prijs:** werkt met elke leverancier (Frank, Tibber, Nord Pool, ENTSO-e, Zonneplan...) zolang de waarde in EUR/kWh is. Venster instelbaar van 8 tot 48 uur, startend om middernacht of nu.
 - **Accu:** twee aparte sensoren (laden W en ontladen W), beide positief.

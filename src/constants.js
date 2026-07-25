@@ -6,6 +6,37 @@ export const DEFAULT_PRICE_STOPS = [
   { value: 0.7, color: "#ef4444" },  // rood
 ];
 
+// Layout profiles: bootstrap the price chart to look like a known provider app.
+// "bars"           -> classic bar chart, colored per price via a stop gradient (like today).
+// "line"           -> smooth single-color line, no per-price coloring (Frank Energie style).
+// "line-threshold" -> smooth line/area colored by whether a value is above or below the
+//                      average of the shown prices (Tibber style).
+export const PRICE_PROFILES = {
+  default: {
+    chart_style: "bars",
+    price_stops: DEFAULT_PRICE_STOPS,
+  },
+  zonneplan: {
+    chart_style: "bars",
+    price_stops: [
+      { value: 0.0, color: "#bbf7d0" },
+      { value: 0.15, color: "#4ade80" },
+      { value: 0.25, color: "#16a34a" },
+      { value: 0.35, color: "#15803d" },
+      { value: 0.6, color: "#052e16" },
+    ],
+  },
+  frank: {
+    chart_style: "line",
+    line_color: "#F2994A",
+  },
+  tibber: {
+    chart_style: "line-threshold",
+    color_below: "#00C9A7",
+    color_above: "#FF7A29",
+  },
+};
+
 export const DEFAULTS = {
   show_flow: true,
   show_price: true,
@@ -26,4 +57,6 @@ export const DEFAULTS = {
   color_home: "#7dd3fc",
   include_car_in_home: false,
   price_stops: DEFAULT_PRICE_STOPS,
+  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
+  price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
 };

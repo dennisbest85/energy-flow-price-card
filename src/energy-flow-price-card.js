@@ -1,7 +1,9 @@
 import { LitElement, html, css, svg, nothing } from "lit";
-import { DEFAULTS, DEFAULT_PRICE_STOPS } from "./constants.js";
+import { DEFAULTS, DEFAULT_PRICE_STOPS, PRICE_PROFILES } from "./constants.js";
 import { t, resolveLang } from "./translations.js";
 import "./energy-flow-price-card-editor.js";
+
+let _efpUidCounter = 0;
 
 // Bring a provider price value into a sane EUR/kWh range.
 // Some integrations report scaled integers (e.g. Zonneplan uses value x1e7,
@@ -63,9 +65,36 @@ function colorForValue(value, stops) {
   return s[s.length - 1].color;
 }
 
+// Catmull-Rom-style smoothing converted to cubic beziers, for the "line" layout profiles.
+function catmullRomToBezierPath(pts) {
+  if (!pts.length) return "";
+  if (pts.length === 1) return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  if (pts.length === 2) {
+    return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)} L${pts[1].x.toFixed(2)},${pts[1].y.toFixed(2)}`;
+  }
+  let d = `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+
 class EnergyFlowPriceCard extends LitElement {
   static get properties() {
     return { hass: {}, _config: {} };
+  }
+
+  constructor() {
+    super();
+    this._uid = ++_efpUidCounter;
   }
 
   static getConfigElement() {
@@ -91,6 +120,9 @@ class EnergyFlowPriceCard extends LitElement {
     this._config = { ...DEFAULTS, ...config };
     if (!Array.isArray(this._config.price_stops) || !this._config.price_stops.length) {
       this._config.price_stops = DEFAULT_PRICE_STOPS;
+    }
+    if (!PRICE_PROFILES[this._config.price_profile]) {
+      this._config.price_profile = "default";
     }
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
     if (this._carScrollIdx == null) this._carScrollIdx = 0;
@@ -123,6 +155,10 @@ class EnergyFlowPriceCard extends LitElement {
 
   _t(key) {
     return t(resolveLang(this._config?.language, this.hass), key);
+  }
+
+  _activeProfile() {
+    return PRICE_PROFILES[this._config?.price_profile] || PRICE_PROFILES.default;
   }
 
   // Per-wire animation state: tracks last time a wire had meaningful power,
@@ -593,6 +629,23 @@ class EnergyFlowPriceCard extends LitElement {
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
 
     const sel = this._selectedSlot;
+    const profile = this._activeProfile();
+    const stops = this._config.price_profile === "zonneplan" ? profile.price_stops : c.price_stops;
+
+    // Optional second x-axis row counting hours from now ("nu", 1, 2, 3…), off by default.
+    const showRel = !!c.price_relative_hours;
+    const relLabels = [];
+    if (showRel) {
+      const maxH = Math.max(0, Math.floor((endMs - now) / 3600000));
+      let h = 0;
+      while (h <= maxH) {
+        const frac = (now + h * 3600000 - startMs) / (endMs - startMs);
+        if (frac >= 0 && frac <= 1) {
+          relLabels.push({ frac, text: h === 0 ? this._t("now").toLowerCase() : String(h) });
+        }
+        h += h < 10 ? 1 : h < 16 ? 2 : 3;
+      }
+    }
 
     return html`
       <div class="chdr">
@@ -603,31 +656,103 @@ class EnergyFlowPriceCard extends LitElement {
             ? html`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
             : nothing}
       </div>
-      <div class="chart">
+      <div class="chart ${showRel ? "has-rel" : ""}">
         <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
         <div class="plot">
-          <div class="bars">
-            ${slots.map((s) => {
-              if (s.v === null) return html`<div class="bar empty-slot"></div>`;
-              const h = Math.max(2, (s.v / maxV) * 100);
-              const col = colorForValue(s.v, c.price_stops);
-              const isSel = sel && sel.t === s.t;
-              const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-              return html`<div
-                class="bar ${isSel ? "sel" : ""}"
-                style="height:${h}%;background:${col}"
-                title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
-                @mouseenter=${() => this._hoverSlot(s)}
-                @mouseleave=${() => this._hoverSlot(null)}
-                @click=${() => this._tapSlot(s)}
-              ></div>`;
-            })}
-          </div>
+          ${profile.chart_style === "bars"
+            ? this._priceBarsBody(slots, maxV, stops, sel)
+            : this._priceLineBody(slots, maxV, profile, sel)}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
         </div>
-        <div class="xaxis">
+        <div class="xaxis ${showRel ? "abs" : ""}">
           ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
         </div>
+        ${showRel ? html`
+          <div class="xaxis rel">
+            ${relLabels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          </div>` : nothing}
+      </div>
+    `;
+  }
+
+  _priceBarsBody(slots, maxV, stops, sel) {
+    return html`
+      <div class="bars">
+        ${slots.map((s) => {
+          if (s.v === null) return html`<div class="bar empty-slot"></div>`;
+          const h = Math.max(2, (s.v / maxV) * 100);
+          const col = colorForValue(s.v, stops);
+          const isSel = sel && sel.t === s.t;
+          const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          return html`<div
+            class="bar ${isSel ? "sel" : ""}"
+            style="height:${h}%;background:${col}"
+            title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+            @mouseenter=${() => this._hoverSlot(s)}
+            @mouseleave=${() => this._hoverSlot(null)}
+            @click=${() => this._tapSlot(s)}
+          ></div>`;
+        })}
+      </div>
+    `;
+  }
+
+  // Smooth-line layout profiles ("line" / "line-threshold"): only the leading
+  // contiguous run of known values is drawn as a curve; a trailing gap (e.g.
+  // tomorrow's prices not published yet) keeps the familiar hatched placeholder.
+  _priceLineBody(slots, maxV, profile, sel) {
+    let runEnd = 0;
+    while (runEnd < slots.length && slots[runEnd].v !== null) runEnd++;
+    const run = slots.slice(0, runEnd);
+
+    const n = Math.max(1, slots.length - 1);
+    const pts = run.map((s, i) => ({
+      x: (i / n) * 100,
+      y: 100 - Math.max(0, Math.min(100, (s.v / maxV) * 100)),
+    }));
+
+    const pathD = pts.length ? catmullRomToBezierPath(pts) : "";
+    const areaD = pathD && pts.length > 1
+      ? `${pathD} L${pts[pts.length - 1].x.toFixed(2)},100 L${pts[0].x.toFixed(2)},100 Z`
+      : "";
+
+    let stroke = profile.line_color || "#7dd3fc";
+    let fill = "none";
+    let defs = nothing;
+
+    if (profile.chart_style === "line-threshold" && run.length) {
+      const avg = run.reduce((a, s) => a + s.v, 0) / run.length;
+      const avgFrac = Math.max(0, Math.min(1, 1 - Math.min(1, avg / maxV)));
+      const gradId = `efp-grad-${this._uid}`;
+      defs = svg`<defs>
+        <linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
+          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_above}"></stop>
+          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_below}"></stop>
+        </linearGradient>
+      </defs>`;
+      stroke = `url(#${gradId})`;
+      fill = `url(#${gradId})`;
+    }
+
+    return html`
+      <svg class="priceline" viewBox="0 0 100 100" preserveAspectRatio="none">
+        ${defs}
+        ${areaD && fill !== "none" ? svg`<path d="${areaD}" fill="${fill}" fill-opacity="0.32" stroke="none"></path>` : nothing}
+        ${pathD ? svg`<path d="${pathD}" fill="none" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"></path>` : nothing}
+      </svg>
+      <div class="hits">
+        ${slots.map((s) => {
+          if (s.v === null) return html`<div class="hit empty-slot"></div>`;
+          const isSel = sel && sel.t === s.t;
+          const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          return html`<div
+            class="hit ${isSel ? "sel" : ""}"
+            title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+            @mouseenter=${() => this._hoverSlot(s)}
+            @mouseleave=${() => this._hoverSlot(null)}
+            @click=${() => this._tapSlot(s)}
+          ></div>`;
+        })}
       </div>
     `;
   }
@@ -704,18 +829,31 @@ class EnergyFlowPriceCard extends LitElement {
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
       .chart { position: relative; height: 168px; padding-left: 34px; }
+      .chart.has-rel { height: 182px; }
       .yaxis { position: absolute; left: 0; top: 0; bottom: 34px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
+      .chart.has-rel .yaxis { bottom: 48px; }
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
+      .chart.has-rel .plot { bottom: 48px; }
       .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
       .bar { flex: 1; border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .15s; }
       .bar:hover { opacity: .8; }
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .priceline { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .hits { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 1px; }
+      .hit { flex: 1; cursor: pointer; background: transparent; border-radius: 2px; }
+      .hit:hover { background: rgba(255,255,255,.06); }
+      .hit.sel { background: rgba(255,255,255,.12); }
+      .hit.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); cursor: default; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: attr(data-now); position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
       .nowline.right::before { left: auto; right: 3px; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
+      .xaxis.abs { bottom: 26px; }
+      .xaxis.rel { bottom: 10px; }
+      .xaxis.rel .tick { opacity: .75; }
+      .xaxis.rel .tick::before { display: none; }
       .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
       .xaxis .tick:last-child { transform: translateX(-100%); }
       .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
@@ -725,7 +863,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.2.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.3.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

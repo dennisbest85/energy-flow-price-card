@@ -32,6 +32,37 @@ const DEFAULT_PRICE_STOPS = [
   { value: 0.7, color: "#ef4444" },  // rood
 ];
 
+// Layout profiles: bootstrap the price chart to look like a known provider app.
+// "bars"           -> classic bar chart, colored per price via a stop gradient (like today).
+// "line"           -> smooth single-color line, no per-price coloring (Frank Energie style).
+// "line-threshold" -> smooth line/area colored by whether a value is above or below the
+//                      average of the shown prices (Tibber style).
+const PRICE_PROFILES = {
+  default: {
+    chart_style: "bars",
+    price_stops: DEFAULT_PRICE_STOPS,
+  },
+  zonneplan: {
+    chart_style: "bars",
+    price_stops: [
+      { value: 0.0, color: "#bbf7d0" },
+      { value: 0.15, color: "#4ade80" },
+      { value: 0.25, color: "#16a34a" },
+      { value: 0.35, color: "#15803d" },
+      { value: 0.6, color: "#052e16" },
+    ],
+  },
+  frank: {
+    chart_style: "line",
+    line_color: "#F2994A",
+  },
+  tibber: {
+    chart_style: "line-threshold",
+    color_below: "#00C9A7",
+    color_above: "#FF7A29",
+  },
+};
+
 const DEFAULTS = {
   show_flow: true,
   show_price: true,
@@ -52,6 +83,8 @@ const DEFAULTS = {
   color_home: "#7dd3fc",
   include_car_in_home: false,
   price_stops: DEFAULT_PRICE_STOPS,
+  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
+  price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
 };
 
 const TRANSLATIONS = {
@@ -106,6 +139,14 @@ const TRANSLATIONS = {
     ed_start_point: "Chart start point",
     ed_start_midnight: "From midnight (days)",
     ed_start_now: "From now",
+    ed_relative_hours: "Show hours-from-now row below the axis (now, 1, 2, 3…)",
+    ed_layout: "Layout",
+    ed_layout_profile: "Price chart style",
+    ed_layout_note: "A profile fixes the chart style and colors to match that provider's app. The manual price color scale below is only available for \"Default\".",
+    ed_profile_default: "Default (bars, custom colors)",
+    ed_profile_zonneplan: "Zonneplan (green bars)",
+    ed_profile_tibber: "Tibber (smooth line, teal/orange)",
+    ed_profile_frank: "Frank Energie (smooth orange line)",
     ed_colors: "Colors",
     ed_reset_colors: "Restore default colors",
     ed_color_solar: "Solar color",
@@ -172,6 +213,14 @@ const TRANSLATIONS = {
     ed_start_point: "Startpunt grafiek",
     ed_start_midnight: "Vanaf middernacht (dagen)",
     ed_start_now: "Vanaf nu",
+    ed_relative_hours: "Toon uren-vanaf-nu rij onder de as (nu, 1, 2, 3…)",
+    ed_layout: "Layout",
+    ed_layout_profile: "Stijl prijsgrafiek",
+    ed_layout_note: "Een profiel zet de grafiekstijl en kleuren vast, passend bij de app van die leverancier. De handmatige prijs-kleurschaal hieronder is alleen beschikbaar bij \"Standaard\".",
+    ed_profile_default: "Standaard (staven, eigen kleuren)",
+    ed_profile_zonneplan: "Zonneplan (groene staven)",
+    ed_profile_tibber: "Tibber (vloeiende lijn, teal/oranje)",
+    ed_profile_frank: "Frank Energie (vloeiende oranje lijn)",
     ed_colors: "Kleuren",
     ed_reset_colors: "Standaardkleuren herstellen",
     ed_color_solar: "Kleur solar",
@@ -238,6 +287,14 @@ const TRANSLATIONS = {
     ed_start_point: "Startpunkt Diagramm",
     ed_start_midnight: "Ab Mitternacht (Tage)",
     ed_start_now: "Ab jetzt",
+    ed_relative_hours: "Zeile „Stunden ab jetzt“ unter der Achse anzeigen (jetzt, 1, 2, 3…)",
+    ed_layout: "Layout",
+    ed_layout_profile: "Preisdiagramm-Stil",
+    ed_layout_note: "Ein Profil legt den Diagrammstil und die Farben fest, passend zur App dieses Anbieters. Die manuelle Preis-Farbskala unten ist nur bei \"Standard\" verfügbar.",
+    ed_profile_default: "Standard (Balken, eigene Farben)",
+    ed_profile_zonneplan: "Zonneplan (grüne Balken)",
+    ed_profile_tibber: "Tibber (weiche Linie, Türkis/Orange)",
+    ed_profile_frank: "Frank Energie (weiche orange Linie)",
     ed_colors: "Farben",
     ed_reset_colors: "Standardfarben wiederherstellen",
     ed_color_solar: "Farbe Solar",
@@ -364,6 +421,7 @@ class EnergyFlowPriceCardEditor extends i {
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
     const lang = this._config.language ?? "auto";
+    const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
 
     const entityFields = [
       { key: "solar_power", label: T("ed_solar_power") },
@@ -484,6 +542,23 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
+          <ha-formfield label=${T("ed_relative_hours")}>
+            <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
+          </ha-formfield>
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_layout")}</div>
+          <div class="note">${T("ed_layout_note")}</div>
+          <label class="sel-row">
+            <span>${T("ed_layout_profile")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
+              <option value="default" ?selected=${priceProfile === "default"}>${T("ed_profile_default")}</option>
+              <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
+              <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
+              <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
+            </select>
+          </label>
         </div>
 
         <div class="section">
@@ -522,22 +597,24 @@ class EnergyFlowPriceCardEditor extends i {
           </div>
         </div>
 
-        <div class="section">
-          <div class="head">${T("ed_price_scale")}</div>
-          <div class="note">${T("ed_price_scale_note")}</div>
-          ${this._stops().map(
-            (s, i) => b`
-              <div class="stop-row">
-                <input type="number" step="0.01" .value=${s.value}
-                  @input=${(e) => this._stopChange(i, "value", e)} />
-                <span class="unit">€/kWh</span>
-                <input type="color" .value=${s.color}
-                  @input=${(e) => this._stopChange(i, "color", e)} />
-                <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
-              </div>`
-          )}
-          <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
-        </div>
+        ${priceProfile === "default" ? b`
+          <div class="section">
+            <div class="head">${T("ed_price_scale")}</div>
+            <div class="note">${T("ed_price_scale_note")}</div>
+            ${this._stops().map(
+              (s, i) => b`
+                <div class="stop-row">
+                  <input type="number" step="0.01" .value=${s.value}
+                    @input=${(e) => this._stopChange(i, "value", e)} />
+                  <span class="unit">€/kWh</span>
+                  <input type="color" .value=${s.color}
+                    @input=${(e) => this._stopChange(i, "color", e)} />
+                  <button class="mini" @click=${() => this._removeStop(i)} title=${T("ed_remove")}>✕</button>
+                </div>`
+            )}
+            <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
+          </div>
+        ` : A}
       </div>
     `;
   }
@@ -572,6 +649,8 @@ class EnergyFlowPriceCardEditor extends i {
 }
 
 customElements.define("energy-flow-price-card-editor", EnergyFlowPriceCardEditor);
+
+let _efpUidCounter = 0;
 
 // Bring a provider price value into a sane EUR/kWh range.
 // Some integrations report scaled integers (e.g. Zonneplan uses value x1e7,
@@ -633,9 +712,36 @@ function colorForValue(value, stops) {
   return s[s.length - 1].color;
 }
 
+// Catmull-Rom-style smoothing converted to cubic beziers, for the "line" layout profiles.
+function catmullRomToBezierPath(pts) {
+  if (!pts.length) return "";
+  if (pts.length === 1) return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  if (pts.length === 2) {
+    return `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)} L${pts[1].x.toFixed(2)},${pts[1].y.toFixed(2)}`;
+  }
+  let d = `M${pts[0].x.toFixed(2)},${pts[0].y.toFixed(2)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] || p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${c1x.toFixed(2)},${c1y.toFixed(2)} ${c2x.toFixed(2)},${c2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`;
+  }
+  return d;
+}
+
 class EnergyFlowPriceCard extends i {
   static get properties() {
     return { hass: {}, _config: {} };
+  }
+
+  constructor() {
+    super();
+    this._uid = ++_efpUidCounter;
   }
 
   static getConfigElement() {
@@ -661,6 +767,9 @@ class EnergyFlowPriceCard extends i {
     this._config = { ...DEFAULTS, ...config };
     if (!Array.isArray(this._config.price_stops) || !this._config.price_stops.length) {
       this._config.price_stops = DEFAULT_PRICE_STOPS;
+    }
+    if (!PRICE_PROFILES[this._config.price_profile]) {
+      this._config.price_profile = "default";
     }
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
     if (this._carScrollIdx == null) this._carScrollIdx = 0;
@@ -693,6 +802,10 @@ class EnergyFlowPriceCard extends i {
 
   _t(key) {
     return t(resolveLang(this._config?.language, this.hass), key);
+  }
+
+  _activeProfile() {
+    return PRICE_PROFILES[this._config?.price_profile] || PRICE_PROFILES.default;
   }
 
   // Per-wire animation state: tracks last time a wire had meaningful power,
@@ -1162,6 +1275,23 @@ class EnergyFlowPriceCard extends i {
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
 
     const sel = this._selectedSlot;
+    const profile = this._activeProfile();
+    const stops = this._config.price_profile === "zonneplan" ? profile.price_stops : c.price_stops;
+
+    // Optional second x-axis row counting hours from now ("nu", 1, 2, 3…), off by default.
+    const showRel = !!c.price_relative_hours;
+    const relLabels = [];
+    if (showRel) {
+      const maxH = Math.max(0, Math.floor((endMs - now) / 3600000));
+      let h = 0;
+      while (h <= maxH) {
+        const frac = (now + h * 3600000 - startMs) / (endMs - startMs);
+        if (frac >= 0 && frac <= 1) {
+          relLabels.push({ frac, text: h === 0 ? this._t("now").toLowerCase() : String(h) });
+        }
+        h += h < 10 ? 1 : h < 16 ? 2 : 3;
+      }
+    }
 
     return b`
       <div class="chdr">
@@ -1172,31 +1302,103 @@ class EnergyFlowPriceCard extends i {
             ? b`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
             : A}
       </div>
-      <div class="chart">
+      <div class="chart ${showRel ? "has-rel" : ""}">
         <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
         <div class="plot">
-          <div class="bars">
-            ${slots.map((s) => {
-              if (s.v === null) return b`<div class="bar empty-slot"></div>`;
-              const h = Math.max(2, (s.v / maxV) * 100);
-              const col = colorForValue(s.v, c.price_stops);
-              const isSel = sel && sel.t === s.t;
-              const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-              return b`<div
-                class="bar ${isSel ? "sel" : ""}"
-                style="height:${h}%;background:${col}"
-                title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
-                @mouseenter=${() => this._hoverSlot(s)}
-                @mouseleave=${() => this._hoverSlot(null)}
-                @click=${() => this._tapSlot(s)}
-              ></div>`;
-            })}
-          </div>
+          ${profile.chart_style === "bars"
+            ? this._priceBarsBody(slots, maxV, stops, sel)
+            : this._priceLineBody(slots, maxV, profile, sel)}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
         </div>
-        <div class="xaxis">
+        <div class="xaxis ${showRel ? "abs" : ""}">
           ${labels.map((l) => b`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
         </div>
+        ${showRel ? b`
+          <div class="xaxis rel">
+            ${relLabels.map((l) => b`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          </div>` : A}
+      </div>
+    `;
+  }
+
+  _priceBarsBody(slots, maxV, stops, sel) {
+    return b`
+      <div class="bars">
+        ${slots.map((s) => {
+          if (s.v === null) return b`<div class="bar empty-slot"></div>`;
+          const h = Math.max(2, (s.v / maxV) * 100);
+          const col = colorForValue(s.v, stops);
+          const isSel = sel && sel.t === s.t;
+          const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          return b`<div
+            class="bar ${isSel ? "sel" : ""}"
+            style="height:${h}%;background:${col}"
+            title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+            @mouseenter=${() => this._hoverSlot(s)}
+            @mouseleave=${() => this._hoverSlot(null)}
+            @click=${() => this._tapSlot(s)}
+          ></div>`;
+        })}
+      </div>
+    `;
+  }
+
+  // Smooth-line layout profiles ("line" / "line-threshold"): only the leading
+  // contiguous run of known values is drawn as a curve; a trailing gap (e.g.
+  // tomorrow's prices not published yet) keeps the familiar hatched placeholder.
+  _priceLineBody(slots, maxV, profile, sel) {
+    let runEnd = 0;
+    while (runEnd < slots.length && slots[runEnd].v !== null) runEnd++;
+    const run = slots.slice(0, runEnd);
+
+    const n = Math.max(1, slots.length - 1);
+    const pts = run.map((s, i) => ({
+      x: (i / n) * 100,
+      y: 100 - Math.max(0, Math.min(100, (s.v / maxV) * 100)),
+    }));
+
+    const pathD = pts.length ? catmullRomToBezierPath(pts) : "";
+    const areaD = pathD && pts.length > 1
+      ? `${pathD} L${pts[pts.length - 1].x.toFixed(2)},100 L${pts[0].x.toFixed(2)},100 Z`
+      : "";
+
+    let stroke = profile.line_color || "#7dd3fc";
+    let fill = "none";
+    let defs = A;
+
+    if (profile.chart_style === "line-threshold" && run.length) {
+      const avg = run.reduce((a, s) => a + s.v, 0) / run.length;
+      const avgFrac = Math.max(0, Math.min(1, 1 - Math.min(1, avg / maxV)));
+      const gradId = `efp-grad-${this._uid}`;
+      defs = w`<defs>
+        <linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
+          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_above}"></stop>
+          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_below}"></stop>
+        </linearGradient>
+      </defs>`;
+      stroke = `url(#${gradId})`;
+      fill = `url(#${gradId})`;
+    }
+
+    return b`
+      <svg class="priceline" viewBox="0 0 100 100" preserveAspectRatio="none">
+        ${defs}
+        ${areaD && fill !== "none" ? w`<path d="${areaD}" fill="${fill}" fill-opacity="0.32" stroke="none"></path>` : A}
+        ${pathD ? w`<path d="${pathD}" fill="none" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"></path>` : A}
+      </svg>
+      <div class="hits">
+        ${slots.map((s) => {
+          if (s.v === null) return b`<div class="hit empty-slot"></div>`;
+          const isSel = sel && sel.t === s.t;
+          const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          return b`<div
+            class="hit ${isSel ? "sel" : ""}"
+            title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
+            @mouseenter=${() => this._hoverSlot(s)}
+            @mouseleave=${() => this._hoverSlot(null)}
+            @click=${() => this._tapSlot(s)}
+          ></div>`;
+        })}
       </div>
     `;
   }
@@ -1273,18 +1475,31 @@ class EnergyFlowPriceCard extends i {
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
       .chart { position: relative; height: 168px; padding-left: 34px; }
+      .chart.has-rel { height: 182px; }
       .yaxis { position: absolute; left: 0; top: 0; bottom: 34px; width: 30px; display: flex; flex-direction: column; justify-content: space-between; font-size: 9px; color: var(--secondary-text-color); text-align: right; }
+      .chart.has-rel .yaxis { bottom: 48px; }
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
+      .chart.has-rel .plot { bottom: 48px; }
       .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
       .bar { flex: 1; border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .15s; }
       .bar:hover { opacity: .8; }
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .priceline { position: absolute; inset: 0; width: 100%; height: 100%; }
+      .hits { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 1px; }
+      .hit { flex: 1; cursor: pointer; background: transparent; border-radius: 2px; }
+      .hit:hover { background: rgba(255,255,255,.06); }
+      .hit.sel { background: rgba(255,255,255,.12); }
+      .hit.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); cursor: default; }
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: attr(data-now); position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
       .nowline.right::before { left: auto; right: 3px; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
+      .xaxis.abs { bottom: 26px; }
+      .xaxis.rel { bottom: 10px; }
+      .xaxis.rel .tick { opacity: .75; }
+      .xaxis.rel .tick::before { display: none; }
       .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
       .xaxis .tick:last-child { transform: translateX(-100%); }
       .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
@@ -1294,7 +1509,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.2.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.3.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
