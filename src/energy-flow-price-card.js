@@ -628,6 +628,8 @@ class EnergyFlowPriceCard extends LitElement {
       axisStart.setHours(0, 0, 0, 0); // today 00:00
     } else {
       axisStart.setMinutes(0, 0, 0);  // start of current hour
+      const lookback = Math.max(1, Math.min(12, c.price_lookback_hours ?? 2));
+      axisStart.setTime(axisStart.getTime() - lookback * 3600000);
     }
     const startMs = axisStart.getTime();
     const endMs = startMs + hours * 3600000;
@@ -643,7 +645,7 @@ class EnergyFlowPriceCard extends LitElement {
       const t = startMs + i * stepMs;
       const key = Math.floor(t / stepMs) * stepMs;
       const v = byTime.has(key) ? byTime.get(key) : null;
-      slots.push({ t, v });
+      slots.push({ t, v, past: (t + stepMs) <= now });
     }
 
     const withData = slots.filter((s) => s.v !== null);
@@ -702,9 +704,9 @@ class EnergyFlowPriceCard extends LitElement {
         <span class="t">${this._t("price_title")} (${hours}u)</span>
         <div class="chdr-right">
           ${sel
-            ? html`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            ? html`<span class="now sel"><ha-icon icon="mdi:flash"></ha-icon>${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
             : current !== null
-              ? html`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              ? html`<span class="now"><ha-icon icon="mdi:flash"></ha-icon>${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
               : nothing}
           ${gasPrice !== null ? html`<span class="now gas"><ha-icon icon="mdi:fire"></ha-icon><b>${gasPrice.toFixed(3).replace(".", ",")}</b></span>` : nothing}
         </div>
@@ -713,7 +715,7 @@ class EnergyFlowPriceCard extends LitElement {
         <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
         <div class="plot">
           ${profile.chart_style === "bars"
-            ? this._priceBarsBody(slots, maxV, stops, sel)
+            ? this._priceBarsBody(slots, maxV, stops, sel, profile)
             : this._priceLineBody(slots, maxV, profile, sel)}
           ${dayMarkers.map((d) => html`<div class="daymarker" data-label="${d.text}" style="left:${d.frac * 100}%"></div>`)}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
@@ -729,13 +731,20 @@ class EnergyFlowPriceCard extends LitElement {
     `;
   }
 
-  _priceBarsBody(slots, maxV, stops, sel) {
+  _priceBarsBody(slots, maxV, stops, sel, profile) {
+    const GREY = "#6b7280";
     return html`
       <div class="bars">
         ${slots.map((s) => {
-          if (s.v === null) return html`<div class="bar empty-slot"></div>`;
+          if (s.v === null) {
+            if (profile?.grey_unknown_value != null) {
+              const h = Math.max(2, Math.min(100, (profile.grey_unknown_value / maxV) * 100));
+              return html`<div class="bar unknown" style="height:${h}%;background:${GREY}"></div>`;
+            }
+            return html`<div class="bar empty-slot"></div>`;
+          }
           const h = Math.max(2, (s.v / maxV) * 100);
-          const col = colorForValue(s.v, stops);
+          const col = profile?.grey_past && s.past ? GREY : colorForValue(s.v, stops);
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           return html`<div
@@ -883,9 +892,10 @@ class EnergyFlowPriceCard extends LitElement {
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
       .chdr-right { display: flex; align-items: baseline; gap: 12px; }
-      .now.gas { display: inline-flex; align-items: center; gap: 3px; }
-      .now.gas ha-icon { --mdc-icon-size: 13px; color: var(--warning-color, #f5a623); }
-      .now.gas b { color: var(--warning-color, #f5a623); }
+      .chdr .now { display: inline-flex; align-items: center; gap: 4px; }
+      .chdr .now ha-icon { --mdc-icon-size: 13px; color: var(--info-color, #7dd3fc); }
+      .chdr .now.gas ha-icon { color: var(--warning-color, #f5a623); }
+      .chdr .now.gas b { color: var(--warning-color, #f5a623); }
       .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
       .tab { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: all .2s; }
       .tab.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
@@ -906,6 +916,8 @@ class EnergyFlowPriceCard extends LitElement {
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .bar.unknown { cursor: default; opacity: .55; }
+      .bar.unknown:hover { opacity: .55; }
       .priceline { position: absolute; inset: 0; width: 100%; height: 100%; }
       .hits { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 1px; }
       .hit { flex: 1; cursor: pointer; background: transparent; border-radius: 2px; }
@@ -931,7 +943,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.4.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.4.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

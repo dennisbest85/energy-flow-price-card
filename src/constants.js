@@ -25,6 +25,8 @@ export const PRICE_PROFILES = {
       { value: 0.35, color: "#15803d" },
       { value: 0.6, color: "#052e16" },
     ],
+    grey_past: true,          // hours that have already passed render grey instead of price-colored
+    grey_unknown_value: 0.20, // slots without a known price yet render as a grey bar at this reference height
   },
   frank: {
     chart_style: "line",
@@ -43,6 +45,7 @@ export const DEFAULTS = {
   display_zero: false,
   price_hours: 24,
   price_start: "midnight", // "now" | "midnight"
+  price_lookback_hours: 2, // 1-12: how far back the axis starts when price_start is "now"
   car_mode: "scroll",       // "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
   language: "auto",         // "auto" | "nl" | "en" | "de"

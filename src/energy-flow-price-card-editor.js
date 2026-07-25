@@ -94,6 +94,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
     const showPrice = this._config.show_price !== false;
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
+    const lookbackHours = this._config.price_lookback_hours ?? 2;
     const lang = this._config.language ?? "auto";
     const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
 
@@ -217,6 +218,12 @@ class EnergyFlowPriceCardEditor extends LitElement {
               <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
+          ${this._config.price_start === "now" ? html`
+            <div class="slider-row">
+              <span>${T("ed_lookback_hours")}: <b>${lookbackHours}u</b></span>
+              <input type="range" min="1" max="12" step="1" .value=${lookbackHours}
+                @input=${(e) => this._emit({ ...this._config, price_lookback_hours: parseInt(e.target.value, 10) })} />
+            </div>` : nothing}
           <ha-formfield label=${T("ed_relative_hours")}>
             <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
           </ha-formfield>

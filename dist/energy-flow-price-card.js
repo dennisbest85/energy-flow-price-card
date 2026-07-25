@@ -51,6 +51,8 @@ const PRICE_PROFILES = {
       { value: 0.35, color: "#15803d" },
       { value: 0.6, color: "#052e16" },
     ],
+    grey_past: true,          // hours that have already passed render grey instead of price-colored
+    grey_unknown_value: 0.20, // slots without a known price yet render as a grey bar at this reference height
   },
   frank: {
     chart_style: "line",
@@ -69,6 +71,7 @@ const DEFAULTS = {
   display_zero: false,
   price_hours: 24,
   price_start: "midnight", // "now" | "midnight"
+  price_lookback_hours: 2, // 1-12: how far back the axis starts when price_start is "now"
   car_mode: "scroll",       // "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
   language: "auto",         // "auto" | "nl" | "en" | "de"
@@ -104,7 +107,7 @@ const TRANSLATIONS = {
     charging: "charging",
     discharging: "discharging",
     // charts
-    price_title: "Electricity price",
+    price_title: "Rates",
     solar_today: "Solar today",
     battery_today: "Battery SoC today",
     now: "Now",
@@ -145,6 +148,7 @@ const TRANSLATIONS = {
     ed_start_point: "Chart start point",
     ed_start_midnight: "From midnight (days)",
     ed_start_now: "From now",
+    ed_lookback_hours: "Hours to look back",
     ed_relative_hours: "Show hours-from-now row below the axis (now, 1, 2, 3…)",
     ed_day_marker: "Show new-day marker (\"tomorrow\") where the axis crosses midnight",
     ed_layout: "Layout",
@@ -186,7 +190,7 @@ const TRANSLATIONS = {
     export: "export",
     charging: "laden",
     discharging: "ontladen",
-    price_title: "Stroomprijs",
+    price_title: "Tarieven",
     solar_today: "Solar vandaag",
     battery_today: "Accu SoC vandaag",
     now: "Nu",
@@ -226,6 +230,7 @@ const TRANSLATIONS = {
     ed_start_point: "Startpunt grafiek",
     ed_start_midnight: "Vanaf middernacht (dagen)",
     ed_start_now: "Vanaf nu",
+    ed_lookback_hours: "Uren terugkijken",
     ed_relative_hours: "Toon uren-vanaf-nu rij onder de as (nu, 1, 2, 3…)",
     ed_day_marker: "Toon nieuwe-dag-lijntje (\"morgen\") waar de as middernacht kruist",
     ed_layout: "Layout",
@@ -267,7 +272,7 @@ const TRANSLATIONS = {
     export: "Export",
     charging: "laden",
     discharging: "entladen",
-    price_title: "Strompreis",
+    price_title: "Tarife",
     solar_today: "Solar heute",
     battery_today: "Akku SoC heute",
     now: "Jetzt",
@@ -307,6 +312,7 @@ const TRANSLATIONS = {
     ed_start_point: "Startpunkt Diagramm",
     ed_start_midnight: "Ab Mitternacht (Tage)",
     ed_start_now: "Ab jetzt",
+    ed_lookback_hours: "Stunden zurückblicken",
     ed_relative_hours: "Zeile „Stunden ab jetzt“ unter der Achse anzeigen (jetzt, 1, 2, 3…)",
     ed_day_marker: "Neuer-Tag-Markierung (\"morgen\") anzeigen, wo die Achse Mitternacht kreuzt",
     ed_layout: "Layout",
@@ -445,6 +451,7 @@ class EnergyFlowPriceCardEditor extends i {
     const showPrice = this._config.show_price !== false;
     const displayZero = this._config.display_zero === true;
     const hours = this._config.price_hours ?? 24;
+    const lookbackHours = this._config.price_lookback_hours ?? 2;
     const lang = this._config.language ?? "auto";
     const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
 
@@ -568,6 +575,12 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
             </select>
           </label>
+          ${this._config.price_start === "now" ? b`
+            <div class="slider-row">
+              <span>${T("ed_lookback_hours")}: <b>${lookbackHours}u</b></span>
+              <input type="range" min="1" max="12" step="1" .value=${lookbackHours}
+                @input=${(e) => this._emit({ ...this._config, price_lookback_hours: parseInt(e.target.value, 10) })} />
+            </div>` : A}
           <ha-formfield label=${T("ed_relative_hours")}>
             <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
           </ha-formfield>
@@ -1317,6 +1330,8 @@ class EnergyFlowPriceCard extends i {
       axisStart.setHours(0, 0, 0, 0); // today 00:00
     } else {
       axisStart.setMinutes(0, 0, 0);  // start of current hour
+      const lookback = Math.max(1, Math.min(12, c.price_lookback_hours ?? 2));
+      axisStart.setTime(axisStart.getTime() - lookback * 3600000);
     }
     const startMs = axisStart.getTime();
     const endMs = startMs + hours * 3600000;
@@ -1332,7 +1347,7 @@ class EnergyFlowPriceCard extends i {
       const t = startMs + i * stepMs;
       const key = Math.floor(t / stepMs) * stepMs;
       const v = byTime.has(key) ? byTime.get(key) : null;
-      slots.push({ t, v });
+      slots.push({ t, v, past: (t + stepMs) <= now });
     }
 
     const withData = slots.filter((s) => s.v !== null);
@@ -1391,9 +1406,9 @@ class EnergyFlowPriceCard extends i {
         <span class="t">${this._t("price_title")} (${hours}u)</span>
         <div class="chdr-right">
           ${sel
-            ? b`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            ? b`<span class="now sel"><ha-icon icon="mdi:flash"></ha-icon>${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
             : current !== null
-              ? b`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              ? b`<span class="now"><ha-icon icon="mdi:flash"></ha-icon>${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
               : A}
           ${gasPrice !== null ? b`<span class="now gas"><ha-icon icon="mdi:fire"></ha-icon><b>${gasPrice.toFixed(3).replace(".", ",")}</b></span>` : A}
         </div>
@@ -1402,7 +1417,7 @@ class EnergyFlowPriceCard extends i {
         <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
         <div class="plot">
           ${profile.chart_style === "bars"
-            ? this._priceBarsBody(slots, maxV, stops, sel)
+            ? this._priceBarsBody(slots, maxV, stops, sel, profile)
             : this._priceLineBody(slots, maxV, profile, sel)}
           ${dayMarkers.map((d) => b`<div class="daymarker" data-label="${d.text}" style="left:${d.frac * 100}%"></div>`)}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
@@ -1418,13 +1433,20 @@ class EnergyFlowPriceCard extends i {
     `;
   }
 
-  _priceBarsBody(slots, maxV, stops, sel) {
+  _priceBarsBody(slots, maxV, stops, sel, profile) {
+    const GREY = "#6b7280";
     return b`
       <div class="bars">
         ${slots.map((s) => {
-          if (s.v === null) return b`<div class="bar empty-slot"></div>`;
+          if (s.v === null) {
+            if (profile?.grey_unknown_value != null) {
+              const h = Math.max(2, Math.min(100, (profile.grey_unknown_value / maxV) * 100));
+              return b`<div class="bar unknown" style="height:${h}%;background:${GREY}"></div>`;
+            }
+            return b`<div class="bar empty-slot"></div>`;
+          }
           const h = Math.max(2, (s.v / maxV) * 100);
-          const col = colorForValue(s.v, stops);
+          const col = profile?.grey_past && s.past ? GREY : colorForValue(s.v, stops);
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           return b`<div
@@ -1572,9 +1594,10 @@ class EnergyFlowPriceCard extends i {
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
       .chdr-right { display: flex; align-items: baseline; gap: 12px; }
-      .now.gas { display: inline-flex; align-items: center; gap: 3px; }
-      .now.gas ha-icon { --mdc-icon-size: 13px; color: var(--warning-color, #f5a623); }
-      .now.gas b { color: var(--warning-color, #f5a623); }
+      .chdr .now { display: inline-flex; align-items: center; gap: 4px; }
+      .chdr .now ha-icon { --mdc-icon-size: 13px; color: var(--info-color, #7dd3fc); }
+      .chdr .now.gas ha-icon { color: var(--warning-color, #f5a623); }
+      .chdr .now.gas b { color: var(--warning-color, #f5a623); }
       .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
       .tab { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: all .2s; }
       .tab.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
@@ -1595,6 +1618,8 @@ class EnergyFlowPriceCard extends i {
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
       .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .bar.unknown { cursor: default; opacity: .55; }
+      .bar.unknown:hover { opacity: .55; }
       .priceline { position: absolute; inset: 0; width: 100%; height: 100%; }
       .hits { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 1px; }
       .hit { flex: 1; cursor: pointer; background: transparent; border-radius: 2px; }
@@ -1620,7 +1645,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.4.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.4.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
