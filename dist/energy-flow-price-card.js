@@ -63,6 +63,22 @@ const PRICE_PROFILES = {
     color_below: "#00C9A7",
     color_above: "#FF7A29",
   },
+  anwb: {
+    chart_style: "bars",
+    highlight_now: true, // color is not price-based: flat bar_color, except the current hour
+    bar_color: "#1c4e80",
+    bar_color_now: "#29b6f6",
+  },
+  eneco: {
+    chart_style: "bars",
+    bar_radius: "6px 6px 0 0",
+    price_stops: [
+      { value: 0.0, color: "#43a047" },
+      { value: 0.299, color: "#43a047" },
+      { value: 0.30, color: "#e53935" },
+      { value: 1.0, color: "#e53935" },
+    ],
+  },
 };
 
 const DEFAULTS = {
@@ -86,7 +102,7 @@ const DEFAULTS = {
   color_home: "#7dd3fc",
   include_car_in_home: false,
   price_stops: DEFAULT_PRICE_STOPS,
-  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
+  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
   price_show_day_marker: false, // thin line + "tomorrow" label where the axis crosses midnight
   gas_price_entity: "", // optional: shown next to the electricity price in the chart header
@@ -158,6 +174,8 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (green bars)",
     ed_profile_tibber: "Tibber (smooth line, teal/orange)",
     ed_profile_frank: "Frank Energie (smooth orange line)",
+    ed_profile_anwb: "ANWB (blue bars, current hour highlighted)",
+    ed_profile_eneco: "Eneco (green/red at €0.30, rounded bars)",
     ed_chart_tabs: "Chart tabs",
     ed_chart_tabs_note: "When multiple chart tabs are available (price / solar / battery), automatically cycle through them.",
     ed_chart_auto_scroll: "Auto-scroll through tabs",
@@ -240,6 +258,8 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (groene staven)",
     ed_profile_tibber: "Tibber (vloeiende lijn, teal/oranje)",
     ed_profile_frank: "Frank Energie (vloeiende oranje lijn)",
+    ed_profile_anwb: "ANWB (blauwe staven, huidig uur licht)",
+    ed_profile_eneco: "Eneco (groen/rood bij €0,30, afgeronde staven)",
     ed_chart_tabs: "Grafiektabs",
     ed_chart_tabs_note: "Wissel automatisch tussen de beschikbare tabbladen (prijs / solar / accu) als er meerdere zijn.",
     ed_chart_auto_scroll: "Automatisch wisselen tussen tabs",
@@ -322,6 +342,8 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (grüne Balken)",
     ed_profile_tibber: "Tibber (weiche Linie, Türkis/Orange)",
     ed_profile_frank: "Frank Energie (weiche orange Linie)",
+    ed_profile_anwb: "ANWB (blaue Balken, aktuelle Stunde hervorgehoben)",
+    ed_profile_eneco: "Eneco (Grün/Rot bei 0,30 €, abgerundete Balken)",
     ed_chart_tabs: "Diagramm-Tabs",
     ed_chart_tabs_note: "Automatisch zwischen den verfügbaren Tabs wechseln (Preis / Solar / Akku), wenn mehrere vorhanden sind.",
     ed_chart_auto_scroll: "Automatisch durch Tabs wechseln",
@@ -599,6 +621,8 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
               <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
               <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
+              <option value="anwb" ?selected=${priceProfile === "anwb"}>${T("ed_profile_anwb")}</option>
+              <option value="eneco" ?selected=${priceProfile === "eneco"}>${T("ed_profile_eneco")}</option>
             </select>
           </label>
         </div>
@@ -1347,7 +1371,7 @@ class EnergyFlowPriceCard extends i {
       const t = startMs + i * stepMs;
       const key = Math.floor(t / stepMs) * stepMs;
       const v = byTime.has(key) ? byTime.get(key) : null;
-      slots.push({ t, v, past: (t + stepMs) <= now });
+      slots.push({ t, v, past: (t + stepMs) <= now, cur: t <= now && (t + stepMs) > now });
     }
 
     const withData = slots.filter((s) => s.v !== null);
@@ -1367,7 +1391,7 @@ class EnergyFlowPriceCard extends i {
 
     const sel = this._selectedSlot;
     const profile = this._activeProfile();
-    const stops = this._config.price_profile === "zonneplan" ? profile.price_stops : c.price_stops;
+    const stops = this._config.price_profile !== "default" ? (profile.price_stops || c.price_stops) : c.price_stops;
 
     // Optional second x-axis row counting hours from now ("nu", 1, 2, 3…), off by default.
     const showRel = !!c.price_relative_hours;
@@ -1435,23 +1459,32 @@ class EnergyFlowPriceCard extends i {
 
   _priceBarsBody(slots, maxV, stops, sel, profile) {
     const GREY = "#6b7280";
+    const radiusStyle = profile?.bar_radius ? `;border-radius:${profile.bar_radius}` : "";
     return b`
       <div class="bars">
         ${slots.map((s) => {
           if (s.v === null) {
             if (profile?.grey_unknown_value != null) {
               const h = Math.max(2, Math.min(100, (profile.grey_unknown_value / maxV) * 100));
-              return b`<div class="bar unknown" style="height:${h}%;background:${GREY}"></div>`;
+              return b`<div class="bar unknown" style="height:${h}%;background:${GREY}${radiusStyle}"></div>`;
             }
             return b`<div class="bar empty-slot"></div>`;
           }
           const h = Math.max(2, (s.v / maxV) * 100);
-          const col = profile?.grey_past && s.past ? GREY : colorForValue(s.v, stops);
+          let col;
+          if (profile?.highlight_now) {
+            // Not price-based: a flat bar color, except the bar for the current hour.
+            col = s.cur ? (profile.bar_color_now || profile.bar_color || GREY) : (profile.bar_color || GREY);
+          } else if (profile?.grey_past && s.past) {
+            col = GREY;
+          } else {
+            col = colorForValue(s.v, stops);
+          }
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           return b`<div
             class="bar ${isSel ? "sel" : ""}"
-            style="height:${h}%;background:${col}"
+            style="height:${h}%;background:${col}${radiusStyle}"
             title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
             @mouseenter=${() => this._hoverSlot(s)}
             @mouseleave=${() => this._hoverSlot(null)}
@@ -1645,7 +1678,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.4.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.5.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

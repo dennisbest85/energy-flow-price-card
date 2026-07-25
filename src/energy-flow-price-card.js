@@ -645,7 +645,7 @@ class EnergyFlowPriceCard extends LitElement {
       const t = startMs + i * stepMs;
       const key = Math.floor(t / stepMs) * stepMs;
       const v = byTime.has(key) ? byTime.get(key) : null;
-      slots.push({ t, v, past: (t + stepMs) <= now });
+      slots.push({ t, v, past: (t + stepMs) <= now, cur: t <= now && (t + stepMs) > now });
     }
 
     const withData = slots.filter((s) => s.v !== null);
@@ -665,7 +665,7 @@ class EnergyFlowPriceCard extends LitElement {
 
     const sel = this._selectedSlot;
     const profile = this._activeProfile();
-    const stops = this._config.price_profile === "zonneplan" ? profile.price_stops : c.price_stops;
+    const stops = this._config.price_profile !== "default" ? (profile.price_stops || c.price_stops) : c.price_stops;
 
     // Optional second x-axis row counting hours from now ("nu", 1, 2, 3…), off by default.
     const showRel = !!c.price_relative_hours;
@@ -733,23 +733,32 @@ class EnergyFlowPriceCard extends LitElement {
 
   _priceBarsBody(slots, maxV, stops, sel, profile) {
     const GREY = "#6b7280";
+    const radiusStyle = profile?.bar_radius ? `;border-radius:${profile.bar_radius}` : "";
     return html`
       <div class="bars">
         ${slots.map((s) => {
           if (s.v === null) {
             if (profile?.grey_unknown_value != null) {
               const h = Math.max(2, Math.min(100, (profile.grey_unknown_value / maxV) * 100));
-              return html`<div class="bar unknown" style="height:${h}%;background:${GREY}"></div>`;
+              return html`<div class="bar unknown" style="height:${h}%;background:${GREY}${radiusStyle}"></div>`;
             }
             return html`<div class="bar empty-slot"></div>`;
           }
           const h = Math.max(2, (s.v / maxV) * 100);
-          const col = profile?.grey_past && s.past ? GREY : colorForValue(s.v, stops);
+          let col;
+          if (profile?.highlight_now) {
+            // Not price-based: a flat bar color, except the bar for the current hour.
+            col = s.cur ? (profile.bar_color_now || profile.bar_color || GREY) : (profile.bar_color || GREY);
+          } else if (profile?.grey_past && s.past) {
+            col = GREY;
+          } else {
+            col = colorForValue(s.v, stops);
+          }
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
           return html`<div
             class="bar ${isSel ? "sel" : ""}"
-            style="height:${h}%;background:${col}"
+            style="height:${h}%;background:${col}${radiusStyle}"
             title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
             @mouseenter=${() => this._hoverSlot(s)}
             @mouseleave=${() => this._hoverSlot(null)}
@@ -943,7 +952,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.4.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.5.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

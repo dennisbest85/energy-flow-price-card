@@ -37,6 +37,22 @@ export const PRICE_PROFILES = {
     color_below: "#00C9A7",
     color_above: "#FF7A29",
   },
+  anwb: {
+    chart_style: "bars",
+    highlight_now: true, // color is not price-based: flat bar_color, except the current hour
+    bar_color: "#1c4e80",
+    bar_color_now: "#29b6f6",
+  },
+  eneco: {
+    chart_style: "bars",
+    bar_radius: "6px 6px 0 0",
+    price_stops: [
+      { value: 0.0, color: "#43a047" },
+      { value: 0.299, color: "#43a047" },
+      { value: 0.30, color: "#e53935" },
+      { value: 1.0, color: "#e53935" },
+    ],
+  },
 };
 
 export const DEFAULTS = {
@@ -60,7 +76,7 @@ export const DEFAULTS = {
   color_home: "#7dd3fc",
   include_car_in_home: false,
   price_stops: DEFAULT_PRICE_STOPS,
-  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
+  price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
   price_show_day_marker: false, // thin line + "tomorrow" label where the axis crosses midnight
   gas_price_entity: "", // optional: shown next to the electricity price in the chart header

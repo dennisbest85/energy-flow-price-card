@@ -242,6 +242,8 @@ class EnergyFlowPriceCardEditor extends LitElement {
               <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
               <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
               <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
+              <option value="anwb" ?selected=${priceProfile === "anwb"}>${T("ed_profile_anwb")}</option>
+              <option value="eneco" ?selected=${priceProfile === "eneco"}>${T("ed_profile_eneco")}</option>
             </select>
           </label>
         </div>
