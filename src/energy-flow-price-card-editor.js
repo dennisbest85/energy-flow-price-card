@@ -104,6 +104,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
       { key: "battery_discharge_power", label: T("ed_battery_discharge") },
       { key: "battery_soc", label: T("ed_battery_soc") },
       { key: "price_entity", label: T("ed_price_entity") },
+      { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
       { key: "color_solar", label: T("ed_color_solar") },
@@ -219,6 +220,9 @@ class EnergyFlowPriceCardEditor extends LitElement {
           <ha-formfield label=${T("ed_relative_hours")}>
             <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
           </ha-formfield>
+          <ha-formfield label=${T("ed_day_marker")}>
+            <ha-switch .checked=${this._config.price_show_day_marker === true} @change=${(e) => this._toggle("price_show_day_marker", e)}></ha-switch>
+          </ha-formfield>
         </div>
 
         <div class="section">
@@ -233,6 +237,20 @@ class EnergyFlowPriceCardEditor extends LitElement {
               <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
             </select>
           </label>
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_chart_tabs")}</div>
+          <div class="note">${T("ed_chart_tabs_note")}</div>
+          <ha-formfield label=${T("ed_chart_auto_scroll")}>
+            <ha-switch .checked=${this._config.chart_auto_scroll === true} @change=${(e) => this._toggle("chart_auto_scroll", e)}></ha-switch>
+          </ha-formfield>
+          ${this._config.chart_auto_scroll === true ? html`
+            <div class="slider-row">
+              <span>${T("ed_chart_scroll_interval")}: <b>${this._config.chart_scroll_interval ?? 8}s</b></span>
+              <input type="range" min="3" max="30" step="1" .value=${this._config.chart_scroll_interval ?? 8}
+                @input=${(e) => this._emit({ ...this._config, chart_scroll_interval: parseInt(e.target.value, 10) })} />
+            </div>` : nothing}
         </div>
 
         <div class="section">

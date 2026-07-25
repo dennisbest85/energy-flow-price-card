@@ -85,6 +85,10 @@ const DEFAULTS = {
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
+  price_show_day_marker: false, // thin line + "tomorrow" label where the axis crosses midnight
+  gas_price_entity: "", // optional: shown next to the electricity price in the chart header
+  chart_auto_scroll: false, // cycle price -> solar -> battery tabs automatically
+  chart_scroll_interval: 8, // seconds between automatic tab switches
 };
 
 const TRANSLATIONS = {
@@ -104,6 +108,7 @@ const TRANSLATIONS = {
     solar_today: "Solar today",
     battery_today: "Battery SoC today",
     now: "Now",
+    tomorrow: "tomorrow",
     tab_price: "Price",
     tab_solar: "Solar",
     tab_battery: "Battery",
@@ -122,6 +127,7 @@ const TRANSLATIONS = {
     ed_battery_discharge: "Battery discharge (W)",
     ed_battery_soc: "Battery SoC (%)",
     ed_price_entity: "Price provider entity (€/kWh or your currency)",
+    ed_gas_price_entity: "Gas price entity (€/m³) — optional",
     ed_cars: "Cars",
     ed_add_car: "+ Add car",
     ed_car_note: "Each car gets its own name. The node appears when charging (or always with display zero on).",
@@ -140,6 +146,7 @@ const TRANSLATIONS = {
     ed_start_midnight: "From midnight (days)",
     ed_start_now: "From now",
     ed_relative_hours: "Show hours-from-now row below the axis (now, 1, 2, 3…)",
+    ed_day_marker: "Show new-day marker (\"tomorrow\") where the axis crosses midnight",
     ed_layout: "Layout",
     ed_layout_profile: "Price chart style",
     ed_layout_note: "A profile fixes the chart style and colors to match that provider's app. The manual price color scale below is only available for \"Default\".",
@@ -147,6 +154,10 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (green bars)",
     ed_profile_tibber: "Tibber (smooth line, teal/orange)",
     ed_profile_frank: "Frank Energie (smooth orange line)",
+    ed_chart_tabs: "Chart tabs",
+    ed_chart_tabs_note: "When multiple chart tabs are available (price / solar / battery), automatically cycle through them.",
+    ed_chart_auto_scroll: "Auto-scroll through tabs",
+    ed_chart_scroll_interval: "Switch every",
     ed_colors: "Colors",
     ed_reset_colors: "Restore default colors",
     ed_color_solar: "Solar color",
@@ -179,6 +190,7 @@ const TRANSLATIONS = {
     solar_today: "Solar vandaag",
     battery_today: "Accu SoC vandaag",
     now: "Nu",
+    tomorrow: "morgen",
     tab_price: "Prijs",
     tab_solar: "Solar",
     tab_battery: "Accu",
@@ -196,6 +208,7 @@ const TRANSLATIONS = {
     ed_battery_discharge: "Accu ontladen (W)",
     ed_battery_soc: "Accu SoC (%)",
     ed_price_entity: "Prijs energieleverancier (€/kWh)",
+    ed_gas_price_entity: "Gasprijs entiteit (€/m³) — optioneel",
     ed_cars: "Auto's",
     ed_add_car: "+ Auto toevoegen",
     ed_car_note: "Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).",
@@ -214,6 +227,7 @@ const TRANSLATIONS = {
     ed_start_midnight: "Vanaf middernacht (dagen)",
     ed_start_now: "Vanaf nu",
     ed_relative_hours: "Toon uren-vanaf-nu rij onder de as (nu, 1, 2, 3…)",
+    ed_day_marker: "Toon nieuwe-dag-lijntje (\"morgen\") waar de as middernacht kruist",
     ed_layout: "Layout",
     ed_layout_profile: "Stijl prijsgrafiek",
     ed_layout_note: "Een profiel zet de grafiekstijl en kleuren vast, passend bij de app van die leverancier. De handmatige prijs-kleurschaal hieronder is alleen beschikbaar bij \"Standaard\".",
@@ -221,6 +235,10 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (groene staven)",
     ed_profile_tibber: "Tibber (vloeiende lijn, teal/oranje)",
     ed_profile_frank: "Frank Energie (vloeiende oranje lijn)",
+    ed_chart_tabs: "Grafiektabs",
+    ed_chart_tabs_note: "Wissel automatisch tussen de beschikbare tabbladen (prijs / solar / accu) als er meerdere zijn.",
+    ed_chart_auto_scroll: "Automatisch wisselen tussen tabs",
+    ed_chart_scroll_interval: "Wissel elke",
     ed_colors: "Kleuren",
     ed_reset_colors: "Standaardkleuren herstellen",
     ed_color_solar: "Kleur solar",
@@ -253,6 +271,7 @@ const TRANSLATIONS = {
     solar_today: "Solar heute",
     battery_today: "Akku SoC heute",
     now: "Jetzt",
+    tomorrow: "morgen",
     tab_price: "Preis",
     tab_solar: "Solar",
     tab_battery: "Akku",
@@ -270,6 +289,7 @@ const TRANSLATIONS = {
     ed_battery_discharge: "Akku entladen (W)",
     ed_battery_soc: "Akku SoC (%)",
     ed_price_entity: "Preis-Anbieter Entität (€/kWh)",
+    ed_gas_price_entity: "Gaspreis-Entität (€/m³) — optional",
     ed_cars: "Autos",
     ed_add_car: "+ Auto hinzufügen",
     ed_car_note: "Jedes Auto erhält einen eigenen Namen. Der Knoten erscheint beim Laden (oder immer mit display zero).",
@@ -288,6 +308,7 @@ const TRANSLATIONS = {
     ed_start_midnight: "Ab Mitternacht (Tage)",
     ed_start_now: "Ab jetzt",
     ed_relative_hours: "Zeile „Stunden ab jetzt“ unter der Achse anzeigen (jetzt, 1, 2, 3…)",
+    ed_day_marker: "Neuer-Tag-Markierung (\"morgen\") anzeigen, wo die Achse Mitternacht kreuzt",
     ed_layout: "Layout",
     ed_layout_profile: "Preisdiagramm-Stil",
     ed_layout_note: "Ein Profil legt den Diagrammstil und die Farben fest, passend zur App dieses Anbieters. Die manuelle Preis-Farbskala unten ist nur bei \"Standard\" verfügbar.",
@@ -295,6 +316,10 @@ const TRANSLATIONS = {
     ed_profile_zonneplan: "Zonneplan (grüne Balken)",
     ed_profile_tibber: "Tibber (weiche Linie, Türkis/Orange)",
     ed_profile_frank: "Frank Energie (weiche orange Linie)",
+    ed_chart_tabs: "Diagramm-Tabs",
+    ed_chart_tabs_note: "Automatisch zwischen den verfügbaren Tabs wechseln (Preis / Solar / Akku), wenn mehrere vorhanden sind.",
+    ed_chart_auto_scroll: "Automatisch durch Tabs wechseln",
+    ed_chart_scroll_interval: "Wechseln alle",
     ed_colors: "Farben",
     ed_reset_colors: "Standardfarben wiederherstellen",
     ed_color_solar: "Farbe Solar",
@@ -430,6 +455,7 @@ class EnergyFlowPriceCardEditor extends i {
       { key: "battery_discharge_power", label: T("ed_battery_discharge") },
       { key: "battery_soc", label: T("ed_battery_soc") },
       { key: "price_entity", label: T("ed_price_entity") },
+      { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
       { key: "color_solar", label: T("ed_color_solar") },
@@ -545,6 +571,9 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label=${T("ed_relative_hours")}>
             <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
           </ha-formfield>
+          <ha-formfield label=${T("ed_day_marker")}>
+            <ha-switch .checked=${this._config.price_show_day_marker === true} @change=${(e) => this._toggle("price_show_day_marker", e)}></ha-switch>
+          </ha-formfield>
         </div>
 
         <div class="section">
@@ -559,6 +588,20 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
             </select>
           </label>
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_chart_tabs")}</div>
+          <div class="note">${T("ed_chart_tabs_note")}</div>
+          <ha-formfield label=${T("ed_chart_auto_scroll")}>
+            <ha-switch .checked=${this._config.chart_auto_scroll === true} @change=${(e) => this._toggle("chart_auto_scroll", e)}></ha-switch>
+          </ha-formfield>
+          ${this._config.chart_auto_scroll === true ? b`
+            <div class="slider-row">
+              <span>${T("ed_chart_scroll_interval")}: <b>${this._config.chart_scroll_interval ?? 8}s</b></span>
+              <input type="range" min="3" max="30" step="1" .value=${this._config.chart_scroll_interval ?? 8}
+                @input=${(e) => this._emit({ ...this._config, chart_scroll_interval: parseInt(e.target.value, 10) })} />
+            </div>` : A}
         </div>
 
         <div class="section">
@@ -774,6 +817,7 @@ class EnergyFlowPriceCard extends i {
     if (!Array.isArray(this._config.cars)) this._config.cars = [];
     if (this._carScrollIdx == null) this._carScrollIdx = 0;
     this._startCarScroll();
+    this._startChartScroll();
   }
 
   getCardSize() {
@@ -1078,12 +1122,14 @@ class EnergyFlowPriceCard extends i {
   connectedCallback() {
     super.connectedCallback();
     this._startCarScroll();
+    this._startChartScroll();
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     if (this._carTimer) { clearInterval(this._carTimer); this._carTimer = null; }
     if (this._flowTimer) { clearInterval(this._flowTimer); this._flowTimer = null; }
+    if (this._chartTimer) { clearInterval(this._chartTimer); this._chartTimer = null; }
   }
 
   _startCarScroll() {
@@ -1105,36 +1151,66 @@ class EnergyFlowPriceCard extends i {
       void el.offsetWidth;
       el.classList.add("run");
     }
+
+    // Same trick for the chart tab body, so switching tabs (manual or auto-scroll) fades in.
+    const cb = this.renderRoot?.querySelector?.(".chartbody");
+    if (cb && cb.dataset.k !== this._lastChartK) {
+      this._lastChartK = cb.dataset.k;
+      cb.classList.remove("run");
+      void cb.offsetWidth;
+      cb.classList.add("run");
+    }
+  }
+
+  _chartTabs() {
+    const c = this._config;
+    return [
+      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
+      { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
+      { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
+    ].filter((t) => t.show);
   }
 
   _renderPrice() {
     const c = this._config;
     const mode = this._chartMode || "price";
-    const tabs = [
-      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
-      { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
-      { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
-    ].filter((t) => t.show);
+    const tabs = this._chartTabs();
     // if selected tab is unavailable, fall back to first
     const activeMode = tabs.some((t) => t.id === mode) ? mode : (tabs[0]?.id || "price");
 
     const tabBar = tabs.length > 1 ? b`
       <div class="tabs">
         ${tabs.map((t) => b`
-          <button class="tab ${t.id === activeMode ? "on" : ""}" @click=${() => this._setChartMode(t.id)}>${t.label}</button>`)}
+          <button class="tab ${t.id === activeMode ? "on" : ""}" @click=${() => this._setChartMode(t.id, true)}>${t.label}</button>`)}
       </div>` : A;
 
     let body;
     if (activeMode === "price") body = this._priceChart(c);
     else body = this._historyChart(c, activeMode);
 
-    return b`<div class="price">${tabBar}${body}</div>`;
+    return b`<div class="price">${tabBar}<div class="chartbody" data-k=${activeMode}>${body}</div></div>`;
   }
 
-  _setChartMode(m) {
+  _setChartMode(m, manual = false) {
     this._chartMode = m;
     if (m !== "price") this._ensureHistory(m);
+    // A manual click overrides auto-scroll for a while so the user's choice sticks.
+    if (manual && this._config?.chart_auto_scroll) this._startChartScroll();
     this.requestUpdate();
+  }
+
+  _startChartScroll() {
+    if (this._chartTimer) { clearInterval(this._chartTimer); this._chartTimer = null; }
+    if (!this._config?.chart_auto_scroll) return;
+    const secs = Math.max(3, this._config.chart_scroll_interval || 8);
+    this._chartTimer = setInterval(() => {
+      const tabs = this._chartTabs();
+      if (tabs.length < 2) return;
+      const mode = this._chartMode || "price";
+      const idx = tabs.findIndex((t) => t.id === mode);
+      const next = tabs[(idx + 1) % tabs.length];
+      this._setChartMode(next.id, false);
+    }, secs * 1000);
   }
 
   // Fetch today's history for solar/accu once, cache it.
@@ -1293,14 +1369,34 @@ class EnergyFlowPriceCard extends i {
       }
     }
 
+    // Optional thin marker(s) where the axis crosses local midnight ("tomorrow"), off by default.
+    const dayMarkers = [];
+    if (c.price_show_day_marker) {
+      let d = new Date(startMs);
+      d.setHours(24, 0, 0, 0); // next local midnight strictly after axis start
+      while (d.getTime() < endMs) {
+        const frac = (d.getTime() - startMs) / (endMs - startMs);
+        if (frac > 0.01 && frac < 0.99) {
+          dayMarkers.push({ frac, text: this._t("tomorrow") });
+        }
+        d = new Date(d.getTime());
+        d.setDate(d.getDate() + 1);
+      }
+    }
+
+    const gasPrice = num(this.hass, c.gas_price_entity);
+
     return b`
       <div class="chdr">
         <span class="t">${this._t("price_title")} (${hours}u)</span>
-        ${sel
-          ? b`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
-          : current !== null
-            ? b`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
-            : A}
+        <div class="chdr-right">
+          ${sel
+            ? b`<span class="now sel">${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            : current !== null
+              ? b`<span class="now">${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              : A}
+          ${gasPrice !== null ? b`<span class="now gas"><ha-icon icon="mdi:fire"></ha-icon><b>${gasPrice.toFixed(3).replace(".", ",")}</b></span>` : A}
+        </div>
       </div>
       <div class="chart ${showRel ? "has-rel" : ""}">
         <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
@@ -1308,6 +1404,7 @@ class EnergyFlowPriceCard extends i {
           ${profile.chart_style === "bars"
             ? this._priceBarsBody(slots, maxV, stops, sel)
             : this._priceLineBody(slots, maxV, profile, sel)}
+          ${dayMarkers.map((d) => b`<div class="daymarker" data-label="${d.text}" style="left:${d.frac * 100}%"></div>`)}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
         </div>
         <div class="xaxis ${showRel ? "abs" : ""}">
@@ -1369,11 +1466,17 @@ class EnergyFlowPriceCard extends i {
     if (profile.chart_style === "line-threshold" && run.length) {
       const avg = run.reduce((a, s) => a + s.v, 0) / run.length;
       const avgFrac = Math.max(0, Math.min(1, 1 - Math.min(1, avg / maxV)));
+      // Soft band around the average instead of a hard cut, for a smooth orange->teal blend.
+      const band = 0.14;
+      const topOff = Math.max(0, avgFrac - band / 2);
+      const botOff = Math.min(1, avgFrac + band / 2);
       const gradId = `efp-grad-${this._uid}`;
       defs = w`<defs>
         <linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
-          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_above}"></stop>
-          <stop offset="${avgFrac.toFixed(4)}" stop-color="${profile.color_below}"></stop>
+          <stop offset="0" stop-color="${profile.color_above}"></stop>
+          <stop offset="${topOff.toFixed(4)}" stop-color="${profile.color_above}"></stop>
+          <stop offset="${botOff.toFixed(4)}" stop-color="${profile.color_below}"></stop>
+          <stop offset="1" stop-color="${profile.color_below}"></stop>
         </linearGradient>
       </defs>`;
       stroke = `url(#${gradId})`;
@@ -1468,9 +1571,15 @@ class EnergyFlowPriceCard extends i {
 
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
+      .chdr-right { display: flex; align-items: baseline; gap: 12px; }
+      .now.gas { display: inline-flex; align-items: center; gap: 3px; }
+      .now.gas ha-icon { --mdc-icon-size: 13px; color: var(--warning-color, #f5a623); }
+      .now.gas b { color: var(--warning-color, #f5a623); }
       .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
       .tab { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: all .2s; }
       .tab.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
+      .chartbody.run { animation: chartfade .4s ease; }
+      @keyframes chartfade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       .hist { position: absolute; inset: 0; width: 100%; height: 100%; }
       .chdr .now { font-size: 12px; color: var(--secondary-text-color); }
       .chdr .now b { color: var(--info-color, #7dd3fc); font-weight: 700; }
@@ -1495,6 +1604,8 @@ class EnergyFlowPriceCard extends i {
       .nowline { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--info-color, #7dd3fc); box-shadow: 0 0 8px var(--info-color, #7dd3fc); }
       .nowline::before { content: attr(data-now); position: absolute; top: -2px; left: 3px; font-size: 9px; background: var(--info-color, #7dd3fc); color: #0a1420; padding: 1px 4px; border-radius: 3px; font-weight: 700; }
       .nowline.right::before { left: auto; right: 3px; }
+      .daymarker { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1px dashed rgba(255,255,255,.28); }
+      .daymarker::before { content: attr(data-label); position: absolute; top: -2px; left: 4px; font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
       .xaxis { position: absolute; left: 34px; right: 0; bottom: 12px; height: 14px; }
       .xaxis.abs { bottom: 26px; }
       .xaxis.rel { bottom: 10px; }
@@ -1509,7 +1620,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.3.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.4.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

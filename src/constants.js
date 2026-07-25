@@ -59,4 +59,8 @@ export const DEFAULTS = {
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
+  price_show_day_marker: false, // thin line + "tomorrow" label where the axis crosses midnight
+  gas_price_entity: "", // optional: shown next to the electricity price in the chart header
+  chart_auto_scroll: false, // cycle price -> solar -> battery tabs automatically
+  chart_scroll_interval: 8, // seconds between automatic tab switches
 };
