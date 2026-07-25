@@ -1646,7 +1646,7 @@ class EnergyFlowPriceCard extends i {
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
       .chart.has-rel .plot { bottom: 48px; }
       .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
-      .bar { flex: 1; border-radius: 2px 2px 0 0; cursor: pointer; transition: opacity .15s; }
+      .bar { flex: 1; border-radius: 0; cursor: pointer; transition: opacity .15s; }
       .bar:hover { opacity: .8; }
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
@@ -1678,7 +1678,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.5.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.5.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
