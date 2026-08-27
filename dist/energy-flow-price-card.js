@@ -1678,13 +1678,13 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.5.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.5.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",
   name: "Energy Flow & Price Card",
-  description: "Compacte energie-flow (solar/accu/huis/net/auto's) plus dynamische prijzen.",
+  description: "Compact energy flow (solar/battery/home/grid/cars) plus dynamic electricity & gas prices.",
   preview: true,
   documentationURL: "https://github.com/dennisbest85/energy-flow-price-card",
 });
