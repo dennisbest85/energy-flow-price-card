@@ -364,15 +364,19 @@ class EnergyFlowPriceCard extends LitElement {
         </div>
 
         <div class="node bl ${battHasEnt ? "" : "muted"}">
-          <div class="socwrap">
-            <svg class="socring" viewBox="0 0 52 52">
-              <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
-              ${battHasEnt && v.soc !== null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${battCol}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : nothing}
-            </svg>
-            <div class="ic round" style="color:${battCol}">
-              <ha-icon icon="mdi:battery-charging"></ha-icon>
-            </div>
-          </div>
+          ${c.battery_ring !== false
+            ? html`<div class="socwrap">
+                <svg class="socring" viewBox="0 0 52 52">
+                  <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
+                  ${battHasEnt && v.soc !== null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${battCol}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : nothing}
+                </svg>
+                <div class="ic round" style="color:${battCol}">
+                  <ha-icon icon="mdi:battery-charging"></ha-icon>
+                </div>
+              </div>`
+            : html`<div class="ic" style="color:${battCol};border-color:${battCol}66;background:${battCol}22">
+                <ha-icon icon="mdi:battery-charging"></ha-icon>
+              </div>`}
           <div class="txt"><span class="lbl">${this._t("battery")}${battHasEnt && v.soc !== null ? html` · <b style="color:${battCol}">${Math.round(v.soc)}%</b>` : nothing}</span><span class="val" style="color:${battCol}">${fmtPower(battValue)}</span>${battLabel ? html`<span class="sub" style="color:${battCol}">${battLabel}</span>` : nothing}</div>
         </div>
 
@@ -393,18 +397,38 @@ class EnergyFlowPriceCard extends LitElement {
     const GREY = "#6b7280";
     const cc = carHasEnt ? c.color_car : GREY;
     const mode = c.car_mode === "merged" ? "merged" : "scroll";
+    const showRing = c.car_ring !== false;
     const carInfo = (car) => html`
       <span class="lbl">${car.name}${car.soc !== null ? html` · <b style="color:${cc}">${Math.round(car.soc)}%</b>` : nothing}</span>
       <span class="val" style="color:${cc}">${fmtPower(car.power)}</span>
       ${car.active ? html`<span class="sub" style="color:${cc}">${this._t("charging")}</span>` : nothing}
     `;
-    const icon = html`
+    const squareIcon = html`
       <div class="ic" style="color:${cc};border-color:${cc}66;background:${cc}22">
         <ha-icon icon="mdi:car-electric"></ha-icon>
       </div>`;
+    // Ring reflects one specific car's SoC, so it only makes sense when there's a single
+    // clear "current" car — the lone car, or whichever one is currently cycled into view.
+    const ringIcon = (car) => {
+      const r = 23, circ = 2 * Math.PI * r;
+      const pct = car?.soc == null ? 0 : Math.max(0, Math.min(100, car.soc)) / 100;
+      const offset = circ * (1 - pct);
+      return html`
+        <div class="socwrap">
+          <svg class="socring" viewBox="0 0 52 52">
+            <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
+            ${carHasEnt && car?.soc != null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${cc}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 26 26)"></circle>` : nothing}
+          </svg>
+          <div class="ic round" style="color:${cc}">
+            <ha-icon icon="mdi:car-electric"></ha-icon>
+          </div>
+        </div>`;
+    };
 
     if (mode === "merged" || cars.length === 1) {
       // icon in corner, info to the left (mirror of accu)
+      const single = cars.length === 1 ? cars[0] : null;
+      const icon = showRing && single ? ringIcon(single) : squareIcon;
       return html`
         <div class="node br car ${carHasEnt ? "" : "muted"}">
           <div class="txt carinfos">
@@ -414,9 +438,10 @@ class EnergyFlowPriceCard extends LitElement {
         </div>`;
     }
 
-    // scroll mode: icon fixed in corner, cycling info to the left
+    // scroll mode: icon (and ring, if enabled) cycles together with the shown car
     const idx = this._carScrollIdx % cars.length;
     const car = cars[idx];
+    const icon = showRing ? ringIcon(car) : squareIcon;
     return html`
       <div class="node br car ${carHasEnt ? "" : "muted"}">
         <div class="txt">
@@ -952,7 +977,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.5.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.6.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

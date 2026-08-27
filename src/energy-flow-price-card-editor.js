@@ -128,6 +128,12 @@ class EnergyFlowPriceCardEditor extends LitElement {
           <ha-formfield label=${T("ed_display_zero")}>
             <ha-switch .checked=${displayZero} @change=${(e) => this._toggle("display_zero", e)}></ha-switch>
           </ha-formfield>
+          <ha-formfield label=${T("ed_battery_ring")}>
+            <ha-switch .checked=${this._config.battery_ring !== false} @change=${(e) => this._toggle("battery_ring", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_car_ring")}>
+            <ha-switch .checked=${this._config.car_ring !== false} @change=${(e) => this._toggle("car_ring", e)}></ha-switch>
+          </ha-formfield>
           <label class="sel-row">
             <span>${T("ed_language")}</span>
             <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>

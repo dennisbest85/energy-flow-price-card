@@ -75,6 +75,8 @@ export const DEFAULTS = {
   color_car: "#a78bfa",
   color_home: "#7dd3fc",
   include_car_in_home: false,
+  battery_ring: true, // false = plain square icon like the other nodes, instead of the SoC ring
+  car_ring: true,     // false = plain square icon; ring tracks whichever car is currently shown
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)

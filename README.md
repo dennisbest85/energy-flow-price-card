@@ -29,6 +29,8 @@ type: custom:energy-flow-price-card
 show_flow: true
 show_price: true
 display_zero: false          # true = empty branches (and idle car charger) stay visible
+battery_ring: true            # false = plain square battery icon instead of the SoC ring
+car_ring: true                # false = plain square car icon instead of the SoC ring (ring tracks the shown car)
 price_hours: 24              # 8 to 48
 price_start: midnight        # "midnight" (from 00:00) or "now"
 price_lookback_hours: 2      # 1-12, only used when price_start is "now": how far back the axis starts
@@ -73,6 +75,7 @@ price_stops:
 - **New-day marker:** `price_show_day_marker` (off by default) draws a thin line with a small "tomorrow" label where the axis crosses midnight, like Zonneplan's app. Independent of the layout profile, works with all of them.
 - **Auto-scroll chart tabs:** `chart_auto_scroll` (off by default) cycles automatically through the available chart tabs (price → solar → battery) with a smooth fade transition; `chart_scroll_interval` sets the seconds between switches (default 8). Clicking a tab manually still works and simply restarts the timer.
 - **Gas price:** set `gas_price_entity` to also show the current gas price (with a small flame icon) next to the electricity price in the price chart's header — no separate chart, just a value next to "Now".
+- **Battery / car icon ring:** `battery_ring` and `car_ring` (both on by default) show the icon as a ring that fills up with the SoC percentage; turn either off for a plain square icon like the other flow nodes (solar, grid). With multiple cars in auto-scroll mode, the car ring follows whichever car is currently shown — it cycles together with the info text.
 - **Cars:** add one or more via the editor, each with its own name. With multiple cars you can choose auto-scroll (cycles automatically) or a static view. A car node appears only while charging (`power` > 5 W), unless *display zero* is on.
 - **Price:** works with any provider (Frank, Tibber, Nord Pool, ENTSO-e, Zonneplan...) as long as the value is in EUR/kWh. Window is adjustable from 8 to 48 hours, starting at midnight or now.
 - **Battery:** two separate sensors (charge W and discharge W), both positive.
@@ -113,6 +116,7 @@ Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul i
 - **Nieuwe-dag-lijntje:** `price_show_day_marker` (standaard uit) tekent een dun lijntje met een klein "morgen"-label waar de as middernacht kruist, zoals in de Zonneplan-app. Onafhankelijk van het layout-profiel, werkt met alle profielen.
 - **Automatisch wisselen tussen grafiektabs:** `chart_auto_scroll` (standaard uit) wisselt automatisch tussen de beschikbare grafiektabs (prijs → solar → accu) met een vloeiende overgang; `chart_scroll_interval` stelt het aantal seconden tussen wissels in (standaard 8). Handmatig op een tab klikken blijft werken en herstart gewoon de timer.
 - **Gasprijs:** stel `gas_price_entity` in om ook de actuele gasprijs (met een klein vlammetje-icoon) te tonen naast de stroomprijs in de header van de prijsgrafiek — geen aparte grafiek, gewoon een waarde naast "Nu".
+- **Cirkel bij accu/auto-icoon:** `battery_ring` en `car_ring` (allebei standaard aan) tonen het icoon als een cirkel die meevult met het SoC-percentage; zet één van beide uit voor een gewoon vierkant icoon, net als de andere flow-nodes (solar, net). Bij meerdere auto's in auto-scroll-modus volgt de cirkel steeds de auto die op dat moment getoond wordt — die wisselt gelijk met de infotekst mee.
 - **Auto's:** voeg er een of meer toe via de editor, elk met een eigen naam. Bij meerdere auto's kies je auto-scroll (wisselt vanzelf) of een statische weergave. Een auto-node verschijnt alleen bij actief laden (`power` > 5 W), tenzij *display zero* aan staat.
 - **Prijs:** werkt met elke leverancier (Frank, Tibber, Nord Pool, ENTSO-e, Zonneplan...) zolang de waarde in EUR/kWh is. Venster instelbaar van 8 tot 48 uur, startend om middernacht of nu.
 - **Accu:** twee aparte sensoren (laden W en ontladen W), beide positief.
