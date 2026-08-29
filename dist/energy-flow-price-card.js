@@ -104,6 +104,7 @@ const DEFAULTS = {
   battery_ring: true, // false = plain square icon like the other nodes, instead of the SoC ring
   car_ring: true,     // false = plain square icon; ring tracks whichever car is currently shown
   use_visual_layout: false, // true = show a house photo behind the flow diagram instead of abstract wires
+  wire_style: "dashed", // "dashed" (flowing dashes, current look) | "neon" (solid glowing line)
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
@@ -144,6 +145,9 @@ const TRANSLATIONS = {
     ed_battery_ring: "Battery icon as a ring (off = square, like the other icons)",
     ed_car_ring: "Car icon as a ring (off = square, like the other icons)",
     ed_visual_layout: "Use visual layout (house photo instead of abstract wires)",
+    ed_wire_style: "Flow line style",
+    ed_wire_style_dashed: "Dashed (current)",
+    ed_wire_style_neon: "Neon glow",
     ed_entities: "Entities",
     ed_home_note: "Home usage is calculated automatically: solar + grid + battery-discharge − battery-charge.",
     ed_solar_power: "Solar power (W)",
@@ -231,6 +235,9 @@ const TRANSLATIONS = {
     ed_battery_ring: "Accu-icoon als cirkel (uit = vierkant, zoals de andere iconen)",
     ed_car_ring: "Auto-icoon als cirkel (uit = vierkant, zoals de andere iconen)",
     ed_visual_layout: "Gebruik visuele weergave (huisfoto in plaats van abstracte lijnen)",
+    ed_wire_style: "Stijl flow-lijnen",
+    ed_wire_style_dashed: "Gestippeld (huidig)",
+    ed_wire_style_neon: "Neon-gloed",
     ed_entities: "Entiteiten",
     ed_home_note: "Huisverbruik wordt automatisch berekend: solar + net + accu-ontladen − accu-laden.",
     ed_solar_power: "Solar vermogen (W)",
@@ -318,6 +325,9 @@ const TRANSLATIONS = {
     ed_battery_ring: "Akku-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_car_ring: "Auto-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_visual_layout: "Visuelle Ansicht verwenden (Hausfoto statt abstrakter Linien)",
+    ed_wire_style: "Stil der Flusslinien",
+    ed_wire_style_dashed: "Gestrichelt (aktuell)",
+    ed_wire_style_neon: "Neon-Leuchten",
     ed_entities: "Entitäten",
     ed_home_note: "Hausverbrauch wird automatisch berechnet: Solar + Netz + Akku-Entladung − Akku-Ladung.",
     ed_solar_power: "Solar-Leistung (W)",
@@ -530,6 +540,13 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label=${T("ed_visual_layout")}>
             <ha-switch .checked=${this._config.use_visual_layout === true} @change=${(e) => this._toggle("use_visual_layout", e)}></ha-switch>
           </ha-formfield>
+          <label class="sel-row">
+            <span>${T("ed_wire_style")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
+              <option value="dashed" ?selected=${(this._config.wire_style ?? "dashed") === "dashed"}>${T("ed_wire_style_dashed")}</option>
+              <option value="neon" ?selected=${this._config.wire_style === "neon"}>${T("ed_wire_style_neon")}</option>
+            </select>
+          </label>
           <label class="sel-row">
             <span>${T("ed_language")}</span>
             <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
@@ -1093,26 +1110,38 @@ class EnergyFlowPriceCard extends i {
     const wCar = this._wireState("car", carPow);
     if (wSolar.show || wGrid.show || wBatt.show || wCar.show) this._scheduleFlowTick();
 
-    const liveStyle = (st, color) =>
-      `stroke:${color};animation-duration:${st.duration}s;${st.moving ? "" : "animation-play-state:paused;"}`;
-    const liveClass = (st) => `live${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
+    const neon = c.wire_style === "neon";
+    const liveStyle = (st, color) => {
+      const glow = neon ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
+      return `stroke:${color};${glow}animation-duration:${st.duration}s;${st.moving ? "" : "animation-play-state:paused;"}`;
+    };
+    const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
+
+    // Visual-mode wires run in clean horizontal-then-vertical segments (a photo reads
+    // better with straight "circuit style" connectors); the abstract layout keeps its
+    // smooth curve. `reversed` swaps which end is the path start (house vs icon).
+    const elbow = (ax, ay, bx, by) => `M${ax},${ay} L${bx},${ay} L${bx},${by}`;
+    const wireD = (iconX, iconY, ep, curveCtrlX, reversed) => visual
+      ? (reversed ? elbow(ep.x, ep.y, iconX, iconY) : elbow(iconX, iconY, ep.x, ep.y))
+      : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
 
     return b`
       <div class="flow">
+        ${visual ? w`<svg class="housebg" viewBox="0 0 720 190" preserveAspectRatio="none">
+          <image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>
+        </svg>` : A}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          ${visual ? w`<image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>` : A}
+          <path class="wire" d="${wireD(70, 52, EP.solar, 220, false)}"></path>
+          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(70, 52, EP.solar, 220, false)}"></path>` : A}
 
-          <path class="wire" d="M70,52 Q220,${HY} ${EP.solar.x},${EP.solar.y}"></path>
-          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="M70,52 Q220,${HY} ${EP.solar.x},${EP.solar.y}"></path>` : A}
+          <path class="wire" d="${wireD(650, 52, EP.grid, 500, false)}"></path>
+          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(650, 52, EP.grid, 500, gridPow < 0)}"></path>` : A}
 
-          <path class="wire" d="M650,52 Q500,${HY} ${EP.grid.x},${EP.grid.y}"></path>
-          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${gridPow < 0 ? `M${EP.grid.x},${EP.grid.y} Q500,${HY} 650,52` : `M650,52 Q500,${HY} ${EP.grid.x},${EP.grid.y}`}"></path>` : A}
+          <path class="wire" d="${wireD(70, 138, EP.battery, 220, false)}"></path>
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(70, 138, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
 
-          <path class="wire" d="M70,138 Q220,${HY} ${EP.battery.x},${EP.battery.y}"></path>
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${v.charge && v.charge > 5 ? `M${EP.battery.x},${EP.battery.y} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${EP.battery.x},${EP.battery.y}`}"></path>` : A}
-
-          <path class="wire" d="M650,138 Q500,${HY} ${EP.car.x},${EP.car.y}"></path>
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="M${EP.car.x},${EP.car.y} Q500,${HY} 650,138"></path>` : A}
+          <path class="wire" d="${wireD(650, 138, EP.car, 500, false)}"></path>
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(650, 138, EP.car, 500, true)}"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -1149,9 +1178,9 @@ class EnergyFlowPriceCard extends i {
         ${this._renderCars(carsShown, c, carHasEnt)}
 
         <div class="huis">
-          <div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
+          ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
-          </div>
+          </div>`}
           <span class="lbl">${this._t("home")}</span>
           <span class="val" style="color:${c.color_home}">${fmtPower(home)}</span>
         </div>
@@ -1647,10 +1676,13 @@ class EnergyFlowPriceCard extends i {
       ha-card { padding: 12px; }
       .stack { display: flex; flex-direction: column; gap: 12px; }
       .flow { position: relative; height: 190px; }
+      .housebg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
-      .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; opacity: 1; transition: opacity 1s ease; }
-      .live.still { stroke-dashoffset: 0; }
+      .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
+      .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .live.dashed.still { stroke-dashoffset: 0; }
+      .live.neon { stroke-width: 3; }
       .live.fade-in { opacity: 1; }
       .live.fade-out { opacity: 0; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
@@ -1742,7 +1774,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

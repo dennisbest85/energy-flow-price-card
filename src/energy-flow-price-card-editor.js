@@ -138,6 +138,13 @@ class EnergyFlowPriceCardEditor extends LitElement {
             <ha-switch .checked=${this._config.use_visual_layout === true} @change=${(e) => this._toggle("use_visual_layout", e)}></ha-switch>
           </ha-formfield>
           <label class="sel-row">
+            <span>${T("ed_wire_style")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
+              <option value="dashed" ?selected=${(this._config.wire_style ?? "dashed") === "dashed"}>${T("ed_wire_style_dashed")}</option>
+              <option value="neon" ?selected=${this._config.wire_style === "neon"}>${T("ed_wire_style_neon")}</option>
+            </select>
+          </label>
+          <label class="sel-row">
             <span>${T("ed_language")}</span>
             <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
               <option value="auto" ?selected=${lang === "auto"}>${T("ed_lang_auto")}</option>

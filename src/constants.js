@@ -78,6 +78,7 @@ export const DEFAULTS = {
   battery_ring: true, // false = plain square icon like the other nodes, instead of the SoC ring
   car_ring: true,     // false = plain square icon; ring tracks whichever car is currently shown
   use_visual_layout: false, // true = show a house photo behind the flow diagram instead of abstract wires
+  wire_style: "dashed", // "dashed" (flowing dashes, current look) | "neon" (solid glowing line)
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
   price_relative_hours: false, // extra x-axis row: hours counted from now ("nu", 1, 2, 3…)
