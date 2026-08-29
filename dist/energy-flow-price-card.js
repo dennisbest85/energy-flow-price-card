@@ -1107,9 +1107,13 @@ class EnergyFlowPriceCard extends i {
     // symmetric; car keeps its own (shorter) original distance.
     const BOT_Y_BATT = visual ? EP.battery.y + (EP.solar.y - TOP_Y) : 186;
     const BOT_Y_CAR = 186;
-    // Horizontally center the "Huis" badge between the solar/grid verticals (not the
-    // image's own center), since those two anchor points aren't symmetric on the photo.
-    const huisLeftPct = visual ? ((EP.solar.x + EP.grid.x) / 2 / 720) * 100 : 50;
+    // Solar/battery share one vertical bend line, and grid/car share another, so the
+    // top and bottom line on each side are true mirror images of each other — only a
+    // short final jog reaches each anchor's own slightly different spot on the photo.
+    const FX_L = visual ? (EP.solar.x + EP.battery.x) / 2 : HL;
+    const FX_R = visual ? (EP.grid.x + EP.car.x) / 2 : HR;
+    // Horizontally center the "Huis" badge between those two shared verticals.
+    const huisLeftPct = visual ? ((FX_L + FX_R) / 2 / 720) * 100 : 50;
 
     // Per-wire animation states
     const solarPow = v.solar;
@@ -1132,18 +1136,19 @@ class EnergyFlowPriceCard extends i {
     };
     const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
 
-    // Visual-mode wires run in clean horizontal-then-vertical segments (a photo reads
-    // better with straight "circuit style" connectors); the abstract layout keeps its
-    // smooth curve. `reversed` traces the SAME physical line backwards (same corner
-    // point) so the dim base wire and the live overlay always stay perfectly aligned —
-    // only the flow animation's apparent direction changes.
-    const elbowD = (iconX, iconY, ep, reversed) => {
-      const pts = [{ x: iconX, y: iconY }, { x: ep.x, y: iconY }, { x: ep.x, y: ep.y }];
+    // Visual-mode wires run in clean horizontal/vertical segments via a shared bend
+    // line (frameX) — a photo reads better with straight "circuit style" connectors,
+    // and sharing the bend keeps the top/bottom line on each side true mirror images.
+    // The abstract layout keeps its smooth curve. `reversed` traces the SAME physical
+    // line backwards (same corners) so the dim base wire and the live overlay always
+    // stay perfectly aligned — only the flow animation's apparent direction changes.
+    const elbowD = (iconX, iconY, ep, frameX, reversed) => {
+      const pts = [{ x: iconX, y: iconY }, { x: frameX, y: iconY }, { x: frameX, y: ep.y }, { x: ep.x, y: ep.y }];
       const p = reversed ? [...pts].reverse() : pts;
-      return `M${p[0].x},${p[0].y} L${p[1].x},${p[1].y} L${p[2].x},${p[2].y}`;
+      return `M${p[0].x},${p[0].y} L${p[1].x},${p[1].y} L${p[2].x},${p[2].y} L${p[3].x},${p[3].y}`;
     };
-    const wireD = (iconX, iconY, ep, curveCtrlX, reversed) => visual
-      ? elbowD(iconX, iconY, ep, reversed)
+    const wireD = (iconX, iconY, ep, frameX, curveCtrlX, reversed) => visual
+      ? elbowD(iconX, iconY, ep, frameX, reversed)
       : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
 
     // The base wire fades in from the icon end (seen as coming FROM each node) via a
@@ -1167,17 +1172,17 @@ class EnergyFlowPriceCard extends i {
             ${fadeGrad("battery", IX_L, BOT_Y_BATT, EP.battery.x, EP.battery.y)}
             ${fadeGrad("car", IX_R, BOT_Y_CAR, EP.car.x, EP.car.y)}
           </defs>
-          <path class="wire" style="stroke:url(#${gradId("solar")})" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>
-          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("solar")})" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>
+          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>` : A}
 
-          <path class="wire" style="stroke:url(#${gradId("grid")})" d="${wireD(IX_R, TOP_Y, EP.grid, 500, false)}"></path>
-          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, 500, gridPow < 0)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("grid")})" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, false)}"></path>
+          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, gridPow < 0)}"></path>` : A}
 
-          <path class="wire" style="stroke:url(#${gradId("battery")})" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, 220, false)}"></path>
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("battery")})" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, false)}"></path>
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, v.charge && v.charge > 5)}"></path>` : A}
 
-          <path class="wire" style="stroke:url(#${gradId("car")})" d="${wireD(IX_R, BOT_Y_CAR, EP.car, 500, false)}"></path>
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, 500, true)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("car")})" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, false)}"></path>
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, true)}"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -1814,7 +1819,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.6 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.7 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
