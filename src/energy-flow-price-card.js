@@ -317,6 +317,9 @@ class EnergyFlowPriceCard extends LitElement {
     // Icon ~58px; horizontal half-width in viewBox units ≈ 34.
     const HX = 360, HY = 104;          // vertical center of the house square (lowered)
     const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
+    // Wire start heights: solar/grid start above their wattage line, battery/car start
+    // below theirs, so the lines don't cross through the value text and sit further apart.
+    const TOP_Y = 30, BOT_Y = 160;
 
     // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
     // centered 190x190 sub-region of this same 720x190 viewBox (matching HX), so each wire
@@ -345,11 +348,14 @@ class EnergyFlowPriceCard extends LitElement {
     if (wSolar.show || wGrid.show || wBatt.show || wCar.show) this._scheduleFlowTick();
 
     const neon = c.wire_style === "neon";
+    // Neon: a calm green base wire, with an occasional glowing pulse sweeping along it
+    // in the direction of actual flow (via a short dash + long gap, animated).
     const liveStyle = (st, color) => {
       const glow = neon ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
       return `stroke:${color};${glow}animation-duration:${st.duration}s;${st.moving ? "" : "animation-play-state:paused;"}`;
     };
     const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
+    const wireClass = neon ? "wire wire-neon" : "wire";
 
     // Visual-mode wires run in clean horizontal-then-vertical segments (a photo reads
     // better with straight "circuit style" connectors); the abstract layout keeps its
@@ -365,17 +371,17 @@ class EnergyFlowPriceCard extends LitElement {
           <image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>
         </svg>` : nothing}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <path class="wire" d="${wireD(70, 52, EP.solar, 220, false)}"></path>
-          ${wSolar.show ? svg`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(70, 52, EP.solar, 220, false)}"></path>` : nothing}
+          <path class="${wireClass}" d="${wireD(70, TOP_Y, EP.solar, 220, false)}"></path>
+          ${wSolar.show ? svg`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(70, TOP_Y, EP.solar, 220, false)}"></path>` : nothing}
 
-          <path class="wire" d="${wireD(650, 52, EP.grid, 500, false)}"></path>
-          ${wGrid.show ? svg`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(650, 52, EP.grid, 500, gridPow < 0)}"></path>` : nothing}
+          <path class="${wireClass}" d="${wireD(650, TOP_Y, EP.grid, 500, false)}"></path>
+          ${wGrid.show ? svg`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(650, TOP_Y, EP.grid, 500, gridPow < 0)}"></path>` : nothing}
 
-          <path class="wire" d="${wireD(70, 138, EP.battery, 220, false)}"></path>
-          ${wBatt.show ? svg`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(70, 138, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : nothing}
+          <path class="${wireClass}" d="${wireD(70, BOT_Y, EP.battery, 220, false)}"></path>
+          ${wBatt.show ? svg`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(70, BOT_Y, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : nothing}
 
-          <path class="wire" d="${wireD(650, 138, EP.car, 500, false)}"></path>
-          ${wCar.show ? svg`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(650, 138, EP.car, 500, true)}"></path>` : nothing}
+          <path class="${wireClass}" d="${wireD(650, BOT_Y, EP.car, 500, false)}"></path>
+          ${wCar.show ? svg`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(650, BOT_Y, EP.car, 500, true)}"></path>` : nothing}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -914,10 +920,13 @@ class EnergyFlowPriceCard extends LitElement {
       .housebg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
+      .wire.wire-neon { stroke: rgba(34,197,94,.35); }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
       .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.dashed.still { stroke-dashoffset: 0; }
-      .live.neon { stroke-width: 3; }
+      .live.neon { stroke-width: 3; stroke-dasharray: 18 480; animation-name: neonsweep; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .live.neon.still { stroke-dashoffset: 0; }
+      @keyframes neonsweep { to { stroke-dashoffset: -498; } }
       .live.fade-in { opacity: 1; }
       .live.fade-out { opacity: 0; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
@@ -1009,7 +1018,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
