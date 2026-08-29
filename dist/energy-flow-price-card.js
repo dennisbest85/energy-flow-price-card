@@ -542,18 +542,18 @@ class EnergyFlowPriceCardEditor extends i {
           </ha-formfield>
           <label class="sel-row">
             <span>${T("ed_wire_style")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
-              <option value="dashed" ?selected=${(this._config.wire_style ?? "dashed") === "dashed"}>${T("ed_wire_style_dashed")}</option>
-              <option value="neon" ?selected=${this._config.wire_style === "neon"}>${T("ed_wire_style_neon")}</option>
+            <select .value=${this._config.wire_style ?? "dashed"} @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
+              <option value="dashed">${T("ed_wire_style_dashed")}</option>
+              <option value="neon">${T("ed_wire_style_neon")}</option>
             </select>
           </label>
           <label class="sel-row">
             <span>${T("ed_language")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
-              <option value="auto" ?selected=${lang === "auto"}>${T("ed_lang_auto")}</option>
-              <option value="nl" ?selected=${lang === "nl"}>Nederlands</option>
-              <option value="en" ?selected=${lang === "en"}>English</option>
-              <option value="de" ?selected=${lang === "de"}>Deutsch</option>
+            <select .value=${lang} @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
+              <option value="auto">${T("ed_lang_auto")}</option>
+              <option value="nl">Nederlands</option>
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
             </select>
           </label>
         </div>
@@ -581,9 +581,9 @@ class EnergyFlowPriceCardEditor extends i {
           <div class="note">${T("ed_car_note")}</div>
           <label class="sel-row">
             <span>${T("ed_car_display")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
-              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>${T("ed_car_scroll")}</option>
-              <option value="merged" ?selected=${this._config.car_mode === "merged"}>${T("ed_car_merged")}</option>
+            <select .value=${this._config.car_mode ?? "scroll"} @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
+              <option value="scroll">${T("ed_car_scroll")}</option>
+              <option value="merged">${T("ed_car_merged")}</option>
             </select>
           </label>
           ${(this._config.car_mode ?? "scroll") === "scroll" ? b`
@@ -632,9 +632,9 @@ class EnergyFlowPriceCardEditor extends i {
           </div>
           <label class="sel-row">
             <span>${T("ed_start_point")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
-              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>${T("ed_start_midnight")}</option>
-              <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
+            <select .value=${this._config.price_start ?? "midnight"} @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
+              <option value="midnight">${T("ed_start_midnight")}</option>
+              <option value="now">${T("ed_start_now")}</option>
             </select>
           </label>
           ${this._config.price_start === "now" ? b`
@@ -656,13 +656,13 @@ class EnergyFlowPriceCardEditor extends i {
           <div class="note">${T("ed_layout_note")}</div>
           <label class="sel-row">
             <span>${T("ed_layout_profile")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
-              <option value="default" ?selected=${priceProfile === "default"}>${T("ed_profile_default")}</option>
-              <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
-              <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
-              <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
-              <option value="anwb" ?selected=${priceProfile === "anwb"}>${T("ed_profile_anwb")}</option>
-              <option value="eneco" ?selected=${priceProfile === "eneco"}>${T("ed_profile_eneco")}</option>
+            <select .value=${priceProfile} @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
+              <option value="default">${T("ed_profile_default")}</option>
+              <option value="zonneplan">${T("ed_profile_zonneplan")}</option>
+              <option value="tibber">${T("ed_profile_tibber")}</option>
+              <option value="frank">${T("ed_profile_frank")}</option>
+              <option value="anwb">${T("ed_profile_anwb")}</option>
+              <option value="eneco">${T("ed_profile_eneco")}</option>
             </select>
           </label>
         </div>
@@ -1083,9 +1083,11 @@ class EnergyFlowPriceCard extends i {
     // Icon ~58px; horizontal half-width in viewBox units ≈ 34.
     const HX = 360, HY = 104;          // vertical center of the house square (lowered)
     const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
-    // Wire start heights: solar/grid start above their wattage line, battery/car start
-    // below theirs, so the lines don't cross through the value text and sit further apart.
-    const TOP_Y = 30, BOT_Y = 160;
+    // Wire start points: solar/grid start above the whole icon+text block, battery/car
+    // start below it, and a bit further out horizontally too, so lines never cross the
+    // label/value text and read as coming from — rather than through — each node.
+    const TOP_Y = 4, BOT_Y = 186;
+    const IX_L = 110, IX_R = 610;
 
     // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
     // centered 190x190 sub-region of this same 720x190 viewBox (matching HX), so each wire
@@ -1137,17 +1139,17 @@ class EnergyFlowPriceCard extends i {
           <image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>
         </svg>` : A}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <path class="${wireClass}" d="${wireD(70, TOP_Y, EP.solar, 220, false)}"></path>
-          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(70, TOP_Y, EP.solar, 220, false)}"></path>` : A}
+          <path class="${wireClass}" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>
+          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>` : A}
 
-          <path class="${wireClass}" d="${wireD(650, TOP_Y, EP.grid, 500, false)}"></path>
-          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(650, TOP_Y, EP.grid, 500, gridPow < 0)}"></path>` : A}
+          <path class="${wireClass}" d="${wireD(IX_R, TOP_Y, EP.grid, 500, false)}"></path>
+          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, 500, gridPow < 0)}"></path>` : A}
 
-          <path class="${wireClass}" d="${wireD(70, BOT_Y, EP.battery, 220, false)}"></path>
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(70, BOT_Y, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
+          <path class="${wireClass}" d="${wireD(IX_L, BOT_Y, EP.battery, 220, false)}"></path>
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
 
-          <path class="${wireClass}" d="${wireD(650, BOT_Y, EP.car, 500, false)}"></path>
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(650, BOT_Y, EP.car, 500, true)}"></path>` : A}
+          <path class="${wireClass}" d="${wireD(IX_R, BOT_Y, EP.car, 500, false)}"></path>
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y, EP.car, 500, true)}"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -1183,7 +1185,7 @@ class EnergyFlowPriceCard extends i {
 
         ${this._renderCars(carsShown, c, carHasEnt)}
 
-        <div class="huis">
+        <div class="huis ${visual ? "huis-visual" : ""}">
           ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
@@ -1689,9 +1691,9 @@ class EnergyFlowPriceCard extends i {
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
       .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.dashed.still { stroke-dashoffset: 0; }
-      .live.neon { stroke-width: 3; stroke-dasharray: 18 480; animation-name: neonsweep; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .live.neon { stroke-width: 3; stroke-dasharray: 42 460; animation-name: neonsweep; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.neon.still { stroke-dashoffset: 0; }
-      @keyframes neonsweep { to { stroke-dashoffset: -498; } }
+      @keyframes neonsweep { to { stroke-dashoffset: -502; } }
       .live.fade-in { opacity: 1; }
       .live.fade-out { opacity: 0; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
@@ -1724,6 +1726,8 @@ class EnergyFlowPriceCard extends i {
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+      .huis.huis-visual { top: 90%; transform: translate(-50%, -50%); }
+      .huis.huis-visual .lbl, .huis.huis-visual .val { text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6); }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
@@ -1783,7 +1787,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

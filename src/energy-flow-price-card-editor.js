@@ -139,18 +139,18 @@ class EnergyFlowPriceCardEditor extends LitElement {
           </ha-formfield>
           <label class="sel-row">
             <span>${T("ed_wire_style")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
-              <option value="dashed" ?selected=${(this._config.wire_style ?? "dashed") === "dashed"}>${T("ed_wire_style_dashed")}</option>
-              <option value="neon" ?selected=${this._config.wire_style === "neon"}>${T("ed_wire_style_neon")}</option>
+            <select .value=${this._config.wire_style ?? "dashed"} @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
+              <option value="dashed">${T("ed_wire_style_dashed")}</option>
+              <option value="neon">${T("ed_wire_style_neon")}</option>
             </select>
           </label>
           <label class="sel-row">
             <span>${T("ed_language")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
-              <option value="auto" ?selected=${lang === "auto"}>${T("ed_lang_auto")}</option>
-              <option value="nl" ?selected=${lang === "nl"}>Nederlands</option>
-              <option value="en" ?selected=${lang === "en"}>English</option>
-              <option value="de" ?selected=${lang === "de"}>Deutsch</option>
+            <select .value=${lang} @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
+              <option value="auto">${T("ed_lang_auto")}</option>
+              <option value="nl">Nederlands</option>
+              <option value="en">English</option>
+              <option value="de">Deutsch</option>
             </select>
           </label>
         </div>
@@ -178,9 +178,9 @@ class EnergyFlowPriceCardEditor extends LitElement {
           <div class="note">${T("ed_car_note")}</div>
           <label class="sel-row">
             <span>${T("ed_car_display")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
-              <option value="scroll" ?selected=${(this._config.car_mode ?? "scroll") === "scroll"}>${T("ed_car_scroll")}</option>
-              <option value="merged" ?selected=${this._config.car_mode === "merged"}>${T("ed_car_merged")}</option>
+            <select .value=${this._config.car_mode ?? "scroll"} @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
+              <option value="scroll">${T("ed_car_scroll")}</option>
+              <option value="merged">${T("ed_car_merged")}</option>
             </select>
           </label>
           ${(this._config.car_mode ?? "scroll") === "scroll" ? html`
@@ -229,9 +229,9 @@ class EnergyFlowPriceCardEditor extends LitElement {
           </div>
           <label class="sel-row">
             <span>${T("ed_start_point")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
-              <option value="midnight" ?selected=${(this._config.price_start ?? "midnight") === "midnight"}>${T("ed_start_midnight")}</option>
-              <option value="now" ?selected=${this._config.price_start === "now"}>${T("ed_start_now")}</option>
+            <select .value=${this._config.price_start ?? "midnight"} @change=${(e) => this._emit({ ...this._config, price_start: e.target.value })}>
+              <option value="midnight">${T("ed_start_midnight")}</option>
+              <option value="now">${T("ed_start_now")}</option>
             </select>
           </label>
           ${this._config.price_start === "now" ? html`
@@ -253,13 +253,13 @@ class EnergyFlowPriceCardEditor extends LitElement {
           <div class="note">${T("ed_layout_note")}</div>
           <label class="sel-row">
             <span>${T("ed_layout_profile")}</span>
-            <select @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
-              <option value="default" ?selected=${priceProfile === "default"}>${T("ed_profile_default")}</option>
-              <option value="zonneplan" ?selected=${priceProfile === "zonneplan"}>${T("ed_profile_zonneplan")}</option>
-              <option value="tibber" ?selected=${priceProfile === "tibber"}>${T("ed_profile_tibber")}</option>
-              <option value="frank" ?selected=${priceProfile === "frank"}>${T("ed_profile_frank")}</option>
-              <option value="anwb" ?selected=${priceProfile === "anwb"}>${T("ed_profile_anwb")}</option>
-              <option value="eneco" ?selected=${priceProfile === "eneco"}>${T("ed_profile_eneco")}</option>
+            <select .value=${priceProfile} @change=${(e) => this._emit({ ...this._config, price_profile: e.target.value })}>
+              <option value="default">${T("ed_profile_default")}</option>
+              <option value="zonneplan">${T("ed_profile_zonneplan")}</option>
+              <option value="tibber">${T("ed_profile_tibber")}</option>
+              <option value="frank">${T("ed_profile_frank")}</option>
+              <option value="anwb">${T("ed_profile_anwb")}</option>
+              <option value="eneco">${T("ed_profile_eneco")}</option>
             </select>
           </label>
         </div>
