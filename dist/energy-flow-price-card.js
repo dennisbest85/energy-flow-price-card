@@ -1102,10 +1102,8 @@ class EnergyFlowPriceCard extends i {
       battery: visual ? visPt(58, 63) : { x: HL, y: HY },
       car: visual ? visPt(76, 81) : { x: HR, y: HY },
     };
-    // Battery's rising segment matches solar's falling one in length (visual mode only,
-    // where their anchor points actually differ), so the two sides of the frame look
-    // symmetric; car keeps its own (shorter) original distance.
-    const BOT_Y_BATT = visual ? EP.battery.y + (EP.solar.y - TOP_Y) : 186;
+    // Battery and car share one horizontal height, just like solar/grid share TOP_Y.
+    const BOT_Y_BATT = 186;
     const BOT_Y_CAR = 186;
     // Solar/battery share one vertical bend line, and grid/car share another, so the
     // top and bottom line on each side are true mirror images of each other — only a
@@ -1819,7 +1817,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.7 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.8 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
