@@ -1086,7 +1086,7 @@ class EnergyFlowPriceCard extends i {
     // Wire start points: solar/grid start above the whole icon+text block, battery/car
     // start below it, and a bit further out horizontally too, so lines never cross the
     // label/value text and read as coming from — rather than through — each node.
-    const TOP_Y = 4, BOT_Y = 186;
+    const TOP_Y = 4;
     const IX_L = 110, IX_R = 610;
 
     // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
@@ -1102,6 +1102,14 @@ class EnergyFlowPriceCard extends i {
       battery: visual ? visPt(58, 63) : { x: HL, y: HY },
       car: visual ? visPt(76, 81) : { x: HR, y: HY },
     };
+    // Battery's rising segment matches solar's falling one in length (visual mode only,
+    // where their anchor points actually differ), so the two sides of the frame look
+    // symmetric; car keeps its own (shorter) original distance.
+    const BOT_Y_BATT = visual ? EP.battery.y + (EP.solar.y - TOP_Y) : 186;
+    const BOT_Y_CAR = 186;
+    // Horizontally center the "Huis" badge between the solar/grid verticals (not the
+    // image's own center), since those two anchor points aren't symmetric on the photo.
+    const huisLeftPct = visual ? ((EP.solar.x + EP.grid.x) / 2 / 720) * 100 : 50;
 
     // Per-wire animation states
     const solarPow = v.solar;
@@ -1138,23 +1146,38 @@ class EnergyFlowPriceCard extends i {
       ? elbowD(iconX, iconY, ep, reversed)
       : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
 
+    // The base wire fades in from the icon end (seen as coming FROM each node) via a
+    // gradient stroke, instead of popping in at full opacity right at the icon.
+    const gradId = (name) => `efp-fade-${name}-${this._uid}`;
+    const fadeGrad = (name, x1, y1, x2, y2) => w`<linearGradient id="${gradId(name)}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
+      <stop offset="0.35" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="1" stop-color="#fff" stop-opacity="0.07"></stop>
+    </linearGradient>`;
+
     return b`
       <div class="flow">
         ${visual ? w`<svg class="housebg" viewBox="0 0 720 190" preserveAspectRatio="none">
           <image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>
         </svg>` : A}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <path class="wire" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>
+          <defs>
+            ${fadeGrad("solar", IX_L, TOP_Y, EP.solar.x, EP.solar.y)}
+            ${fadeGrad("grid", IX_R, TOP_Y, EP.grid.x, EP.grid.y)}
+            ${fadeGrad("battery", IX_L, BOT_Y_BATT, EP.battery.x, EP.battery.y)}
+            ${fadeGrad("car", IX_R, BOT_Y_CAR, EP.car.x, EP.car.y)}
+          </defs>
+          <path class="wire" style="stroke:url(#${gradId("solar")})" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>
           ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, 220, false)}"></path>` : A}
 
-          <path class="wire" d="${wireD(IX_R, TOP_Y, EP.grid, 500, false)}"></path>
+          <path class="wire" style="stroke:url(#${gradId("grid")})" d="${wireD(IX_R, TOP_Y, EP.grid, 500, false)}"></path>
           ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, 500, gridPow < 0)}"></path>` : A}
 
-          <path class="wire" d="${wireD(IX_L, BOT_Y, EP.battery, 220, false)}"></path>
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("battery")})" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, 220, false)}"></path>
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, 220, v.charge && v.charge > 5)}"></path>` : A}
 
-          <path class="wire" d="${wireD(IX_R, BOT_Y, EP.car, 500, false)}"></path>
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y, EP.car, 500, true)}"></path>` : A}
+          <path class="wire" style="stroke:url(#${gradId("car")})" d="${wireD(IX_R, BOT_Y_CAR, EP.car, 500, false)}"></path>
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, 500, true)}"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -1190,7 +1213,7 @@ class EnergyFlowPriceCard extends i {
 
         ${this._renderCars(carsShown, c, carHasEnt)}
 
-        <div class="huis ${visual ? "huis-visual" : ""}">
+        <div class="huis ${visual ? "huis-visual" : ""}" style="left:${huisLeftPct}%">
           ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
@@ -1791,7 +1814,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.5 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
