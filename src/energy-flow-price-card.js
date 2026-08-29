@@ -1,6 +1,7 @@
 import { LitElement, html, css, svg, nothing } from "lit";
 import { DEFAULTS, DEFAULT_PRICE_STOPS, PRICE_PROFILES } from "./constants.js";
 import { t, resolveLang } from "./translations.js";
+import { VISUAL_HOUSE_IMAGE } from "./assets/visual-house.js";
 import "./energy-flow-price-card-editor.js";
 
 let _efpUidCounter = 0;
@@ -317,6 +318,20 @@ class EnergyFlowPriceCard extends LitElement {
     const HX = 360, HY = 104;          // vertical center of the house square (lowered)
     const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
 
+    // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
+    // centered 190x190 sub-region of this same 720x190 viewBox (matching HX), so each wire
+    // can aim at a specific spot on the picture (solar panels / battery box / car) instead
+    // of the shared square edge used by the abstract layout.
+    const visual = !!c.use_visual_layout;
+    const VX = HX - 95, VY = 0, VS = 190;
+    const visPt = (px, py) => ({ x: VX + (px / 100) * VS, y: VY + (py / 100) * VS });
+    const EP = {
+      solar: visual ? visPt(46, 31) : { x: HL, y: HY },
+      grid: visual ? visPt(80, 40) : { x: HR, y: HY },
+      battery: visual ? visPt(58, 63) : { x: HL, y: HY },
+      car: visual ? visPt(76, 81) : { x: HR, y: HY },
+    };
+
     // Per-wire animation states
     const solarPow = v.solar;
     const gridPow = v.grid;
@@ -336,17 +351,19 @@ class EnergyFlowPriceCard extends LitElement {
     return html`
       <div class="flow">
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <path class="wire" d="M70,52 Q220,${HY} ${HL},${HY}"></path>
-          ${wSolar.show ? svg`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="M70,52 Q220,${HY} ${HL},${HY}"></path>` : nothing}
+          ${visual ? svg`<image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>` : nothing}
 
-          <path class="wire" d="M650,52 Q500,${HY} ${HR},${HY}"></path>
-          ${wGrid.show ? svg`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${gridPow < 0 ? `M${HR},${HY} Q500,${HY} 650,52` : `M650,52 Q500,${HY} ${HR},${HY}`}"></path>` : nothing}
+          <path class="wire" d="M70,52 Q220,${HY} ${EP.solar.x},${EP.solar.y}"></path>
+          ${wSolar.show ? svg`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="M70,52 Q220,${HY} ${EP.solar.x},${EP.solar.y}"></path>` : nothing}
 
-          <path class="wire" d="M70,138 Q220,${HY} ${HL},${HY}"></path>
-          ${wBatt.show ? svg`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${v.charge && v.charge > 5 ? `M${HL},${HY} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${HL},${HY}`}"></path>` : nothing}
+          <path class="wire" d="M650,52 Q500,${HY} ${EP.grid.x},${EP.grid.y}"></path>
+          ${wGrid.show ? svg`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${gridPow < 0 ? `M${EP.grid.x},${EP.grid.y} Q500,${HY} 650,52` : `M650,52 Q500,${HY} ${EP.grid.x},${EP.grid.y}`}"></path>` : nothing}
 
-          <path class="wire" d="M650,138 Q500,${HY} ${HR},${HY}"></path>
-          ${wCar.show ? svg`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="M${HR},${HY} Q500,${HY} 650,138"></path>` : nothing}
+          <path class="wire" d="M70,138 Q220,${HY} ${EP.battery.x},${EP.battery.y}"></path>
+          ${wBatt.show ? svg`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${v.charge && v.charge > 5 ? `M${EP.battery.x},${EP.battery.y} Q220,${HY} 70,138` : `M70,138 Q220,${HY} ${EP.battery.x},${EP.battery.y}`}"></path>` : nothing}
+
+          <path class="wire" d="M650,138 Q500,${HY} ${EP.car.x},${EP.car.y}"></path>
+          ${wCar.show ? svg`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="M${EP.car.x},${EP.car.y} Q500,${HY} 650,138"></path>` : nothing}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -977,7 +994,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.6.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.7.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
