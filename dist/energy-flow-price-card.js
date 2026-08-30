@@ -1110,10 +1110,7 @@ class EnergyFlowPriceCard extends i {
     // short final jog reaches each anchor's own slightly different spot on the photo.
     const FX_L = visual ? (EP.solar.x + EP.battery.x) / 2 : HL;
     const FX_R = visual ? (EP.grid.x + EP.car.x) / 2 : HR;
-    // Horizontally center the "Huis" badge between those two shared verticals, and drop
-    // it as low as possible — its bottom edge lines up with the shared bottom wire.
-    const huisLeftPct = visual ? ((FX_L + FX_R) / 2 / 720) * 100 : 50;
-    const huisBottomPct = (BOT_Y_CAR / 190) * 100;
+    const huisLeftPct = 50;
 
     // Per-wire animation states
     const solarPow = v.solar;
@@ -1151,20 +1148,19 @@ class EnergyFlowPriceCard extends i {
       ? elbowD(iconX, iconY, ep, frameX, reversed)
       : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
 
-    // The base wire fades in from the icon end (seen as coming FROM each node) via a
-    // gradient stroke, instead of popping in at full opacity right at the icon.
+    // The base wire fades in from the icon end and out again near the house (seen as
+    // coming FROM each node) via a gradient stroke, instead of full opacity throughout.
     const gradId = (name) => `efp-fade-${name}-${this._uid}`;
     const fadeGrad = (name, x1, y1, x2, y2) => w`<linearGradient id="${gradId(name)}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
       <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-      <stop offset="0.35" stop-color="#fff" stop-opacity="0.07"></stop>
-      <stop offset="1" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="0.3" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="0.7" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
     </linearGradient>`;
 
     return b`
       <div class="flow">
-        ${visual ? w`<svg class="housebg" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <image href="${VISUAL_HOUSE_IMAGE}" x="${VX}" y="${VY}" width="${VS}" height="${VS}" preserveAspectRatio="xMidYMid meet"></image>
-        </svg>` : A}
+        ${visual ? b`<img class="housepic" src="${VISUAL_HOUSE_IMAGE}" alt="" />` : A}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
           <defs>
             ${fadeGrad("solar", IX_L, TOP_Y, EP.solar.x, EP.solar.y)}
@@ -1218,7 +1214,8 @@ class EnergyFlowPriceCard extends i {
 
         ${this._renderCars(carsShown, c, carHasEnt)}
 
-        <div class="huis ${visual ? "huis-visual" : ""}" style="left:${huisLeftPct}%${visual ? `;top:${huisBottomPct}%` : ""}">
+        ${visual ? b`<div class="huis-wire"></div>` : A}
+        <div class="huis ${visual ? "huis-visual" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
           ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
@@ -1717,7 +1714,7 @@ class EnergyFlowPriceCard extends i {
       ha-card { padding: 12px; }
       .stack { display: flex; flex-direction: column; gap: 12px; }
       .flow { position: relative; height: 190px; }
-      .housebg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+      .housepic { position: absolute; top: 0; left: 50%; height: 100%; width: auto; max-width: none; transform: translateX(-50%); pointer-events: none; z-index: 0; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
@@ -1758,8 +1755,9 @@ class EnergyFlowPriceCard extends i {
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
       .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
-      .huis.huis-visual { transform: translate(-50%, -100%); }
+      .huis.huis-visual { left: 50%; top: 50%; align-items: flex-end; text-align: right; transform: translate(calc(-100% - 110px), -50%); }
       .huis.huis-visual .lbl, .huis.huis-visual .val { text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6); }
+      .huis-wire { position: absolute; top: 50%; left: calc(50% - 110px); width: 15px; height: 2px; background: rgba(255,255,255,.12); transform: translateY(-50%); pointer-events: none; z-index: 0; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
       .huis .lbl { font-size: 10.5px; color: var(--secondary-text-color); }
@@ -1819,7 +1817,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.7.9 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.8.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
