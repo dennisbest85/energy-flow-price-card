@@ -1153,8 +1153,8 @@ class EnergyFlowPriceCard extends i {
     const gradId = (name) => `efp-fade-${name}-${this._uid}`;
     const fadeGrad = (name, x1, y1, x2, y2) => w`<linearGradient id="${gradId(name)}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
       <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-      <stop offset="0.3" stop-color="#fff" stop-opacity="0.07"></stop>
-      <stop offset="0.7" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="0.12" stop-color="#fff" stop-opacity="0.07"></stop>
+      <stop offset="0.94" stop-color="#fff" stop-opacity="0.07"></stop>
       <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
     </linearGradient>`;
 
@@ -1817,7 +1817,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.8.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
