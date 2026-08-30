@@ -88,6 +88,34 @@ function catmullRomToBezierPath(pts) {
   return d;
 }
 
+// Walk a polyline (array of {x,y}) by real arc-length, for placing a fade exactly at
+// the tips of a bent wire instead of approximating it over the straight-line distance
+// (which drifts into the bend as soon as the path isn't straight).
+function polyLen(pts) {
+  let L = 0;
+  for (let i = 1; i < pts.length; i++) L += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  return L;
+}
+function polyPointAt(pts, d) {
+  let remain = Math.max(0, d);
+  for (let i = 1; i < pts.length; i++) {
+    const segLen = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    if (remain <= segLen || i === pts.length - 1) {
+      const t = segLen ? Math.min(1, remain / segLen) : 0;
+      return { x: pts[i - 1].x + (pts[i].x - pts[i - 1].x) * t, y: pts[i - 1].y + (pts[i].y - pts[i - 1].y) * t, seg: i };
+    }
+    remain -= segLen;
+  }
+  return { x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, seg: pts.length - 1 };
+}
+function subPathD(pts, dStart, dEnd) {
+  const a = polyPointAt(pts, dStart);
+  const b = polyPointAt(pts, dEnd);
+  const mid = pts.slice(a.seg, b.seg);
+  const all = [a, ...mid, b];
+  return all.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
+}
+
 class EnergyFlowPriceCard extends LitElement {
   static get properties() {
     return { hass: {}, _config: {} };
@@ -382,36 +410,70 @@ class EnergyFlowPriceCard extends LitElement {
       ? elbowD(iconX, iconY, ep, frameX, reversed)
       : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
 
-    // The base wire fades in from the icon end and out again near the house (seen as
-    // coming FROM each node) via a gradient stroke, instead of full opacity throughout.
+    // The base wire fades in from the icon end and out again near the house. In visual
+    // mode this is computed along the wire's real (bent) arc length so the fade sits at
+    // the actual tips instead of drifting into the bend on longer runs; the abstract
+    // layout's smooth curve has no sharp corner, so a simple straight-line gradient is
+    // used there instead.
     const gradId = (name) => `efp-fade-${name}-${this._uid}`;
-    const fadeGrad = (name, x1, y1, x2, y2) => svg`<linearGradient id="${gradId(name)}" gradientUnits="userSpaceOnUse" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}">
-      <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-      <stop offset="0.12" stop-color="#fff" stop-opacity="0.07"></stop>
-      <stop offset="0.94" stop-color="#fff" stop-opacity="0.07"></stop>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
-    </linearGradient>`;
+    const FADE_LEN = 40;
+    const baseWire = (name, iconX, iconY, ep, frameX, curveCtrlX) => {
+      if (!visual) {
+        const id = gradId(name);
+        return {
+          defs: svg`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${iconX}" y1="${iconY}" x2="${ep.x}" y2="${ep.y}">
+            <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
+            <stop offset="0.12" stop-color="#fff" stop-opacity="0.07"></stop>
+            <stop offset="0.94" stop-color="#fff" stop-opacity="0.07"></stop>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
+          </linearGradient>`,
+          path: svg`<path class="wire" style="stroke:url(#${id})" d="M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}"></path>`,
+        };
+      }
+      const pts = [{ x: iconX, y: iconY }, { x: frameX, y: iconY }, { x: frameX, y: ep.y }, { x: ep.x, y: ep.y }];
+      const total = polyLen(pts);
+      const fl = Math.min(FADE_LEN, total / 2);
+      const aEnd = polyPointAt(pts, fl);
+      const bStart = polyPointAt(pts, total - fl);
+      const idIn = gradId(name + "-in"), idOut = gradId(name + "-out");
+      return {
+        defs: svg`
+          <linearGradient id="${idIn}" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" y1="${pts[0].y}" x2="${aEnd.x}" y2="${aEnd.y}">
+            <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
+            <stop offset="1" stop-color="#fff" stop-opacity="0.07"></stop>
+          </linearGradient>
+          <linearGradient id="${idOut}" gradientUnits="userSpaceOnUse" x1="${bStart.x}" y1="${bStart.y}" x2="${pts[3].x}" y2="${pts[3].y}">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.07"></stop>
+            <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
+          </linearGradient>`,
+        path: svg`
+          <path class="wire" style="stroke:url(#${idIn})" d="${subPathD(pts, 0, fl)}"></path>
+          ${total - 2 * fl > 0.5 ? svg`<path class="wire" d="${subPathD(pts, fl, total - fl)}"></path>` : nothing}
+          <path class="wire" style="stroke:url(#${idOut})" d="${subPathD(pts, total - fl, total)}"></path>`,
+      };
+    };
+    const wSolarBase = baseWire("solar", IX_L, TOP_Y, EP.solar, FX_L, 220);
+    const wGridBase = baseWire("grid", IX_R, TOP_Y, EP.grid, FX_R, 500);
+    const wBattBase = baseWire("battery", IX_L, BOT_Y_BATT, EP.battery, FX_L, 220);
+    const wCarBase = baseWire("car", IX_R, BOT_Y_CAR, EP.car, FX_R, 500);
 
     return html`
       <div class="flow">
         ${visual ? html`<img class="housepic" src="${VISUAL_HOUSE_IMAGE}" alt="" />` : nothing}
         <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
           <defs>
-            ${fadeGrad("solar", IX_L, TOP_Y, EP.solar.x, EP.solar.y)}
-            ${fadeGrad("grid", IX_R, TOP_Y, EP.grid.x, EP.grid.y)}
-            ${fadeGrad("battery", IX_L, BOT_Y_BATT, EP.battery.x, EP.battery.y)}
-            ${fadeGrad("car", IX_R, BOT_Y_CAR, EP.car.x, EP.car.y)}
+            ${wSolarBase.defs}${wGridBase.defs}${wBattBase.defs}${wCarBase.defs}
           </defs>
-          <path class="wire" style="stroke:url(#${gradId("solar")})" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>
+          ${wSolarBase.path}
           ${wSolar.show ? svg`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>` : nothing}
 
-          <path class="wire" style="stroke:url(#${gradId("grid")})" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, false)}"></path>
+          ${wGridBase.path}
           ${wGrid.show ? svg`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, gridPow < 0)}"></path>` : nothing}
 
-          <path class="wire" style="stroke:url(#${gradId("battery")})" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, false)}"></path>
+          ${wBattBase.path}
           ${wBatt.show ? svg`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, v.charge && v.charge > 5)}"></path>` : nothing}
 
-          <path class="wire" style="stroke:url(#${gradId("car")})" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, false)}"></path>
+          ${wCarBase.path}
           ${wCar.show ? svg`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, true)}"></path>` : nothing}
         </svg>
 
@@ -1052,7 +1114,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.8.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
