@@ -1,6 +1,9 @@
 # Energy Flow & Price Card
 
-![Energy Flow & Price Card](images/EnergyFLowPriceCard.gif)
+![Energy Flow & Price Card - default abstract layout](images/EnergyFLowPriceCard.gif)
+![Energy Flow & Price Card - visual layout with a house photo](images/EnergyFLowPriceCard2.gif)
+
+*Two completely different look-and-feels for the same card: the default abstract flow diagram (top), and the optional visual layout with a house photo (bottom, `use_visual_layout: true`).*
 
 *(Nederlands hieronder / Dutch below)*
 
@@ -90,6 +93,8 @@ price_stops:
 ---
 
 # Energy Flow & Price Card (Nederlands)
+
+*Twee compleet verschillende weergaves van dezelfde kaart: het standaard abstracte flow-diagram (boven) en de optionele visuele weergave met een huisfoto (onder, `use_visual_layout: true`) — zie de GIF's bovenaan deze pagina.*
 
 Een compacte Lovelace-card voor Home Assistant die twee dingen in een blok combineert:
 
