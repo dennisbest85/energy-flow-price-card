@@ -104,6 +104,7 @@ const DEFAULTS = {
   battery_ring: true, // false = plain square icon like the other nodes, instead of the SoC ring
   car_ring: true,     // false = plain square icon; ring tracks whichever car is currently shown
   use_visual_layout: false, // true = show a house photo behind the flow diagram instead of abstract wires
+  reduce_effects: false, // true = drop the neon glow filter / text-shadow, for weaker-GPU devices
   wire_style: "dashed", // "dashed" (flowing dashes, current look) | "neon" (solid glowing line)
   price_stops: DEFAULT_PRICE_STOPS,
   price_profile: "default", // "default" | "zonneplan" | "frank" | "tibber" | "anwb" | "eneco"
@@ -145,6 +146,7 @@ const TRANSLATIONS = {
     ed_battery_ring: "Battery icon as a ring (off = square, like the other icons)",
     ed_car_ring: "Car icon as a ring (off = square, like the other icons)",
     ed_visual_layout: "Use visual layout (house photo instead of abstract wires)",
+    ed_reduce_effects: "Reduce effects (no neon glow / text shadow) — for weaker-GPU devices",
     ed_wire_style: "Flow line style",
     ed_wire_style_dashed: "Dashed (current)",
     ed_wire_style_neon: "Neon glow",
@@ -235,6 +237,7 @@ const TRANSLATIONS = {
     ed_battery_ring: "Accu-icoon als cirkel (uit = vierkant, zoals de andere iconen)",
     ed_car_ring: "Auto-icoon als cirkel (uit = vierkant, zoals de andere iconen)",
     ed_visual_layout: "Gebruik visuele weergave (huisfoto in plaats van abstracte lijnen)",
+    ed_reduce_effects: "Effecten beperken (geen neon-gloed / tekstschaduw) — voor toestellen met een zwakkere GPU",
     ed_wire_style: "Stijl flow-lijnen",
     ed_wire_style_dashed: "Gestippeld (huidig)",
     ed_wire_style_neon: "Neon-gloed",
@@ -325,6 +328,7 @@ const TRANSLATIONS = {
     ed_battery_ring: "Akku-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_car_ring: "Auto-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_visual_layout: "Visuelle Ansicht verwenden (Hausfoto statt abstrakter Linien)",
+    ed_reduce_effects: "Effekte reduzieren (kein Neon-Leuchten / Textschatten) — für Geräte mit schwächerer GPU",
     ed_wire_style: "Stil der Flusslinien",
     ed_wire_style_dashed: "Gestrichelt (aktuell)",
     ed_wire_style_neon: "Neon-Leuchten",
@@ -540,6 +544,10 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label=${T("ed_visual_layout")}>
             <ha-switch .checked=${this._config.use_visual_layout === true} @change=${(e) => this._toggle("use_visual_layout", e)}></ha-switch>
           </ha-formfield>
+          ${this._config.use_visual_layout === true ? b`
+            <ha-formfield label=${T("ed_reduce_effects")}>
+              <ha-switch .checked=${this._config.reduce_effects === true} @change=${(e) => this._toggle("reduce_effects", e)}></ha-switch>
+            </ha-formfield>` : A}
           <label class="sel-row">
             <span>${T("ed_wire_style")}</span>
             <select .value=${this._config.wire_style ?? "dashed"} @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
@@ -1183,8 +1191,9 @@ class EnergyFlowPriceCard extends i {
     // restarts the animation from 0%); instead the CSS animation runs at a fixed base
     // duration and `updated()` retunes its playbackRate live, so a wire that changes
     // power every second speeds up/slows down smoothly instead of visibly resetting.
+    const reduceEffects = !!c.reduce_effects;
     const liveStyle = (st, color) => {
-      const glow = neon ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
+      const glow = neon && !reduceEffects ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
       return `stroke:${color};${glow}${st.moving ? "" : "animation-play-state:paused;"}`;
     };
     const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}${st.dirSwap ? " dir-swap" : ""}`;
@@ -1305,7 +1314,7 @@ class EnergyFlowPriceCard extends i {
         ${this._renderCars(carsShown, c, carHasEnt)}
 
         ${visual ? b`<div class="huis-wire"></div>` : A}
-        <div class="huis ${visual ? "huis-visual" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
+        <div class="huis ${visual ? "huis-visual" : ""}${reduceEffects ? " no-fx" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
           ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
@@ -1864,6 +1873,7 @@ class EnergyFlowPriceCard extends i {
       .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis.huis-visual { left: 50%; top: 50%; align-items: flex-end; text-align: right; transform: translate(calc(-100% - 110px), -50%); }
       .huis.huis-visual .lbl, .huis.huis-visual .val { text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6); }
+      .huis.huis-visual.no-fx .lbl, .huis.huis-visual.no-fx .val { text-shadow: none; }
       .huis-wire { position: absolute; top: 50%; left: calc(50% - 110px); width: 15px; height: 2px; background: rgba(255,255,255,.12); transform: translateY(-50%); pointer-events: none; z-index: 0; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
@@ -1924,7 +1934,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.9.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

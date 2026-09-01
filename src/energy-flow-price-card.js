@@ -417,8 +417,9 @@ class EnergyFlowPriceCard extends LitElement {
     // restarts the animation from 0%); instead the CSS animation runs at a fixed base
     // duration and `updated()` retunes its playbackRate live, so a wire that changes
     // power every second speeds up/slows down smoothly instead of visibly resetting.
+    const reduceEffects = !!c.reduce_effects;
     const liveStyle = (st, color) => {
-      const glow = neon ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
+      const glow = neon && !reduceEffects ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
       return `stroke:${color};${glow}${st.moving ? "" : "animation-play-state:paused;"}`;
     };
     const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}${st.dirSwap ? " dir-swap" : ""}`;
@@ -539,7 +540,7 @@ class EnergyFlowPriceCard extends LitElement {
         ${this._renderCars(carsShown, c, carHasEnt)}
 
         ${visual ? html`<div class="huis-wire"></div>` : nothing}
-        <div class="huis ${visual ? "huis-visual" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
+        <div class="huis ${visual ? "huis-visual" : ""}${reduceEffects ? " no-fx" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
           ${visual ? nothing : html`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
@@ -1099,6 +1100,7 @@ class EnergyFlowPriceCard extends LitElement {
       .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis.huis-visual { left: 50%; top: 50%; align-items: flex-end; text-align: right; transform: translate(calc(-100% - 110px), -50%); }
       .huis.huis-visual .lbl, .huis.huis-visual .val { text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6); }
+      .huis.huis-visual.no-fx .lbl, .huis.huis-visual.no-fx .val { text-shadow: none; }
       .huis-wire { position: absolute; top: 50%; left: calc(50% - 110px); width: 15px; height: 2px; background: rgba(255,255,255,.12); transform: translateY(-50%); pointer-events: none; z-index: 0; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
@@ -1159,7 +1161,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.9.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
