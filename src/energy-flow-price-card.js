@@ -256,9 +256,10 @@ class EnergyFlowPriceCard extends LitElement {
     for (const arr of candidates) {
       if (!Array.isArray(arr)) continue;
       for (const p of arr) {
-        const from = p.from ?? p.start ?? p.start_date ?? p.time ?? p.datetime ?? p.date;
+        const from = p.from ?? p.start ?? p.start_time ?? p.start_date ?? p.time ?? p.datetime ?? p.date;
         // Zonneplan nests price under objects; also uses electricity_price (x1e7).
-        let price = p.price ?? p.value ?? p.total ?? p.marketPrice ?? p.market_price ??
+        // EPEX Spot Data integration uses price_per_kwh (start_time/end_time), 15-min slots.
+        let price = p.price ?? p.value ?? p.total ?? p.price_per_kwh ?? p.marketPrice ?? p.market_price ??
           p.electricity ?? p.electricity_price ??
           p.price_tax_included?.amount ?? p.price_tax_excluded?.amount;
         const t = from ? new Date(from).getTime() : null;
@@ -1114,7 +1115,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.8.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
