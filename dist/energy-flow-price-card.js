@@ -959,15 +959,19 @@ class EnergyFlowPriceCard extends i {
 
   // Per-wire animation state: tracks last time a wire had meaningful power,
   // so lines can fade in when active and fade out after flow_off_delay seconds.
-  // Returns { show, moving, duration (s), fade ('in'|'out'|null) }.
-  _wireState(key, power) {
+  // `reversed` is the wire's raw current direction (e.g. grid export vs import); when
+  // it flips, the displayed direction only follows after a brief fade-out/in so a wire
+  // that oscillates rapidly (a jittery sensor near 0 W) settles instead of snapping the
+  // line's shape back and forth instantly.
+  // Returns { show, moving, duration (s), fade ('in'|'out'|null), reversed, dirSwap }.
+  _wireState(key, power, reversed = false) {
     this._wires = this._wires || {};
     const now = Date.now();
     const c = this._config;
     const p = power === null ? 0 : Math.abs(power);
     const active = p > 5;
     let w = this._wires[key];
-    if (!w) w = this._wires[key] = { lastActive: active ? now : 0, shownSince: active ? now : 0, wasShown: active };
+    if (!w) w = this._wires[key] = { lastActive: active ? now : 0, shownSince: active ? now : 0, wasShown: active, dispReversed: reversed, dirPhase: "idle", dirPhaseStart: 0 };
 
     if (active) {
       w.lastActive = now;
@@ -977,6 +981,23 @@ class EnergyFlowPriceCard extends i {
     const sinceActive = now - w.lastActive;
     const show = active || (w.wasShown && sinceActive < offDelay);
     if (!show) w.wasShown = false;
+
+    // Direction-change crossfade: dip to 0 opacity, swap the path shape while
+    // invisible, then fade back in — instead of an abrupt instant redraw.
+    const DIR_FADE_MS = 320;
+    if (w.dirPhase === "idle" && reversed !== w.dispReversed) {
+      w.dirPhase = "out";
+      w.dirPhaseStart = now;
+      setTimeout(() => this.requestUpdate(), DIR_FADE_MS + 10);
+    } else if (w.dirPhase === "out" && now - w.dirPhaseStart >= DIR_FADE_MS) {
+      w.dispReversed = reversed;
+      w.dirPhase = "in";
+      w.dirPhaseStart = now;
+      setTimeout(() => this.requestUpdate(), DIR_FADE_MS + 10);
+    } else if (w.dirPhase === "in" && now - w.dirPhaseStart >= DIR_FADE_MS) {
+      w.dirPhase = "idle";
+    }
+    const dirSwap = w.dirPhase !== "idle";
 
     // speed: linear from 0..flow_max_power, scaled by flow_speed multiplier.
     const maxP = Math.max(100, c.flow_max_power ?? 5000);
@@ -990,8 +1011,10 @@ class EnergyFlowPriceCard extends i {
     let fade = null;
     if (active && now - w.shownSince < 800) fade = "in";
     else if (!active && show) fade = "out";
+    if (w.dirPhase === "out") fade = "out";
+    else if (w.dirPhase === "in") fade = "in";
 
-    return { show, moving: active, duration, fade };
+    return { show, moving: active, duration, fade, reversed: w.dispReversed, dirSwap };
   }
 
   // Ensure the card keeps repainting while any wire is counting down to fade-out,
@@ -1147,20 +1170,24 @@ class EnergyFlowPriceCard extends i {
     const battPow = v.charge && v.charge > 5 ? v.charge : (v.discharge && v.discharge > 5 ? v.discharge : 0);
     const carPow = (() => { let m = 0; for (const c2 of cars) { if (c2.active && Math.abs(c2.power) > m) m = Math.abs(c2.power); } return m; })();
 
-    const wSolar = this._wireState("solar", solarPow);
-    const wGrid = this._wireState("grid", gridPow);
-    const wBatt = this._wireState("batt", battPow);
-    const wCar = this._wireState("car", carPow);
+    const wSolar = this._wireState("solar", solarPow, false);
+    const wGrid = this._wireState("grid", gridPow, gridPow < 0);
+    const wBatt = this._wireState("batt", battPow, v.charge && v.charge > 5);
+    const wCar = this._wireState("car", carPow, true);
     if (wSolar.show || wGrid.show || wBatt.show || wCar.show) this._scheduleFlowTick();
 
     const neon = c.wire_style === "neon";
     // Neon: a calm grey base wire (same as the dashed style), with an occasional glowing
     // pulse sweeping along it in the direction of actual flow (short dash + long gap).
+    // Speed isn't set via animation-duration here (rewriting that on every power change
+    // restarts the animation from 0%); instead the CSS animation runs at a fixed base
+    // duration and `updated()` retunes its playbackRate live, so a wire that changes
+    // power every second speeds up/slows down smoothly instead of visibly resetting.
     const liveStyle = (st, color) => {
       const glow = neon ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
-      return `stroke:${color};${glow}animation-duration:${st.duration}s;${st.moving ? "" : "animation-play-state:paused;"}`;
+      return `stroke:${color};${glow}${st.moving ? "" : "animation-play-state:paused;"}`;
     };
-    const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}`;
+    const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}${st.dirSwap ? " dir-swap" : ""}`;
 
     // Visual-mode wires run in clean horizontal/vertical segments via a shared bend
     // line (frameX) — a photo reads better with straight "circuit style" connectors,
@@ -1232,16 +1259,16 @@ class EnergyFlowPriceCard extends i {
             ${wSolarBase.defs}${wGridBase.defs}${wBattBase.defs}${wCarBase.defs}
           </defs>
           ${wSolarBase.path}
-          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>` : A}
+          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" data-speed="${wSolar.duration}" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>` : A}
 
           ${wGridBase.path}
-          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, gridPow < 0)}"></path>` : A}
+          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" data-speed="${wGrid.duration}" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, wGrid.reversed)}"></path>` : A}
 
           ${wBattBase.path}
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, v.charge && v.charge > 5)}"></path>` : A}
+          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" data-speed="${wBatt.duration}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, wBatt.reversed)}"></path>` : A}
 
           ${wCarBase.path}
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, true)}"></path>` : A}
+          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" data-speed="${wCar.duration}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, true)}"></path>` : A}
         </svg>
 
         <div class="node tl ${solarHasEnt ? "" : "muted"}">
@@ -1391,6 +1418,22 @@ class EnergyFlowPriceCard extends i {
       void cb.offsetWidth;
       cb.classList.add("run");
     }
+
+    // Retune each flow line's animation speed via the Web Animations API instead of
+    // rewriting animation-duration: changing that on a running CSS animation restarts
+    // it from 0%, which looked like the line "starting over" every time the wire's
+    // power (not just its direction) changed. Adjusting playbackRate on the already-
+    // running animation keeps its current position and just speeds it up/slows it down.
+    const BASE_ANIM_S = 1; // matches the fixed animation-duration in styles
+    this.renderRoot?.querySelectorAll?.(".live[data-speed]").forEach((el) => {
+      if (typeof el.getAnimations !== "function") return;
+      const dur = parseFloat(el.dataset.speed);
+      if (!dur || isNaN(dur)) return;
+      const rate = BASE_ANIM_S / dur;
+      for (const anim of el.getAnimations()) {
+        if (Math.abs(anim.playbackRate - rate) > 0.01) anim.playbackRate = rate;
+      }
+    });
   }
 
   _chartTabs() {
@@ -1781,13 +1824,14 @@ class EnergyFlowPriceCard extends i {
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
-      .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-duration: 1s; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.dashed.still { stroke-dashoffset: 0; }
-      .live.neon { stroke-width: 3; stroke-dasharray: 90 500; animation-name: neonsweep; animation-timing-function: linear; animation-iteration-count: infinite; }
+      .live.neon { stroke-width: 3; stroke-dasharray: 90 500; animation-name: neonsweep; animation-duration: 1s; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.neon.still { stroke-dashoffset: 0; }
       @keyframes neonsweep { to { stroke-dashoffset: -590; } }
       .live.fade-in { opacity: 1; }
       .live.fade-out { opacity: 0; }
+      .live.dir-swap { transition: opacity .3s ease; }
       @keyframes flow { to { stroke-dashoffset: -14; } }
       .node { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
       .node.tl { left: 6px; top: 8px; }
@@ -1880,7 +1924,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.8.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.8.4 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
