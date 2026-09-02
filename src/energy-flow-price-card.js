@@ -369,11 +369,6 @@ class EnergyFlowPriceCard extends LitElement {
     // Icon ~58px; horizontal half-width in viewBox units ≈ 34.
     const HX = 360, HY = 104;          // vertical center of the house square (lowered)
     const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
-    // Wire start points: solar/grid start above the whole icon+text block, battery/car
-    // start below it, and a bit further out horizontally too, so lines never cross the
-    // label/value text and read as coming from — rather than through — each node.
-    const TOP_Y = 4;
-    const IX_L = 110, IX_R = 610;
 
     // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
     // centered 190x190 sub-region of this same 720x190 viewBox (matching HX), so each wire
@@ -388,9 +383,15 @@ class EnergyFlowPriceCard extends LitElement {
       battery: visual ? visPt(58, 63) : { x: HL, y: HY },
       car: visual ? visPt(76, 81) : { x: HR, y: HY },
     };
+    // Wire icon-side start points. In visual mode these sit above/below the whole
+    // icon+text block and further out horizontally, so lines don't cross the photo's
+    // wattage text. The abstract layout's smooth curve doesn't have that problem, so it
+    // keeps its original, closer-to-the-icon start points.
+    const TOP_Y = visual ? 4 : 52;
+    const IX_L = visual ? 110 : 70, IX_R = visual ? 610 : 650;
     // Battery and car share one horizontal height, just like solar/grid share TOP_Y.
-    const BOT_Y_BATT = 186;
-    const BOT_Y_CAR = 186;
+    const BOT_Y_BATT = visual ? 186 : 138;
+    const BOT_Y_CAR = visual ? 186 : 138;
     // Solar/battery share one vertical bend line, and grid/car share another, so the
     // top and bottom line on each side are true mirror images of each other — only a
     // short final jog reaches each anchor's own slightly different spot on the photo.
@@ -1161,7 +1162,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.9.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.9.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
