@@ -1655,15 +1655,21 @@ class EnergyFlowPriceCard extends i {
       }
     }
 
-    // Optional thin marker(s) where the axis crosses local midnight ("tomorrow"), off by default.
+    // Optional thin marker(s) where the axis crosses local midnight, off by default. Only
+    // the first one (a wide enough window can cross two midnights) says "tomorrow" — later
+    // ones get the actual weekday name instead of repeating "tomorrow" incorrectly.
     const dayMarkers = [];
     if (c.price_show_day_marker) {
+      const lang = resolveLang(c.language, this.hass);
       let d = new Date(startMs);
       d.setHours(24, 0, 0, 0); // next local midnight strictly after axis start
+      let dayIndex = 0;
       while (d.getTime() < endMs) {
         const frac = (d.getTime() - startMs) / (endMs - startMs);
         if (frac > 0.01 && frac < 0.99) {
-          dayMarkers.push({ frac, text: this._t("tomorrow") });
+          const text = dayIndex === 0 ? this._t("tomorrow") : d.toLocaleDateString(lang, { weekday: "short" });
+          dayMarkers.push({ frac, text });
+          dayIndex++;
         }
         d = new Date(d.getTime());
         d.setDate(d.getDate() + 1);
@@ -1935,7 +1941,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.9.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.9.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
