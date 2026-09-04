@@ -113,6 +113,9 @@ const DEFAULTS = {
   gas_price_entity: "", // optional: shown next to the electricity price in the chart header
   chart_auto_scroll: false, // cycle price -> solar -> battery tabs automatically
   chart_scroll_interval: 8, // seconds between automatic tab switches
+  // "Usage" tab: last-hour power (W) breakdown by source (solar/battery/grid). Reuses the
+  // solar_power/battery_charge_power/battery_discharge_power/grid_power entities already
+  // configured for the flow diagram — no separate entities needed.
 };
 
 const TRANSLATIONS = {
@@ -136,6 +139,8 @@ const TRANSLATIONS = {
     tab_price: "Price",
     tab_solar: "Solar",
     tab_battery: "Battery",
+    tab_usage: "Usage",
+    usage_title: "Usage (last hour)",
     history_loading: "Loading history…",
     history_none: "No history available.",
     // editor
@@ -228,6 +233,8 @@ const TRANSLATIONS = {
     tab_price: "Prijs",
     tab_solar: "Solar",
     tab_battery: "Accu",
+    tab_usage: "Verbruik",
+    usage_title: "Verbruik (laatste uur)",
     history_loading: "Historie laden…",
     history_none: "Geen historie beschikbaar.",
     ed_display: "Weergave",
@@ -319,6 +326,8 @@ const TRANSLATIONS = {
     tab_price: "Preis",
     tab_solar: "Solar",
     tab_battery: "Akku",
+    tab_usage: "Verbrauch",
+    usage_title: "Verbrauch (letzte Stunde)",
     history_loading: "Verlauf wird geladen…",
     history_none: "Kein Verlauf verfügbar.",
     ed_display: "Anzeige",
@@ -1452,6 +1461,11 @@ class EnergyFlowPriceCard extends i {
       { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
       { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
       { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
+      {
+        id: "usage",
+        label: this._t("tab_usage"),
+        show: !!(c.solar_power || c.battery_charge_power || c.battery_discharge_power || c.grid_power),
+      },
     ].filter((t) => t.show);
   }
 
@@ -1470,6 +1484,7 @@ class EnergyFlowPriceCard extends i {
 
     let body;
     if (activeMode === "price") body = this._priceChart(c);
+    else if (activeMode === "usage") body = this._usageChart(c);
     else body = this._historyChart(c, activeMode);
 
     return b`<div class="price">${tabBar}<div class="chartbody" data-k=${activeMode}>${body}</div></div>`;
@@ -1477,7 +1492,8 @@ class EnergyFlowPriceCard extends i {
 
   _setChartMode(m, manual = false) {
     this._chartMode = m;
-    if (m !== "price") this._ensureHistory(m);
+    if (m === "usage") this._ensureUsageHistory();
+    else if (m !== "price") this._ensureHistory(m);
     // A manual click overrides auto-scroll for a while so the user's choice sticks.
     if (manual && this._config?.chart_auto_scroll) this._startChartScroll();
     this.requestUpdate();
@@ -1524,6 +1540,116 @@ class EnergyFlowPriceCard extends i {
       this._history[cacheKey] = { fetched: Date.now(), points: [], error: true };
       this.requestUpdate();
     }
+  }
+
+  // Fetch the last hour of raw power history (W) for all flow entities at once — reuses
+  // the same entities already configured for the flow diagram, no separate config needed.
+  // One REST call for every entity (comma-separated filter_entity_id) instead of the
+  // one-entity-at-a-time pattern _ensureHistory() uses for the Solar/Battery tabs.
+  async _ensureUsageHistory() {
+    const c = this._config;
+    const entities = [c.solar_power, c.battery_charge_power, c.battery_discharge_power, c.grid_power].filter(Boolean);
+    if (!entities.length || !this.hass) return;
+    const cacheKey = entities.join(",");
+    this._usageHistory = this._usageHistory || {};
+    const cached = this._usageHistory[cacheKey];
+    if (cached && Date.now() - cached.fetched < 60000) return; // refresh every minute
+
+    const start = new Date(Date.now() - 3600000); // last hour
+    try {
+      const url = `history/period/${start.toISOString()}?filter_entity_id=${entities.join(",")}&minimal_response`;
+      const res = await this.hass.callApi("GET", url);
+      const byEntity = {};
+      for (const arr of (Array.isArray(res) ? res : [])) {
+        if (!Array.isArray(arr) || !arr.length) continue;
+        const id = arr[0].entity_id;
+        byEntity[id] = arr.map((s) => ({
+          t: new Date(s.last_changed || s.last_updated).getTime(),
+          v: parseFloat(s.state),
+        })).filter((p) => !isNaN(p.v));
+      }
+      this._usageHistory[cacheKey] = { fetched: Date.now(), byEntity };
+      this.requestUpdate();
+    } catch (e) {
+      this._usageHistory[cacheKey] = { fetched: Date.now(), byEntity: {}, error: true };
+      this.requestUpdate();
+    }
+  }
+
+  _usageChart(c) {
+    const entities = [c.solar_power, c.battery_charge_power, c.battery_discharge_power, c.grid_power].filter(Boolean);
+    const cacheKey = entities.join(",");
+    const cached = this._usageHistory?.[cacheKey];
+    if (!cached) this._ensureUsageHistory();
+    const byEntity = cached?.byEntity || {};
+
+    const startMs = Date.now() - 3600000;
+    const now = Date.now();
+    const span = Math.max(1, now - startMs);
+
+    // Three series: solar, battery (discharge=+, charge=-, net contribution to the
+    // home), and grid (positive=import, negative=export/"teruglevering").
+    const series = [
+      { key: c.solar_power, color: c.color_solar, name: this._t("solar") },
+      { key: c.battery_discharge_power, extraKey: c.battery_charge_power, color: c.color_battery, name: this._t("battery") },
+      { key: c.grid_power, color: c.color_grid, name: this._t("grid") },
+    ].filter((s) => s.key || s.extraKey);
+
+    const seriesPoints = series.map((s) => {
+      if (s.extraKey !== undefined) {
+        // battery: merge discharge (+) and charge (-) sample times into one net series
+        const dis = (byEntity[s.key] || []);
+        const chg = (byEntity[s.extraKey] || []);
+        const times = [...new Set([...dis.map((p) => p.t), ...chg.map((p) => p.t)])].sort((a, b) => a - b);
+        const valueAt = (arr, t) => { let last = 0; for (const p of arr) { if (p.t > t) break; last = p.v; } return last; };
+        return { ...s, points: times.map((t) => ({ t, v: valueAt(dis, t) - valueAt(chg, t) })) };
+      }
+      return { ...s, points: (byEntity[s.key] || []).map((p) => ({ t: p.t, v: p.v })) };
+    }).filter((s) => s.points.length);
+
+    const allVals = seriesPoints.flatMap((s) => s.points.map((p) => p.v));
+    const maxV = Math.max(10, ...allVals.map(Math.abs)) * 1.1;
+
+    const pathFor = (points) => points.length
+      ? points.map((p, i) => {
+          const x = Math.max(0, Math.min(1, (p.t - startMs) / span)) * 100;
+          const y = 50 - Math.max(-1, Math.min(1, p.v / maxV)) * 50;
+          return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
+        }).join(" ")
+      : "";
+
+    const labelEvery = 15; // minutes
+    const labels = [];
+    for (let m = 0; m <= 60; m += labelEvery) {
+      const d = new Date(startMs + m * 60000);
+      labels.push({ frac: (m * 60000) / span, text: d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0") });
+    }
+
+    const yTicks = [1, 0.5, 0, -0.5, -1].map((f) => Math.round(maxV * f));
+
+    return b`
+      <div class="chdr">
+        <span class="t">${this._t("usage_title")}</span>
+        <div class="usage-legend">
+          ${seriesPoints.map((s) => b`<span class="usage-legend-item"><i style="background:${s.color}"></i>${s.name}</span>`)}
+        </div>
+      </div>
+      <div class="chart">
+        <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
+        <div class="plot">
+          ${seriesPoints.length
+            ? b`<svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <line x1="0" y1="50" x2="100" y2="50" stroke="var(--divider-color, rgba(255,255,255,.2))" stroke-width="0.5" vector-effect="non-scaling-stroke"></line>
+                ${seriesPoints.map((s) => w`<path d="${pathFor(s.points)}" fill="none" stroke="${s.color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>`)}
+              </svg>`
+            : b`<div class="empty">${cached?.error ? this._t("history_none") : this._t("history_loading")}</div>`}
+          <div class="nowline right" data-now="${this._t("now")}" style="left:100%"></div>
+        </div>
+        <div class="xaxis">
+          ${labels.map((l) => b`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
+        </div>
+      </div>
+    `;
   }
 
   _historyChart(c, mode) {
@@ -1935,13 +2061,18 @@ class EnergyFlowPriceCard extends i {
       .xaxis .tick { position: absolute; transform: translateX(-50%); font-size: 9px; color: var(--secondary-text-color); white-space: nowrap; }
       .xaxis .tick:last-child { transform: translateX(-100%); }
       .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
+
+      /* Usage tab: last-hour power (W) line chart, split by source. */
+      .usage-legend { display: flex; align-items: baseline; gap: 10px; }
+      .usage-legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--secondary-text-color); }
+      .usage-legend-item i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
     `;
   }
 }
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.9.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.10.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

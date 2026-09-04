@@ -87,4 +87,7 @@ export const DEFAULTS = {
   gas_price_entity: "", // optional: shown next to the electricity price in the chart header
   chart_auto_scroll: false, // cycle price -> solar -> battery tabs automatically
   chart_scroll_interval: 8, // seconds between automatic tab switches
+  // "Usage" tab: last-hour power (W) breakdown by source (solar/battery/grid). Reuses the
+  // solar_power/battery_charge_power/battery_discharge_power/grid_power entities already
+  // configured for the flow diagram — no separate entities needed.
 };
