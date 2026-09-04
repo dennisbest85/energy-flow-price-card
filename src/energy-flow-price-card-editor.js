@@ -97,6 +97,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
     const lookbackHours = this._config.price_lookback_hours ?? 2;
     const lang = this._config.language ?? "auto";
     const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
+    const useTibberService = this._config.price_use_tibber_service === true;
 
     const entityFields = [
       { key: "solar_power", label: T("ed_solar_power") },
@@ -104,7 +105,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
       { key: "battery_charge_power", label: T("ed_battery_charge") },
       { key: "battery_discharge_power", label: T("ed_battery_discharge") },
       { key: "battery_soc", label: T("ed_battery_soc") },
-      { key: "price_entity", label: T("ed_price_entity") },
+      ...(useTibberService ? [] : [{ key: "price_entity", label: T("ed_price_entity") }]),
       { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
@@ -162,6 +163,10 @@ class EnergyFlowPriceCardEditor extends LitElement {
         <div class="section">
           <div class="head">${T("ed_entities")}</div>
           <div class="note">${T("ed_home_note")}</div>
+          <ha-formfield label=${T("ed_price_tibber_service")}>
+            <ha-switch .checked=${useTibberService} @change=${(e) => this._toggle("price_use_tibber_service", e)}></ha-switch>
+          </ha-formfield>
+          <div class="note">${T("ed_price_tibber_service_note")}</div>
           ${entityFields.map(
             (f) => html`
               <ha-entity-picker

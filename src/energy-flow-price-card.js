@@ -265,8 +265,57 @@ class EnergyFlowPriceCard extends LitElement {
     }, 1000);
   }
 
+  // Fetch prices via the tibber.get_prices service call (return_response) instead of an
+  // entity attribute — for Tibber setups whose sensor only exposes daily stats, not a
+  // price array. Picks the first home returned; multi-home Tibber accounts aren't
+  // distinguished (matches the only known-working example config for this).
+  async _ensureTibberPrices() {
+    if (!this.hass?.connection) return;
+    const cached = this._tibberPrices;
+    if (cached && Date.now() - cached.fetched < 900000) return; // refresh every 15 min
+    try {
+      const end = new Date(Date.now() + 2 * 86400000).toISOString();
+      const res = await this.hass.connection.sendMessagePromise({
+        type: "call_service",
+        domain: "tibber",
+        service: "get_prices",
+        return_response: true,
+        service_data: { end },
+      });
+      const homes = res?.response?.prices || {};
+      const data = Object.values(homes)[0] || [];
+      this._tibberPrices = { fetched: Date.now(), data };
+      this.requestUpdate();
+    } catch (e) {
+      this._tibberPrices = { fetched: Date.now(), data: [], error: true };
+      this.requestUpdate();
+    }
+  }
+
+  _tibberPriceData() {
+    const data = this._tibberPrices?.data || [];
+    const seen = new Set();
+    const merged = [];
+    for (const p of data) {
+      const from = p.start_time ?? p.from;
+      const price = p.price ?? p.total;
+      const t = from ? new Date(from).getTime() : null;
+      let val = typeof price === "number" ? price : parseFloat(price);
+      if (t && !isNaN(val)) {
+        val = normalizePrice(val);
+        if (!seen.has(t)) { seen.add(t); merged.push({ t, v: val }); }
+      }
+    }
+    merged.sort((a, b) => a.t - b.t);
+    const now = Date.now();
+    let current = null;
+    for (const p of merged) { if (p.t <= now) current = p.v; else break; }
+    return { points: merged, current };
+  }
+
   _priceData() {
     const cfg = this._config;
+    if (cfg.price_use_tibber_service) return this._tibberPriceData();
     const ent = this.hass?.states?.[cfg.price_entity];
     if (!ent) return { points: [], current: null };
     const attrs = ent.attributes || {};
@@ -675,7 +724,7 @@ class EnergyFlowPriceCard extends LitElement {
   _chartTabs() {
     const c = this._config;
     return [
-      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
+      { id: "price", label: this._t("tab_price"), show: !!c.price_entity || !!c.price_use_tibber_service },
       { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
       { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
       {
@@ -935,6 +984,7 @@ class EnergyFlowPriceCard extends LitElement {
   }
 
   _priceChart(c) {
+    if (c.price_use_tibber_service) this._ensureTibberPrices();
     const { points: allPoints, current } = this._priceData();
     const now = Date.now();
     const hours = Math.max(8, Math.min(48, c.price_hours || 24));
@@ -1290,7 +1340,7 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.10.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.11.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

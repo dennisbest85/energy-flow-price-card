@@ -52,6 +52,7 @@ battery_charge_power: sensor.battery_charge   # W, positive
 battery_discharge_power: sensor.battery_discharge # W, positive
 battery_soc: sensor.battery_soc
 price_entity: sensor.electricity_price        # any provider with a price in EUR/kWh
+price_use_tibber_service: false               # true = fetch prices via the tibber.get_prices service call instead of price_entity (Tibber integration required, no price entity needed)
 gas_price_entity: sensor.gas_price            # optional, shown next to the electricity price (€/m³)
 cars:
   - name: My car
@@ -92,6 +93,7 @@ price_stops:
 - **Home usage** is calculated automatically: `solar + grid + battery_discharge - battery_charge` (grid is +/-). No separate entity needed.
 - **Solar / battery history** charts use the Home Assistant history API for today (from 00:00 to now); make sure the recorder tracks those entities.
 - **Price data:** the card looks for an array attribute on the price entity (`prices`, `prices_today`, `today`, `raw_today`, `data`, and a few more) with fields like `from`/`start`/`start_time` and `price`/`value`/`price_per_kwh`. Frank Energie, Tibber, Nord Pool, ENTSO-e, Zonneplan and the EPEX Spot Data integration (including its 15-minute slots) all work out of the box. Chart not working? Check Developer Tools -> States to see which attribute names your sensor actually uses.
+- **Tibber via service call:** some Tibber sensors don't expose a price-array attribute at all (only daily min/max/avg stats). For those, turn on `price_use_tibber_service` in the editor's Entities section — the card then calls the `tibber.get_prices` service directly (needs the Tibber integration installed; no price entity required). It uses the first Tibber home found on the account; multi-home accounts aren't distinguished yet.
 
 ---
 
@@ -139,3 +141,4 @@ Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul i
 - **Huisverbruik** wordt automatisch berekend: `solar + net + accu_ontladen - accu_laden` (net is +/-). Geen aparte entiteit nodig.
 - **Solar-/accu-historie** gebruikt de Home Assistant history API voor vandaag (00:00 tot nu); zorg dat de recorder die entiteiten bijhoudt.
 - **Prijsdata:** de card zoekt in het prijs-entiteit naar een array-attribuut (`prices`, `prices_today`, `today`, `raw_today`, `data` e.a.) met velden als `from`/`start`/`start_time` en `price`/`value`/`price_per_kwh`. Frank Energie, Tibber, Nord Pool, ENTSO-e, Zonneplan en de EPEX Spot Data-integratie (inclusief de 15-minuten-slots daarvan) werken direct. Werkt de grafiek niet? Kijk in Ontwikkelhulpmiddelen -> Statussen welke attribuutnamen jouw sensor precies gebruikt.
+- **Tibber via service-call:** sommige Tibber-sensoren hebben helemaal geen prijs-array-attribuut (alleen dagelijkse min/max/gemiddelde-statistieken). Zet daarvoor `price_use_tibber_service` aan in de Entiteiten-sectie van de editor — de card roept dan rechtstreeks de service `tibber.get_prices` aan (vereist de Tibber-integratie; geen prijs-entiteit nodig). Gebruikt het eerste Tibber-huis dat op het account gevonden wordt; meerdere huizen worden nog niet apart ondersteund.

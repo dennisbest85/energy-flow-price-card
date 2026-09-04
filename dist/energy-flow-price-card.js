@@ -95,6 +95,7 @@ const DEFAULTS = {
   flow_max_power: 5000,     // W at which flow runs at full speed (and above)
   flow_off_delay: 20,       // seconds at ~0 W before a line fades out
   price_unit: "€/kWh",
+  price_use_tibber_service: false, // true = fetch prices via the tibber.get_prices service call instead of price_entity attributes (for Tibber setups whose sensor has no price-array attribute)
   color_solar: "#f5c518",
   color_battery: "#4caf50",
   color_grid: "#ff6b5e",
@@ -162,6 +163,8 @@ const TRANSLATIONS = {
     ed_battery_charge: "Battery charge (W)",
     ed_battery_discharge: "Battery discharge (W)",
     ed_battery_soc: "Battery SoC (%)",
+    ed_price_tibber_service: "Fetch prices via the Tibber service (tibber.get_prices)",
+    ed_price_tibber_service_note: "For Tibber setups where the sensor has no price-array attribute. Calls the tibber.get_prices service directly instead of using a price entity — requires the Tibber integration, no price entity needed. Uses the first Tibber home found.",
     ed_price_entity: "Price provider entity (€/kWh or your currency)",
     ed_gas_price_entity: "Gas price entity (€/m³) — optional",
     ed_cars: "Cars",
@@ -255,6 +258,8 @@ const TRANSLATIONS = {
     ed_battery_charge: "Accu laden (W)",
     ed_battery_discharge: "Accu ontladen (W)",
     ed_battery_soc: "Accu SoC (%)",
+    ed_price_tibber_service: "Prijzen ophalen via de Tibber-service (tibber.get_prices)",
+    ed_price_tibber_service_note: "Voor Tibber-opstellingen waarbij de sensor geen prijs-array-attribuut heeft. Roept de service tibber.get_prices rechtstreeks aan in plaats van een prijs-entiteit te gebruiken — vereist de Tibber-integratie, geen prijs-entiteit nodig. Gebruikt het eerste gevonden Tibber-huis.",
     ed_price_entity: "Prijs energieleverancier (€/kWh)",
     ed_gas_price_entity: "Gasprijs entiteit (€/m³) — optioneel",
     ed_cars: "Auto's",
@@ -348,6 +353,8 @@ const TRANSLATIONS = {
     ed_battery_charge: "Akku laden (W)",
     ed_battery_discharge: "Akku entladen (W)",
     ed_battery_soc: "Akku SoC (%)",
+    ed_price_tibber_service: "Preise über den Tibber-Dienst abrufen (tibber.get_prices)",
+    ed_price_tibber_service_note: "Für Tibber-Konfigurationen, bei denen der Sensor kein Preis-Array-Attribut hat. Ruft den Dienst tibber.get_prices direkt auf, statt eine Preis-Entität zu verwenden — erfordert die Tibber-Integration, keine Preis-Entität nötig. Verwendet das erste gefundene Tibber-Zuhause.",
     ed_price_entity: "Preis-Anbieter Entität (€/kWh)",
     ed_gas_price_entity: "Gaspreis-Entität (€/m³) — optional",
     ed_cars: "Autos",
@@ -513,6 +520,7 @@ class EnergyFlowPriceCardEditor extends i {
     const lookbackHours = this._config.price_lookback_hours ?? 2;
     const lang = this._config.language ?? "auto";
     const priceProfile = PRICE_PROFILES[this._config.price_profile] ? this._config.price_profile : "default";
+    const useTibberService = this._config.price_use_tibber_service === true;
 
     const entityFields = [
       { key: "solar_power", label: T("ed_solar_power") },
@@ -520,7 +528,7 @@ class EnergyFlowPriceCardEditor extends i {
       { key: "battery_charge_power", label: T("ed_battery_charge") },
       { key: "battery_discharge_power", label: T("ed_battery_discharge") },
       { key: "battery_soc", label: T("ed_battery_soc") },
-      { key: "price_entity", label: T("ed_price_entity") },
+      ...(useTibberService ? [] : [{ key: "price_entity", label: T("ed_price_entity") }]),
       { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
@@ -578,6 +586,10 @@ class EnergyFlowPriceCardEditor extends i {
         <div class="section">
           <div class="head">${T("ed_entities")}</div>
           <div class="note">${T("ed_home_note")}</div>
+          <ha-formfield label=${T("ed_price_tibber_service")}>
+            <ha-switch .checked=${useTibberService} @change=${(e) => this._toggle("price_use_tibber_service", e)}></ha-switch>
+          </ha-formfield>
+          <div class="note">${T("ed_price_tibber_service_note")}</div>
           ${entityFields.map(
             (f) => b`
               <ha-entity-picker
@@ -1048,8 +1060,57 @@ class EnergyFlowPriceCard extends i {
     }, 1000);
   }
 
+  // Fetch prices via the tibber.get_prices service call (return_response) instead of an
+  // entity attribute — for Tibber setups whose sensor only exposes daily stats, not a
+  // price array. Picks the first home returned; multi-home Tibber accounts aren't
+  // distinguished (matches the only known-working example config for this).
+  async _ensureTibberPrices() {
+    if (!this.hass?.connection) return;
+    const cached = this._tibberPrices;
+    if (cached && Date.now() - cached.fetched < 900000) return; // refresh every 15 min
+    try {
+      const end = new Date(Date.now() + 2 * 86400000).toISOString();
+      const res = await this.hass.connection.sendMessagePromise({
+        type: "call_service",
+        domain: "tibber",
+        service: "get_prices",
+        return_response: true,
+        service_data: { end },
+      });
+      const homes = res?.response?.prices || {};
+      const data = Object.values(homes)[0] || [];
+      this._tibberPrices = { fetched: Date.now(), data };
+      this.requestUpdate();
+    } catch (e) {
+      this._tibberPrices = { fetched: Date.now(), data: [], error: true };
+      this.requestUpdate();
+    }
+  }
+
+  _tibberPriceData() {
+    const data = this._tibberPrices?.data || [];
+    const seen = new Set();
+    const merged = [];
+    for (const p of data) {
+      const from = p.start_time ?? p.from;
+      const price = p.price ?? p.total;
+      const t = from ? new Date(from).getTime() : null;
+      let val = typeof price === "number" ? price : parseFloat(price);
+      if (t && !isNaN(val)) {
+        val = normalizePrice(val);
+        if (!seen.has(t)) { seen.add(t); merged.push({ t, v: val }); }
+      }
+    }
+    merged.sort((a, b) => a.t - b.t);
+    const now = Date.now();
+    let current = null;
+    for (const p of merged) { if (p.t <= now) current = p.v; else break; }
+    return { points: merged, current };
+  }
+
   _priceData() {
     const cfg = this._config;
+    if (cfg.price_use_tibber_service) return this._tibberPriceData();
     const ent = this.hass?.states?.[cfg.price_entity];
     if (!ent) return { points: [], current: null };
     const attrs = ent.attributes || {};
@@ -1458,7 +1519,7 @@ class EnergyFlowPriceCard extends i {
   _chartTabs() {
     const c = this._config;
     return [
-      { id: "price", label: this._t("tab_price"), show: !!c.price_entity },
+      { id: "price", label: this._t("tab_price"), show: !!c.price_entity || !!c.price_use_tibber_service },
       { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
       { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
       {
@@ -1717,6 +1778,7 @@ class EnergyFlowPriceCard extends i {
   }
 
   _priceChart(c) {
+    if (c.price_use_tibber_service) this._ensureTibberPrices();
     const { points: allPoints, current } = this._priceData();
     const now = Date.now();
     const hours = Math.max(8, Math.min(48, c.price_hours || 24));
@@ -2072,7 +2134,7 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.10.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+console.info("%c energy-flow-price-card %c v1.11.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

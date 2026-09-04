@@ -69,6 +69,7 @@ export const DEFAULTS = {
   flow_max_power: 5000,     // W at which flow runs at full speed (and above)
   flow_off_delay: 20,       // seconds at ~0 W before a line fades out
   price_unit: "€/kWh",
+  price_use_tibber_service: false, // true = fetch prices via the tibber.get_prices service call instead of price_entity attributes (for Tibber setups whose sensor has no price-array attribute)
   color_solar: "#f5c518",
   color_battery: "#4caf50",
   color_grid: "#ff6b5e",
