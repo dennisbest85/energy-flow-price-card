@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.31.1
+
+- Umbenannt in **HA Energy Flow Card** (Anzeigename in Kartenauswahl, HACS, Editor, README). Kartentyp `custom:energy-flow-price-card` und Dateiname bleiben unverändert – bestehende Dashboards laufen weiter.
+
 ## v1.31.0-fork
 
 - Verbrauchs-Diagramm: zusätzliche Balken-Ansicht wie im HA-Energie-Dashboard (PV, Akku-Entladung, Netzbezug nach oben; Akku-Aufladung, Einspeisung nach unten), Standard wählbar (`usage_view`).

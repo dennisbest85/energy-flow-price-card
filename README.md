@@ -1,6 +1,6 @@
-# Energy Flow & Price Card — Fork
+# HA Energy Flow Card
 
-> Dies ist ein Fork von [dennisbest85/energy-flow-price-card](https://github.com/dennisbest85/energy-flow-price-card) mit zusätzlichen Funktionen. Alles ist über den grafischen Editor einstellbar; bestehende Konfigurationen funktionieren weiter.
+> Weiterentwicklung (Fork) der „Energy Flow & Price Card“ von [dennisbest85/energy-flow-price-card](https://github.com/dennisbest85/energy-flow-price-card) mit zusätzlichen Funktionen. Alles ist über den grafischen Editor einstellbar; bestehende Konfigurationen funktionieren weiter.
 
 **Neu in diesem Fork**
 
@@ -69,7 +69,7 @@ cars:                          # Schlüssel heißt weiter "cars", enthält aber 
 
 ---
 
-# Energy Flow & Price Card
+## Original-Dokumentation (Energy Flow & Price Card)
 
 ![Energy Flow & Price Card - default abstract layout](images/EnergyFLowPriceCard.gif)
 ![Energy Flow & Price Card - visual layout with a house photo](images/EnergyFLowPriceCard2.gif)
@@ -89,14 +89,14 @@ Everything is configurable through the graphical editor in the HA GUI: pick your
 
 1. HACS -> top-right three dots -> **Custom repositories**.
 2. Paste your repo URL (`https://github.com/IngoPodolak/energy-flow-price-card`), type **Dashboard** (Lovelace), and add it.
-3. Search for **Energy Flow & Price Card** in HACS and install.
+3. Search for **HA Energy Flow Card** in HACS and install.
 4. Refresh your browser (or clear the cache).
 
 HACS adds the resource automatically. Manual: Settings -> Dashboards -> (three dots) Resources -> `/hacsfiles/energy-flow-price-card/energy-flow-price-card.js`, type JavaScript Module.
 
 ## Usage
 
-Add a card to a dashboard -> search for **Energy Flow & Price Card** -> fill in your entities in the editor. Or via YAML:
+Add a card to a dashboard -> search for **HA Energy Flow Card** -> fill in your entities in the editor. Or via YAML:
 
 ```yaml
 type: custom:energy-flow-price-card
@@ -185,14 +185,14 @@ Alles is instelbaar via de grafische editor in de HA GUI: kies je entiteiten, ze
 
 1. HACS -> rechtsboven de drie puntjes -> **Custom repositories**.
 2. Plak de URL van je repo (`https://github.com/IngoPodolak/energy-flow-price-card`), type **Dashboard** (Lovelace), en voeg toe.
-3. Zoek **Energy Flow & Price Card** in HACS en installeer.
+3. Zoek **HA Energy Flow Card** in HACS en installeer.
 4. Ververs je browser (of leeg de cache).
 
 De resource wordt door HACS automatisch toegevoegd. Handmatig kan ook: Instellingen -> Dashboards -> (drie puntjes) Resources -> `/hacsfiles/energy-flow-price-card/energy-flow-price-card.js`, type JavaScript Module.
 
 ## Gebruik
 
-Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul in de editor je entiteiten in. Of via YAML (zie het Engelse voorbeeld hierboven).
+Voeg in een dashboard een card toe -> zoek **HA Energy Flow Card** -> vul in de editor je entiteiten in. Of via YAML (zie het Engelse voorbeeld hierboven).
 
 ## Opmerkingen
 

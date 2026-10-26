@@ -720,7 +720,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
           </div>
         </div>
 
-        <div class="version">Energy Flow & Price Card · v${window.__EFPC_VERSION || "?"}</div>
+        <div class="version">HA Energy Flow Card · v${window.__EFPC_VERSION || "?"}</div>
         ${priceProfile === "default" ? html`
           <div class="section">
             <div class="head">${T("ed_price_scale")}</div>

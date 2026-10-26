@@ -3262,14 +3262,14 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-window.__EFPC_VERSION = "1.31.0-fork";
-console.info("%c energy-flow-price-card %c v1.31.0-fork ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.31.1";
+console.info("%c HA Energy Flow Card %c v1.31.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",
-  name: "Energy Flow & Price Card",
-  description: "Energy flow (grid/solar/battery/home/devices) with daily kWh, history charts and dynamic electricity prices (fork).",
+  name: "HA Energy Flow Card",
+  description: "Energy flow (grid/solar/battery/home/devices) with daily kWh, costs, history charts and dynamic electricity prices.",
   preview: true,
   documentationURL: "https://github.com/IngoPodolak/energy-flow-price-card",
 });
