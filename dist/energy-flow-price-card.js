@@ -4130,10 +4130,10 @@ class EnergyFlowPriceCard extends LitElement {
     const y0 = yOf(0);
     const cur = this._cursor;
     const bi = cur == null ? null : Math.max(0, Math.min(n - 1, Math.floor(cur * n)));
-    const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
+    const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" || data.period === "15min" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
     const labels = [];
     const every = Math.max(1, Math.ceil(n / 6));
-    for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : fmtB(data.buckets[i].t) });
+    for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : data.period === "15min" ? (() => { const d = new Date(data.buckets[i].t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); })() : fmtB(data.buckets[i].t) });
     const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => hi - f * (hi + lo));
     const dec = hi + lo < 4 ? 1 : 0;
     const kwh = (x) => `${fmtKWh(x)} kWh`;
@@ -4183,8 +4183,10 @@ class EnergyFlowPriceCard extends LitElement {
     const c = this._config;
     const devs = this._devices().map((d, i) => ({ ...d, idx: i })).filter((d) => d.power || d.energy);
     const span = Math.max(1, spec.end - spec.start);
-    const period = span <= 2.1 * 86400000 ? "hour" : span <= 92 * 86400000 ? "day" : "month";   // display buckets
-    const fetchPeriod = span <= 35 * 86400000 ? "hour" : period === "month" ? "month" : "day";   // data resolution
+    // display buckets: 15 min up to 6 h, hours up to ~2 days, then days / months
+    const period = span <= 6.1 * 3600000 ? "15min" : span <= 2.1 * 86400000 ? "hour" : span <= 92 * 86400000 ? "day" : "month";
+    // data resolution: 5-minute statistics up to ~2 days (includes the running hour), then hourly / daily
+    const fetchPeriod = span <= 2.1 * 86400000 ? "5minute" : span <= 35 * 86400000 ? "hour" : period === "month" ? "month" : "day";
     const gs = this._src("grid"), bs = this._src("battery");
     const base = [c.solar_power, ...gs.entities, ...bs.entities].filter(Boolean);
     const ids = [...new Set([...devs.map((d) => d.energy || d.power), ...base].filter(Boolean))];
@@ -4198,24 +4200,27 @@ class EnergyFlowPriceCard extends LitElement {
     if (!cached || (!cached.busy && Date.now() - cached.fetched > maxAge)) {
       this._dcache[key] = { ...(cached || {}), busy: true, fetched: Date.now() };
       (async () => {
+        // display buckets (computed first, so the request can start at the first bucket)
+        const buckets = [];
+        const d0 = new Date(spec.start);
+        if (period === "15min") d0.setMinutes(Math.floor(d0.getMinutes() / 15) * 15, 0, 0);
+        else if (period === "hour") d0.setMinutes(0, 0, 0); else d0.setHours(0, 0, 0, 0);
+        if (period === "month") d0.setDate(1);
+        for (let t = d0.getTime(); t < spec.end && buckets.length < 400;) {
+          const n = new Date(t);
+          if (period === "15min") n.setMinutes(n.getMinutes() + 15);
+          else if (period === "hour") n.setHours(n.getHours() + 1); else if (period === "day") n.setDate(n.getDate() + 1); else n.setMonth(n.getMonth() + 1);
+          buckets.push({ t, e: n.getTime() });
+          t = n.getTime();
+        }
+        const fetchStart = buckets.length ? buckets[0].t : spec.start;
         const [r, priceHist] = await Promise.all([
           this.hass.callWS({
-            type: "recorder/statistics_during_period", start_time: new Date(spec.start).toISOString(), end_time: new Date(spec.end).toISOString(),
+            type: "recorder/statistics_during_period", start_time: new Date(fetchStart).toISOString(), end_time: new Date(spec.end).toISOString(),
             statistic_ids: ids, period: fetchPeriod, types: ["change", "mean"], units: { energy: "kWh" },
           }).catch(() => ({})),
           this._priceHistory(spec.start, Math.min(spec.end, Date.now()), span),
         ]);
-        // display buckets
-        const buckets = [];
-        const d0 = new Date(spec.start);
-        if (period === "hour") d0.setMinutes(0, 0, 0); else d0.setHours(0, 0, 0, 0);
-        if (period === "month") d0.setDate(1);
-        for (let t = d0.getTime(); t < spec.end && buckets.length < 400;) {
-          const n = new Date(t);
-          if (period === "hour") n.setHours(n.getHours() + 1); else if (period === "day") n.setDate(n.getDate() + 1); else n.setMonth(n.getMonth() + 1);
-          buckets.push({ t, e: n.getTime() });
-          t = n.getTime();
-        }
         const idxOf = (t) => { for (let i = buckets.length - 1; i >= 0; i--) if (t >= buckets[i].t) return i; return -1; };
         // per entity: Map(rowStart -> kWh) at data resolution
         const rowMap = (id, kind) => {
@@ -4225,7 +4230,7 @@ class EnergyFlowPriceCard extends LitElement {
             const t = typeof x.start === "number" ? x.start : Date.parse(x.start);
             if (isNaN(t)) continue;
             const te = typeof x.end === "number" ? x.end : Date.parse(x.end);
-            const dur = (isNaN(te) ? t + 3600000 : te) - t;
+            const dur = (isNaN(te) ? t + ({ "5minute": 300000, hour: 3600000, day: 86400000 }[fetchPeriod] || 3600000) : te) - t;
             const v = kind === "energy" ? (x.change ?? null) : x.mean != null ? (x.mean * f * dur) / 3600000 / 1000 : null;
             if (v != null) m.set(t, (m.get(t) || 0) + v);
           }
@@ -4275,9 +4280,9 @@ class EnergyFlowPriceCard extends LitElement {
             while (lo <= hi) { const m = (lo + hi) >> 1; if (prices[m].t <= t) { best = prices[m]; lo = m + 1; } else hi = m - 1; }
             return best ? best.v : null;
           };
-          const rowLen = fetchPeriod === "hour" ? 3600000 : 86400000;
+          const rowLen = fetchPeriod === "5minute" ? 300000 : fetchPeriod === "hour" ? 3600000 : 86400000;
           const avgPrice = (t) => {
-            if (fetchPeriod === "hour") return priceAt(t + rowLen / 2);
+            if (fetchPeriod !== "day" && fetchPeriod !== "month") return priceAt(t + rowLen / 2);
             let sum = 0, n = 0;
             for (let h = 0; h < 24; h++) { const p2 = priceAt(t + h * 3600000 + 1800000); if (p2 != null) { sum += p2; n++; } }
             return n ? sum / n : null;
@@ -4353,10 +4358,10 @@ class EnergyFlowPriceCard extends LitElement {
       const maxV = Math.max(0.1, ...sums) * 1.08;
       const cur = this._cursor;
       const bi = cur == null ? null : Math.max(0, Math.min(n - 1, Math.floor(cur * n)));
-      const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
+      const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" || data.period === "15min" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
       const labels = [];
       const every = Math.max(1, Math.ceil(n / 6));
-      for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : fmtB(data.buckets[i].t) });
+      for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : data.period === "15min" ? (() => { const d = new Date(data.buckets[i].t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); })() : fmtB(data.buckets[i].t) });
       const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(maxV < 2 ? 2 : 1).replace(".", ","));
       return html`
         <div class="chdr"><span class="t">${T("devices_title")}${this._devViewSwitch()}</span>
@@ -5055,8 +5060,8 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-window.__EFPC_VERSION = "1.32.1";
-console.info("%c HA Energy Flow Card %c v1.32.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.32.2";
+console.info("%c HA Energy Flow Card %c v1.32.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

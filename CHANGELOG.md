@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.32.2
+
+- Geräte- und Verbrauchsbalken bei 1h/6h leer: kurze Zeitspannen nutzen jetzt die 5-Minuten-Statistik (Balken in 15-Minuten-Abschnitten); bei Heute/24h/48h erscheint dadurch auch die laufende Stunde.
+
 ## v1.32.1
 
 - Ladeanzeige blieb bei 1h/6h/24h/48h/7 Tage dauerhaft stehen (rollierender Startzeitpunkt erzeugte ständig neue Abfragen) – behoben.
