@@ -329,6 +329,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
       { key: "solar_power", label: T("ed_solar_power") },
       { key: "battery_soc", label: T("ed_battery_soc") },
       ...(useTibberService ? [] : [{ key: "price_entity", label: T("ed_price_entity") }]),
+      { key: "price_history_entity", label: T("ed_price_history_entity") },
       { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [

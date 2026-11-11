@@ -1,5 +1,8 @@
 # Changelog
 
+## v1.32.3
+- Fix: Kosten für vergangene Tage. Der Tibber-Dienst liefert nur Preise ab heute; ältere Stunden werden jetzt aus dem Verlauf eines Preis-Sensors ergänzt (neue Option `price_history_entity`, sonst `price_entity`, sonst der Strompreis des HA-Energie-Dashboards bzw. dessen Festpreis).
+
 ## v1.32.2
 
 - Geräte- und Verbrauchsbalken bei 1h/6h leer: kurze Zeitspannen nutzen jetzt die 5-Minuten-Statistik (Balken in 15-Minuten-Abschnitten); bei Heute/24h/48h erscheint dadurch auch die laufende Stunde.

@@ -284,6 +284,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "For Tibber setups where the sensor has no price-array attribute. Calls the tibber.get_prices service directly instead of using a price entity — requires the Tibber integration, no price entity needed. Uses the first Tibber home found.",
     ed_price_entity: "Price provider entity (€/kWh or your currency)",
     ed_gas_price_entity: "Gas price entity (€/m³) — optional",
+    ed_price_history_entity: "Price sensor for past costs (optional, default: price of the energy dashboard)",
     ed_cars: "Cars",
     ed_add_car: "+ Add car",
     ed_car_note: "Each car gets its own name. The node appears when charging (or always with display zero on).",
@@ -557,6 +558,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "Voor Tibber-opstellingen waarbij de sensor geen prijs-array-attribuut heeft. Roept de service tibber.get_prices rechtstreeks aan in plaats van een prijs-entiteit te gebruiken — vereist de Tibber-integratie, geen prijs-entiteit nodig. Gebruikt het eerste gevonden Tibber-huis.",
     ed_price_entity: "Prijs energieleverancier (€/kWh)",
     ed_gas_price_entity: "Gasprijs entiteit (€/m³) — optioneel",
+    ed_price_history_entity: "Prijssensor voor kosten uit het verleden (optioneel, standaard: prijs van het energiedashboard)",
     ed_cars: "Auto's",
     ed_add_car: "+ Auto toevoegen",
     ed_car_note: "Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).",
@@ -654,6 +656,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "Für Tibber-Konfigurationen, bei denen der Sensor kein Preis-Array-Attribut hat. Ruft den Dienst tibber.get_prices direkt auf, statt eine Preis-Entität zu verwenden — erfordert die Tibber-Integration, keine Preis-Entität nötig. Verwendet das erste gefundene Tibber-Zuhause.",
     ed_price_entity: "Preis-Anbieter Entität (€/kWh)",
     ed_gas_price_entity: "Gaspreis-Entität (€/m³) — optional",
+    ed_price_history_entity: "Preis-Sensor für vergangene Kosten (optional, Standard: Preis aus dem Energie-Dashboard)",
     ed_cars: "Autos",
     ed_add_car: "+ Auto hinzufügen",
     ed_car_note: "Jedes Auto erhält einen eigenen Namen. Der Knoten erscheint beim Laden (oder immer mit display zero).",
@@ -1233,6 +1236,7 @@ class EnergyFlowPriceCardEditor extends LitElement {
       { key: "solar_power", label: T("ed_solar_power") },
       { key: "battery_soc", label: T("ed_battery_soc") },
       ...(useTibberService ? [] : [{ key: "price_entity", label: T("ed_price_entity") }]),
+      { key: "price_history_entity", label: T("ed_price_history_entity") },
       { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
@@ -2638,17 +2642,40 @@ class EnergyFlowPriceCard extends LitElement {
   }
 
   // Price history for a period: Tibber service or the history of the price entity.
+  // The Tibber service only knows today/tomorrow, so older hours are filled from the
+  // recorder history of a price sensor: price_history_entity, else price_entity, else the
+  // price entity of the grid in the HA energy dashboard (or its fixed price).
   async _priceHistory(start, end, span) {
     const c = this._config;
     if (span > 93 * 86400000) return [];
-    if (c.price_use_tibber_service) return this._tibberRange(start, end);
-    if (!c.price_entity) return [];
-    try {
-      const res = await this.hass.callApi("GET", `history/period/${new Date(start - 3600000).toISOString()}?filter_entity_id=${c.price_entity}&end_time=${encodeURIComponent(new Date(end).toISOString())}&minimal_response&no_attributes`);
-      const arr = Array.isArray(res) && res[0] ? res[0] : [];
-      return arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
-        .filter((x) => !isNaN(x.v) && !isNaN(x.t));
-    } catch (e) { return []; }
+    let pts = c.price_use_tibber_service ? await this._tibberRange(start, end) : [];
+    const firstT = pts.length ? pts[0].t : Infinity;
+    if (firstT > start + 900000) {
+      let ent = c.price_history_entity || c.price_entity || "";
+      let fixed = null;
+      if (!ent) {
+        let prefs = this._eprefs?.prefs;
+        if (!prefs) { try { prefs = await this.hass.callWS({ type: "energy/get_prefs" }); } catch (e) { prefs = null; } }
+        const g = (prefs?.energy_sources || []).find((s) => s.type === "grid");
+        const fl = g?.flow_from?.[0] || g;
+        ent = fl?.entity_energy_price || "";
+        if (!ent && fl?.number_energy_price != null) fixed = +fl.number_energy_price;
+      }
+      const until = Math.min(end, firstT);
+      let old = [];
+      if (ent) {
+        try {
+          const res = await this.hass.callApi("GET", `history/period/${new Date(start - 3600000).toISOString()}?filter_entity_id=${ent}&end_time=${encodeURIComponent(new Date(until).toISOString())}&minimal_response&no_attributes`);
+          const arr = Array.isArray(res) && res[0] ? res[0] : [];
+          old = arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
+            .filter((x) => !isNaN(x.v) && !isNaN(x.t) && x.t < until);
+        } catch (e) { old = []; }
+      } else if (fixed != null && !isNaN(fixed)) {
+        old = [{ t: start - 1, v: fixed }];
+      }
+      pts = [...old, ...pts];
+    }
+    return pts.sort((a, b) => a.t - b.t);
   }
 
   _pdFor(P) {
@@ -3722,17 +3749,7 @@ class EnergyFlowPriceCard extends LitElement {
         }
       } catch (e) { /* no data */ }
     }
-    let priceHist = [];
-    if (c.price_use_tibber_service) {
-      priceHist = await this._tibberRange(y0, now);
-    } else if (c.price_entity) {
-      try {
-        const res = await this.hass.callApi("GET", `history/period/${new Date(y0 - 3600000).toISOString()}?filter_entity_id=${c.price_entity}&end_time=${encodeURIComponent(endIso)}&minimal_response&no_attributes`);
-        const arr = Array.isArray(res) && res[0] ? res[0] : [];
-        priceHist = arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
-          .filter((p) => !isNaN(p.v) && !isNaN(p.t));
-      } catch (e) { /* no price history */ }
-    }
+    const priceHist = await this._priceHistory(y0, now, now - y0);
     this._cost = { key, busy: false, fetched: Date.now(), grid, priceHist };
     this.requestUpdate();
   }
@@ -5060,8 +5077,8 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-window.__EFPC_VERSION = "1.32.2";
-console.info("%c HA Energy Flow Card %c v1.32.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.32.3";
+console.info("%c HA Energy Flow Card %c v1.32.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
