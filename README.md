@@ -1,4 +1,75 @@
-# Energy Flow & Price Card
+# HA Energy Flow Card
+
+> Weiterentwicklung (Fork) der „Energy Flow & Price Card“ von [dennisbest85/energy-flow-price-card](https://github.com/dennisbest85/energy-flow-price-card) mit zusätzlichen Funktionen. Alles ist über den grafischen Editor einstellbar; bestehende Konfigurationen funktionieren weiter.
+
+**Neu in diesem Fork**
+
+- Flusslinien nur waagerecht/senkrecht (auch in der abstrakten Ansicht)
+- Netz links, Solar rechts (umschaltbar)
+- Eigenes Hausbild in der visuellen Ansicht (Bild-Entität oder URL) inkl. einstellbarer Linien-Endpunkte
+- Beliebige Geräte statt nur Autos, mit Symbolauswahl (Klima, Wärmepumpe, Gartenpumpe, Backofen, Kochfeld, Durchlauferhitzer, …)
+- Diagramm-Tabs Netz (Bezug/Einspeisung) und Geräte
+- Zeitspanne pro Diagramm wählbar, Schieberegler für einen genauen Zeitpunkt
+- Antippen → Diagramm, lange drücken → Detailansicht (einstellbar)
+- Heutige kWh mit Richtungspfeil unter jedem Wert (→ zum Haus / ← vom Haus weg)
+
+Zusätzliche YAML-Optionen:
+
+```yaml
+solar_position: right          # right = Netz links/Solar rechts (Standard), left = Original
+house_image_entity: image.mein_haus   # optional, visuelle Ansicht
+house_image_url: /local/haus.png      # optional, Alternative zur Entität
+visual_anchors:                # optional: Linien-Endpunkte im Bild in % (x von links, y von oben)
+  grid: { x: 17, y: 52 }
+  solar: { x: 46, y: 31 }
+  battery: { x: 58, y: 63 }
+  devices: { x: 76, y: 81 }
+history_range: today           # 1h | 6h | today | 24h | 48h | 7d
+grid_mode: single              # single = grid_power (+ Bezug / − Einspeisung) | dual = grid_import_power + grid_export_power
+grid_invert: false             # nur single: Vorzeichen umkehren
+battery_mode: dual             # dual = battery_charge_power + battery_discharge_power | single = battery_power (+ Entladen / − Laden)
+battery_invert: false          # nur single: Vorzeichen umkehren
+energy_grid_mode: dual         # Tageswert Netz: dual = energy_grid_import + energy_grid_export | single = energy_grid
+energy_battery_mode: dual      # Tageswert Akku: dual = energy_battery_discharge + energy_battery_charge | single = energy_battery
+flow_min_power: 5              # W: darunter wird die Linie ausgeblendet
+car_mode: row                  # row = alle Geräte gleichzeitig | scroll | merged
+color_day_in: "#34d399"        # Tageswert ins Haus
+color_day_out: "#fb923c"       # Tageswert aus dem Haus
+price_show_costs: true         # Stromkosten heute (bei > 24 h auch gestern)
+price_axis_auto: true          # Preisachse an Preisspanne anpassen (auch negativ)
+price_show_minmax: true        # Tageshöchst-/-tiefstpreis im Preisdiagramm
+date_selection: auto           # auto = HA-Energie-Datumsauswahl folgen | card = eigene Leiste | none
+show_daily_energy: true
+solar_forecast: true           # Prognose aus dem Energie-Dashboard im Solar-Diagramm
+solar_forecast_node: true      # Prognose heute (kWh) unter dem Solar-Symbol
+energy_solar: sensor.solar_energy_today        # optional (kWh), sonst aus dem Verlauf berechnet
+energy_grid_import: sensor.grid_import_total   # optional
+energy_grid_export: sensor.grid_export_total   # optional
+energy_battery_charge: sensor.battery_in_total # optional
+energy_battery_discharge: sensor.battery_out_total # optional
+tap_action: graph              # graph | more-info | none
+hold_action: more-info         # graph | more-info | none
+color_grid_export: "#22c55e"
+cars:                          # Schlüssel heißt weiter "cars", enthält aber alle Geräte
+  - type: car
+    name: Model 3
+    power: sensor.wallbox_power
+    soc: sensor.car_soc
+  - type: heatpump             # car, wallbox, ac, heatpump, gardenpump, oven, hob, waterheater,
+    name: Wärmepumpe           # washer, dryer, dishwasher, pool, heater, other
+    icon: mdi:heat-pump        # beliebiges mdi-Symbol
+    power: sensor.wp_power
+    energy: sensor.wp_energy   # optional (kWh)
+    color: "#38bdf8"           # optional
+    min_power: 30              # optional: unter 30 W gilt das Gerät als aus (sonst globaler Wert)
+    show: active               # optional: always = immer zeigen, active = nur wenn aktiv
+```
+
+**Bauen:** `npm install && npm run build` – oder ohne Node: `python3 build.py`.
+
+---
+
+## Original-Dokumentation (Energy Flow & Price Card)
 
 ![Energy Flow & Price Card - default abstract layout](images/EnergyFLowPriceCard.gif)
 ![Energy Flow & Price Card - visual layout with a house photo](images/EnergyFLowPriceCard2.gif)
@@ -17,15 +88,15 @@ Everything is configurable through the graphical editor in the HA GUI: pick your
 ## Installation via HACS (custom repository)
 
 1. HACS -> top-right three dots -> **Custom repositories**.
-2. Paste your repo URL (`https://github.com/dennisbest85/energy-flow-price-card`), type **Dashboard** (Lovelace), and add it.
-3. Search for **Energy Flow & Price Card** in HACS and install.
+2. Paste your repo URL (`https://github.com/IngoPodolak/energy-flow-price-card`), type **Dashboard** (Lovelace), and add it.
+3. Search for **HA Energy Flow Card** in HACS and install.
 4. Refresh your browser (or clear the cache).
 
 HACS adds the resource automatically. Manual: Settings -> Dashboards -> (three dots) Resources -> `/hacsfiles/energy-flow-price-card/energy-flow-price-card.js`, type JavaScript Module.
 
 ## Usage
 
-Add a card to a dashboard -> search for **Energy Flow & Price Card** -> fill in your entities in the editor. Or via YAML:
+Add a card to a dashboard -> search for **HA Energy Flow Card** -> fill in your entities in the editor. Or via YAML:
 
 ```yaml
 type: custom:energy-flow-price-card
@@ -113,15 +184,15 @@ Alles is instelbaar via de grafische editor in de HA GUI: kies je entiteiten, ze
 ## Installatie via HACS (custom repository)
 
 1. HACS -> rechtsboven de drie puntjes -> **Custom repositories**.
-2. Plak de URL van je repo (`https://github.com/dennisbest85/energy-flow-price-card`), type **Dashboard** (Lovelace), en voeg toe.
-3. Zoek **Energy Flow & Price Card** in HACS en installeer.
+2. Plak de URL van je repo (`https://github.com/IngoPodolak/energy-flow-price-card`), type **Dashboard** (Lovelace), en voeg toe.
+3. Zoek **HA Energy Flow Card** in HACS en installeer.
 4. Ververs je browser (of leeg de cache).
 
 De resource wordt door HACS automatisch toegevoegd. Handmatig kan ook: Instellingen -> Dashboards -> (drie puntjes) Resources -> `/hacsfiles/energy-flow-price-card/energy-flow-price-card.js`, type JavaScript Module.
 
 ## Gebruik
 
-Voeg in een dashboard een card toe -> zoek **Energy Flow & Price Card** -> vul in de editor je entiteiten in. Of via YAML (zie het Engelse voorbeeld hierboven).
+Voeg in een dashboard een card toe -> zoek **HA Energy Flow Card** -> vul in de editor je entiteiten in. Of via YAML (zie het Engelse voorbeeld hierboven).
 
 ## Opmerkingen
 

@@ -1,11 +1,12 @@
 {
   "name": "energy-flow-price-card",
-  "version": "1.0.0",
-  "description": "Compact energy flow + quarter-hour price card for Home Assistant (Frank Energie friendly).",
+  "version": "1.32.3",
+  "description": "HA Energy Flow Card – energy flow, daily kWh, costs, history charts and dynamic prices for Home Assistant.",
   "type": "module",
   "main": "dist/energy-flow-price-card.js",
   "scripts": {
     "build": "rollup -c",
+    "build:py": "python3 build.py",
     "watch": "rollup -c --watch"
   },
   "keywords": ["home-assistant", "lovelace", "custom-card", "energy", "solar", "frank-energie"],

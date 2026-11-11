@@ -1,5 +1,157 @@
 # Changelog
 
+## v1.32.3
+- Fix: Kosten für vergangene Tage. Der Tibber-Dienst liefert nur Preise ab heute; ältere Stunden werden jetzt aus dem Verlauf eines Preis-Sensors ergänzt (neue Option `price_history_entity`, sonst `price_entity`, sonst der Strompreis des HA-Energie-Dashboards bzw. dessen Festpreis).
+
+## v1.32.2
+
+- Geräte- und Verbrauchsbalken bei 1h/6h leer: kurze Zeitspannen nutzen jetzt die 5-Minuten-Statistik (Balken in 15-Minuten-Abschnitten); bei Heute/24h/48h erscheint dadurch auch die laufende Stunde.
+
+## v1.32.1
+
+- Ladeanzeige blieb bei 1h/6h/24h/48h/7 Tage dauerhaft stehen (rollierender Startzeitpunkt erzeugte ständig neue Abfragen) – behoben.
+
+## v1.32.0
+
+- Geräte (Rangliste und Ring): Stromkosten je Gerät neben kWh und %. Die Netzbezugskosten werden je Stunde nach Anteil am Hausverbrauch auf die Geräte verteilt (Summe = Kosten unter „Haus“).
+- Deutlich schneller beim Wechsel der Zeitspanne: eine gemeinsame Statistik-Abfrage für alle kWh-Zähler statt einer Abfrage pro Gerät nacheinander; Leistungs-, Zähler- und Preisdaten werden parallel geladen.
+- Beim Laden einer neuen Zeitspanne bleiben die bisherigen Werte abgedunkelt mit Ladeanzeige stehen.
+
+## v1.31.1
+
+- Umbenannt in **HA Energy Flow Card** (Anzeigename in Kartenauswahl, HACS, Editor, README). Kartentyp `custom:energy-flow-price-card` und Dateiname bleiben unverändert – bestehende Dashboards laufen weiter.
+
+## v1.31.0-fork
+
+- Verbrauchs-Diagramm: zusätzliche Balken-Ansicht wie im HA-Energie-Dashboard (PV, Akku-Entladung, Netzbezug nach oben; Akku-Aufladung, Einspeisung nach unten), Standard wählbar (`usage_view`).
+
+## v1.30.2-fork
+
+- Editor: „Effekte reduzieren“ in den allgemeinen Anzeige-Bereich verschoben (gilt für beide Ansichten).
+
+## v1.30.1-fork
+
+- Performance: Neon-Leuchten ohne CSS-Filter (flüssige Animation), Neuzeichnen nur bei Änderung der verwendeten Entitäten, kein sekündliches Neuzeichnen mehr bei aktiven Linien, Theme-Farben und Positionsmessung zwischengespeichert.
+
+## v1.30.0-fork
+
+- Gerätefarben wie im HA-Energie-Dashboard (`--graph-color-N` nach Position in der Geräteliste), Geräte ohne Eintrag dort erhalten automatisch kontrastreiche Farben; `device_colors: energy | auto`.
+- Balken/Rangliste/Ring im HA-Stil: halbtransparente Füllung mit kräftigem Rand.
+
+## v1.29.1-fork
+
+- Gerätefarben nach wahrgenommenem Farbabstand (CIELAB) vergeben: jedes Gerät bekommt die Farbe, die sich am stärksten von allen bisherigen unterscheidet.
+
+## v1.29.0-fork
+
+- Geräte-Zeile ein-/ausklappbar; Einstellung `devices_collapse`: expanded / collapsed / top (nur die größten `devices_top_n` Verbraucher).
+
+## v1.28.1-fork
+
+- Gerätefarben eindeutig: 24 Farben + automatisch erzeugte weitere, ohne Doppelungen und mit Abstand zu den Knotenfarben; gleiche Farbe in Energiefluss und Diagrammen.
+
+## v1.28.0-fork
+
+- Hauptansicht: PV-Eigenverbrauch und Autarkiegrad als Ringanzeigen (heute bzw. gewählter Zeitraum), abschaltbar (`show_ratios`).
+
+## v1.27.0-fork
+
+- Geräte-Diagramm mit alternativen Ansichten: Linie, gestapelte kWh-Balken (inkl. „Nicht erfasst“), Rangliste, Ring und Energiefluss (Netz/PV/Akku → Haus → Geräte). Standard-Ansicht im Editor wählbar (`devices_view`).
+
+## v1.26.0-fork
+
+- Editor: Geräte aus dem Energie-Dashboard importieren (Name, kWh-Sensor, passender Leistungssensor desselben Geräts, Typ/Symbol aus dem Namen).
+
+## v1.25.0-fork
+
+- Datumsauswahl: Die Karte folgt der HA-Karte „Energie-Datumsauswahl“ auf demselben Dashboard oder bringt eine eigene Leiste mit (Tag / Woche / Monat / Jahr / Zeitraum, ‹ ›, Kalender, „Heute“). Einstellung `date_selection: auto | card | none`.
+- Für den gewählten Zeitraum: kWh je Knoten und Gerät, Hausverbrauch und Stromkosten aus der Statistik; Verlaufsdiagramme zeigen den Zeitraum. Bei vergangenen Zeiträumen werden aktuelle Werte und Animationen ausgeblendet.
+- Tibber-Dienst: Preise von gestern werden für die Kosten mit abgerufen.
+
+## v1.24.1-fork
+
+- Zeitlinie des Schiebereglers dicker und leuchtend weiß (auch im Preisdiagramm).
+
+## v1.24.0-fork
+
+- Fluss-Animation: Geschwindigkeit jetzt streng proportional zur Leistung (doppelte Leistung = doppelt so schnell), damit die Linien untereinander vergleichbar sind.
+
+## v1.23.1-fork
+
+- Visuelle Ansicht: Linien enden ohne zusätzlichen Knick genau am eingestellten Endpunkt.
+
+## v1.23.0-fork
+
+- Hausbild: Hochladen direkt im Editor und Auswahl aus dem Medien-Ordner (`house_image_media`). Pfade wie `/media/haus.png` oder `/homeassistant/media/haus.png` werden automatisch über einen signierten Link geladen.
+
+## v1.22.0-fork
+
+- Heutige Stromkosten (Netzbezug × Preis) unter „Haus“, abschaltbar (`home_show_costs`).
+
+## v1.21.0-fork
+
+- Preisdiagramm: Stromkosten des Netzbezugs neben dem „Jetzt“-Preis – heute, bei mehr als 24 h zusätzlich gestern (`price_show_costs`). Berechnet je 5 Minuten aus Netzbezug × gültigem Preis; Preise von gestern aus dem Verlauf der Preis-Entität.
+
+## v1.20.0-fork
+
+- Preisdiagramm: Skala passt sich der Preisspanne an (unterer leerer Bereich wird abgeschnitten, runde Teilstriche). Negative Preise werden unterstützt: Null-Linie, Balken zeigen nach unten. Abschaltbar (`price_axis_auto: false`).
+
+## v1.19.2-fork
+
+- Prognose-Quelle pro Karte wählbar, wenn im Energie-Dashboard mehrere Solaranlagen mit Prognose eingetragen sind (`solar_forecast_entries`).
+- Versionsnummer unten im Editor.
+
+## v1.19.1-fork
+
+- Solarprognose zu hoch skaliert, wenn die Prognose Zwischenzeitpunkte (Sonnenauf-/-untergang) enthält – jetzt stundenweise wie im Energie-Dashboard.
+
+## v1.19.0-fork
+
+- Solarprognose wie im HA-Energie-Dashboard (Forecast.Solar, Solcast … aus den Energie-Einstellungen): gestrichelte Linie im Solar-Diagramm (bei „Heute“ bis Mitternacht) und „Prognose heute“ in kWh unter dem Solar-Symbol. Abschaltbar (`solar_forecast`, `solar_forecast_node`).
+
+## v1.18.0-fork
+
+- Pro Gerät einstellbar: eigene Ausblend-Schwelle in W (`min_power`, leer = globaler Wert) und Anzeige (`show`: Standard / always / active).
+
+## v1.17.1-fork
+
+- Symbole für Tages-Netzbezug und -Einspeisung vertauscht (korrigiert).
+
+## v1.17.0-fork
+
+- Visuelle Ansicht: Größe des Hausbilds einstellbar (`house_image_scale`, 30–130 %).
+- Position des Haus-Textes wählbar (`house_label_position`: left / above / below); bei oben/unten rückt das Bild automatisch an den gegenüberliegenden Rand.
+
+## v1.16.0-fork
+
+- Diagramme „Geräte“ und „Verbrauch“: einzelne Linien per Antippen der Legende aus- und wieder einblenden.
+- Eigenes, deutlicheres Wärmepumpen-Symbol (Außeneinheit mit Ventilator), `icon: efp:heat-pump`; bestehende Wärmepumpen nutzen es automatisch.
+
+## v1.15.0-fork
+
+- Netz und Akku: wahlweise **eine Entität mit Vorzeichen** oder **zwei getrennte Entitäten** – für die aktuelle Leistung und für den Tageswert, jeweils mit „Vorzeichen umkehren“.
+- Tageswerte mit eigenen Richtungs-Symbolen je Knoten: Netz (Mast mit Bezug/Einspeisung), Akku (Akku mit Pfeil runter/hoch), Solar (Panel mit Pfeil), Geräte (Gerätesymbol mit Pfeil).
+
+## v1.14.0-fork
+
+- Neues Eingabefeld „Linie ausblenden unter … W“ (`flow_min_power`, Standard 5 W).
+- Geräte werden jetzt alle gleichzeitig angezeigt (`car_mode: row`, neuer Standard): Geräte-Knoten mit Summe unten rechts, darunter jedes Gerät mit eigener animierter Linie. Inaktive Geräte werden ausgeblendet, außer „Leere Zweige anzeigen“ ist an.
+- Tageswerte größer, untereinander und farbig: Symbol „ins Haus“ (grün) bzw. „aus dem Haus“ (orange); Farben einstellbar (`color_day_in`, `color_day_out`).
+- Preisdiagramm: optional Tageshöchst- und Tagestiefstpreis markieren (`price_show_minmax`).
+
+## v1.13.0-fork (Fork-Anpassungen)
+
+- Flusslinien laufen jetzt in beiden Ansichten nur waagerecht/senkrecht und starten/enden exakt an den Symbolen.
+- Netz oben links, Solar oben rechts (umschaltbar: `solar_position: left` = Original).
+- Visuelle Ansicht: eigenes Hausbild über Bild-Entität (`house_image_entity`) oder URL (`house_image_url`), Linien-Endpunkte im Bild einstellbar (`visual_anchors`).
+- Statt nur Autos beliebige Geräte (Klima, Wärmepumpe, Gartenpumpe, Backofen, Kochfeld, Durchlauferhitzer, …) mit wählbarem Symbol und optional eigener Farbe.
+- Neuer Diagramm-Tab „Netz“ (Bezug oben / Einspeisung unten) und „Geräte“; „Verbrauch“ zeigt zusätzlich den Hausverbrauch.
+- Zeitspanne für alle Diagramme direkt in der Karte wählbar (1h, 6h, Heute, 24h, 48h, 7 Tage; Preis: 12/24/48h).
+- Schieberegler unter jedem Diagramm, um einen genauen Zeitpunkt auszuwählen.
+- Antippen eines Symbols öffnet das passende Diagramm, langes Drücken die Detailansicht – beides im Editor einstellbar.
+- Unter jedem Wert die heutige Energie in kWh mit Richtungspfeil (berechnet aus dem Verlauf oder aus optionalen kWh-Sensoren).
+- Leistungs-Sensoren in kW werden automatisch in W umgerechnet.
+
 Alle noemenswaardige wijzigingen aan de Energy Flow & Price Card.
 
 ## v1.2.1

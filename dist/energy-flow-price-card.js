@@ -1,3 +1,5 @@
+// lit (BSD-3-Clause, Google LLC) — bundled
+const { LitElement, html, css, svg, nothing } = (() => {
 /**
  * @license
  * Copyright 2019 Google LLC
@@ -23,6 +25,12 @@ const t$1=globalThis,i$1=t=>t,s$1=t$1.trustedTypes,e=s$1?s$1.createPolicy("lit-h
  * Copyright 2017 Google LLC
  * SPDX-License-Identifier: BSD-3-Clause
  */const s=globalThis;class i extends y$1{constructor(){super(...arguments),this.renderOptions={host:this},this._$Do=void 0;}createRenderRoot(){const t=super.createRenderRoot();return this.renderOptions.renderBefore??=t.firstChild,t}update(t){const r=this.render();this.hasUpdated||(this.renderOptions.isConnected=this.isConnected),super.update(t),this._$Do=D(r,this.renderRoot,this.renderOptions);}connectedCallback(){super.connectedCallback(),this._$Do?.setConnected(true);}disconnectedCallback(){super.disconnectedCallback(),this._$Do?.setConnected(false);}render(){return E}}i._$litElement$=true,i["finalized"]=true,s.litElementHydrateSupport?.({LitElement:i});const o=s.litElementPolyfillSupport;o?.({LitElement:i});(s.litElementVersions??=[]).push("4.2.2");
+
+
+return { LitElement: i, html: b, css: i$3, svg: w, nothing: A };
+})();
+
+// ---- src/constants.js ----
 
 const DEFAULT_PRICE_STOPS = [
   { value: 0.0, color: "#3b82f6" },  // blauw
@@ -88,7 +96,7 @@ const DEFAULTS = {
   price_hours: 24,
   price_start: "midnight", // "now" | "midnight"
   price_lookback_hours: 2, // 1-12: how far back the axis starts when price_start is "now"
-  car_mode: "scroll",       // "scroll" | "merged"
+  car_mode: "row",          // "row" (all devices at once) | "scroll" | "merged"
   car_scroll_interval: 5,   // seconds
   language: "auto",         // "auto" | "nl" | "en" | "de"
   flow_speed: 1.0,          // overall speed multiplier for the flowing dashes
@@ -114,11 +122,119 @@ const DEFAULTS = {
   gas_price_entity: "", // optional: shown next to the electricity price in the chart header
   chart_auto_scroll: false, // cycle price -> solar -> battery tabs automatically
   chart_scroll_interval: 8, // seconds between automatic tab switches
+  // ---- fork additions ----
+  solar_position: "right",  // "right" (grid top-left, solar top-right) | "left" (original layout)
+  house_image_entity: "",   // image.* entity whose picture replaces the built-in house photo
+  house_image_url: "",
+  house_label_position: "left", // visual layout: "Home" text "left" of, "above" or "below" the picture
+  house_image_scale: 100,   // size of the house picture in % of the flow height (30-130)      // alternative: plain URL, e.g. /local/haus.png
+  visual_anchors: null,     // { grid:{x,y}, solar:{x,y}, battery:{x,y}, devices:{x,y} } in % of the picture
+  history_range: "today",   // default time span for solar/grid/battery/usage/device charts
+  show_daily_energy: true,  // small "today kWh" line with a direction arrow under every node
+  tap_action: "graph",      // "graph" | "more-info" | "none"
+  hold_action: "more-info", // "graph" | "more-info" | "none"
+  color_grid_export: "#22c55e", // grid chart: area color for export (below zero)
+  flow_min_power: 5,        // W: below this a branch counts as idle (line hidden; idle devices hidden unless display_zero)
+  color_day_in: "#34d399",  // daily kWh into the house
+  color_day_out: "#fb923c", // daily kWh out of the house
+  grid_mode: "single",      // "single" (grid_power, signed) | "dual" (grid_import_power + grid_export_power)
+  grid_invert: false,       // single: true = positive means export
+  battery_mode: "dual",     // "dual" (battery_charge_power + battery_discharge_power) | "single" (battery_power, signed)
+  battery_invert: false,    // single: true = positive means charging
+  energy_grid_mode: "dual", // daily kWh: "dual" (energy_grid_import + energy_grid_export) | "single" (energy_grid, signed)
+  energy_battery_mode: "dual",
+  solar_forecast: true,     // solar forecast from the HA energy dashboard (Forecast.Solar, Solcast …), if configured there
+  solar_forecast_node: true, // also show today's forecast kWh under the solar node
+  device_colors: "energy",  // "energy" = same colours as the HA energy dashboard (fallback: auto) | "auto"
+  devices_collapse: "expanded", // device row: "expanded" | "collapsed" | "top" (biggest N)
+  devices_top_n: 4,
+  show_ratios: true,        // PV self-consumption + self-sufficiency gauges under the flow
+  date_selection: "auto",   // "auto" (follow the HA energy date selection card), "card" (own date bar), "none"
+  price_show_costs: true,
+  home_show_costs: true,    // today's electricity costs under the house   // price chart: costs of the grid import today (and yesterday for windows > 24 h)
+  price_axis_auto: true,    // price chart: axis starts just below the lowest price (negative prices supported)
+  price_show_minmax: false, // mark each day's highest / lowest price in the price chart
   // "Usage" tab: last-hour power (W) breakdown by source (solar/battery/grid). Reuses the
   // solar_power/battery_charge_power/battery_discharge_power/grid_power entities already
   // configured for the flow diagram — no separate entities needed.
 };
 
+// Device presets for the "devices" list (formerly cars only). `type: "car"` keeps the
+// car-specific behaviour (charging label, SoC ring, guest-car detection).
+const DEVICE_PRESETS = [
+  { id: "car", icon: "mdi:car-electric" },
+  { id: "wallbox", icon: "mdi:ev-station" },
+  { id: "ac", icon: "mdi:air-conditioner" },
+  { id: "heatpump", icon: "efp:heat-pump" },
+  { id: "gardenpump", icon: "mdi:water-pump" },
+  { id: "oven", icon: "mdi:toaster-oven" },
+  { id: "hob", icon: "mdi:stove" },
+  { id: "waterheater", icon: "mdi:water-boiler" },
+  { id: "washer", icon: "mdi:washing-machine" },
+  { id: "dryer", icon: "mdi:tumble-dryer" },
+  { id: "dishwasher", icon: "mdi:dishwasher" },
+  { id: "pool", icon: "mdi:pool" },
+  { id: "heater", icon: "mdi:heating-coil" },
+  { id: "other", icon: "mdi:power-plug" },
+];
+
+// Colors used for device series in the "devices" chart when a device has no own color.
+// Candidate colours for devices (vivid, readable on dark and light backgrounds). The card
+// picks from these the one that differs most (CIELAB distance) from all colours in use.
+const DEVICE_PALETTE = [
+  "#a78bfa", "#f472b6", "#2dd4bf", "#a3e635", "#fdba74", "#ffffff", "#0e7490", "#7c3aed",
+  "#b45309", "#be123c", "#fda4af", "#4d7c0f", "#60a5fa", "#f59e0b", "#d946ef", "#94a3b8",
+  "#4ade80", "#6366f1", "#fde68a", "#06b6d4", "#38bdf8", "#fb923c", "#facc15", "#f87171",
+  "#c084fc", "#5eead4", "#e879f9", "#bef264", "#93c5fd", "#ef4444", "#10b981", "#8b5cf6",
+  "#ec4899", "#84cc16", "#14b8a6", "#c2410c", "#e2e8f0", "#eab308", "#22d3ee", "#9333ea",
+];
+
+// Selectable time spans for the history charts (hours; "today" = since midnight).
+const HISTORY_RANGES = [
+  { id: "1h", hours: 1 },
+  { id: "6h", hours: 6 },
+  { id: "today", hours: null },
+  { id: "24h", hours: 24 },
+  { id: "48h", hours: 48 },
+  { id: "7d", hours: 168 },
+];
+const PRICE_RANGES = [12, 24, 48];
+
+// Default anchor points (in % of the house picture) where each wire ends in the visual layout.
+const DEFAULT_ANCHORS = {
+  grid_left: { x: 17, y: 52 },  // grid node on the left (default in this fork): left wall
+  grid_right: { x: 80, y: 40 }, // grid node on the right (original layout): right wall
+  solar: { x: 46, y: 31 },      // roof panels
+  battery: { x: 58, y: 63 },
+  devices: { x: 76, y: 81 },
+};
+
+// Own icons (prefix "efp:") for things MDI doesn't draw convincingly. Everything else is
+// passed straight to <ha-icon>.
+const EFP_ICONS = {
+  // heat pump outdoor unit: housing, fan with three blades, grille, feet and rising warmth
+  "heat-pump": svg`
+    <path d="M8.2 4.4c-.7-.7.7-1.3 0-2M11.2 4.4c-.7-.7.7-1.3 0-2M14.2 4.4c-.7-.7.7-1.3 0-2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"></path>
+    <rect x="1.8" y="6" width="20.4" height="13.2" rx="2.2" fill="none" stroke="currentColor" stroke-width="1.7"></rect>
+    <circle cx="8.6" cy="12.6" r="4.4" fill="none" stroke="currentColor" stroke-width="1.3"></circle>
+    <g fill="currentColor">
+      <path d="M8.6 12.6c-.9-1.4-.7-3.3.9-3.9 1.4.9 1.1 2.9-.9 3.9z"></path>
+      <path d="M8.6 12.6c-.9-1.4-.7-3.3.9-3.9 1.4.9 1.1 2.9-.9 3.9z" transform="rotate(120 8.6 12.6)"></path>
+      <path d="M8.6 12.6c-.9-1.4-.7-3.3.9-3.9 1.4.9 1.1 2.9-.9 3.9z" transform="rotate(240 8.6 12.6)"></path>
+      <circle cx="8.6" cy="12.6" r=".9"></circle>
+    </g>
+    <path d="M15.4 9.6h4.2M15.4 12.6h4.2M15.4 15.6h4.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"></path>
+    <path d="M5 19.2v1.8M19 19.2v1.8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"></path>`,
+};
+
+function renderIcon(icon, cls = "") {
+  if (icon && icon.startsWith("efp:") && EFP_ICONS[icon.slice(4)]) {
+    return html`<svg class="efp-icon ${cls}" viewBox="0 0 24 24" aria-hidden="true">${EFP_ICONS[icon.slice(4)]}</svg>`;
+  }
+  return html`<ha-icon class="${cls}" icon="${icon || "mdi:power-plug"}"></ha-icon>`;
+}
+
+// ---- src/translations.js ----
 const TRANSLATIONS = {
   en: {
     // flow
@@ -153,7 +269,7 @@ const TRANSLATIONS = {
     ed_battery_ring: "Battery icon as a ring (off = square, like the other icons)",
     ed_car_ring: "Car icon as a ring (off = square, like the other icons)",
     ed_visual_layout: "Use visual layout (house photo instead of abstract wires)",
-    ed_reduce_effects: "Reduce effects (no neon glow / text shadow) — for weaker-GPU devices",
+    ed_reduce_effects: "Reduce effects (no neon glow, no text shadow) – for weaker devices",
     ed_wire_style: "Flow line style",
     ed_wire_style_dashed: "Dashed (current)",
     ed_wire_style_neon: "Neon glow",
@@ -168,6 +284,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "For Tibber setups where the sensor has no price-array attribute. Calls the tibber.get_prices service directly instead of using a price entity — requires the Tibber integration, no price entity needed. Uses the first Tibber home found.",
     ed_price_entity: "Price provider entity (€/kWh or your currency)",
     ed_gas_price_entity: "Gas price entity (€/m³) — optional",
+    ed_price_history_entity: "Price sensor for past costs (optional, default: price of the energy dashboard)",
     ed_cars: "Cars",
     ed_add_car: "+ Add car",
     ed_car_note: "Each car gets its own name. The node appears when charging (or always with display zero on).",
@@ -219,6 +336,182 @@ const TRANSLATIONS = {
     ed_flow_speed: "Flow speed",
     ed_flow_max_power: "Full-speed power (W)",
     ed_flow_off_delay: "Turn off after (s)",
+    tab_grid: "Grid",
+    grid_import: "Import",
+    grid_export: "Export",
+    back_to_now: "Back to now",
+    tab_devices: "Devices",
+    grid_title: "Grid: import / export",
+    battery_soc_title: "Battery state of charge",
+    devices_title: "Devices",
+    usage_title: "Usage",
+    devices: "Devices",
+    active: "active",
+    range_1h: "1h",
+    range_6h: "6h",
+    range_today: "Today",
+    range_24h: "24h",
+    range_48h: "48h",
+    range_7d: "7 days",
+    dev_car: "Car",
+    dev_wallbox: "Wallbox",
+    dev_ac: "Air con",
+    dev_heatpump: "Heat pump",
+    dev_gardenpump: "Garden pump",
+    dev_oven: "Oven",
+    dev_hob: "Hob",
+    dev_waterheater: "Water heater",
+    dev_washer: "Washer",
+    dev_dryer: "Dryer",
+    dev_dishwasher: "Dishwasher",
+    dev_pool: "Pool",
+    dev_heater: "Immersion heater",
+    dev_other: "Device",
+    ed_cars: "Consumers / devices",
+    ed_add_device: "+ Add",
+    ed_car_note: "Cars and any other devices (air con, heat pump, oven …). They share the bottom-right spot and cycle (or are listed statically).",
+    ed_no_cars: "No devices added yet.",
+    ed_device_type: "Type",
+    ed_device_icon: "Icon",
+    ed_device_power: "Power (W)",
+    ed_device_energy: "Energy (kWh) for the daily value — optional",
+    ed_device_color: "Own color",
+    ed_remove_car: "Remove device",
+    ed_car_display: "Display with several devices",
+    ed_color_car: "Color devices",
+    ed_solar_position: "Arrangement",
+    ed_solar_right: "Grid left, solar right",
+    ed_solar_left: "Solar left, grid right (original)",
+    ed_house_image: "Own house picture (image entity) — optional",
+    ed_house_image_url: "…or enter a path/URL, e.g. /local/house.png or /media/house.png",
+    ed_anchors: "Wire end points in the picture",
+    ed_anchor_note: "With your own picture, set where the wires end (in % from the left and from the top).",
+    ed_anchor_x: "from left",
+    ed_anchor_y: "from top",
+    ed_reset_anchors: "Reset",
+    ed_daily: "Daily values (kWh)",
+    ed_show_daily: "Show today's kWh with a direction arrow under the values",
+    ed_daily_note: "By default the kWh are integrated from the power history since midnight. If you have energy sensors (kWh), pick them here and their daily values are used instead. Arrow towards the house = energy into the house.",
+    ed_energy_solar: "Solar energy (kWh)",
+    ed_energy_grid_import: "Grid import energy (kWh)",
+    ed_energy_grid_export: "Grid export energy (kWh)",
+    ed_energy_battery_charge: "Battery charged energy (kWh)",
+    ed_energy_battery_discharge: "Battery discharged energy (kWh)",
+    ed_actions: "Icon interaction",
+    ed_tap_action: "Tap",
+    ed_hold_action: "Long press",
+    ed_action_graph: "Open matching chart",
+    ed_action_more_info: "Entity details",
+    ed_action_none: "Nothing",
+    ed_history_range: "Default time span (history charts)",
+    ed_color_grid_export: "Color export",
+    ed_chart_tabs_note: "Cycle through the available tabs automatically. Pauses while you have picked a point in time with the slider.",
+    day_in: "Today into the house",
+    day_out: "Today out of the house",
+    day_home: "Home usage today",
+    ed_flow_min_power: "Hide line below",
+    ed_flow_min_power_note: "Below this power a branch counts as off: its line is hidden and — unless display zero is on — an idle device disappears from the device row.",
+    ed_car_row: "All at once (own row)",
+    ed_car_scroll: "Cycle (switches automatically)",
+    ed_car_merged: "Static (1 icon, all info)",
+    ed_color_day_in: "Color daily value into house",
+    ed_color_day_out: "Color daily value out of house",
+    ed_price_minmax: "Mark daily highest and lowest price",
+    ed_car_note: "Cars and any other devices. With \"All at once\" a devices hub (total) appears bottom-right and every device is shown below with its own line.",
+    ed_src_grid: "Grid – power",
+    ed_src_battery: "Battery – power",
+    ed_src_grid_e: "Grid – daily value (optional)",
+    ed_src_battery_e: "Battery – daily value (optional)",
+    ed_src_single: "1 signed entity",
+    ed_src_dual: "2 separate entities",
+    ed_grid_single: "Grid power (W, + = import, − = export)",
+    ed_grid_pos: "Grid import (W)",
+    ed_grid_neg: "Grid export (W)",
+    ed_grid_single_e: "Grid energy (kWh, + = import, − = export)",
+    ed_grid_pos_e: "Grid import energy (kWh)",
+    ed_grid_neg_e: "Grid export energy (kWh)",
+    ed_grid_invert: "Invert sign (+ = export)",
+    ed_battery_single: "Battery power (W, + = discharge, − = charge)",
+    ed_battery_pos: "Battery discharge (W)",
+    ed_battery_neg: "Battery charge (W)",
+    ed_battery_single_e: "Battery energy (kWh, + = discharge, − = charge)",
+    ed_battery_pos_e: "Battery discharged energy (kWh)",
+    ed_battery_neg_e: "Battery charged energy (kWh)",
+    ed_battery_invert: "Invert sign (+ = charge)",
+    legend_hide: "Tap to hide",
+    legend_show: "Tap to show",
+    ed_own_icon: "Card's own icon",
+    ed_house_scale: "House picture size",
+    ed_house_label_pos: "Home text position",
+    ed_house_label_left: "Left of the picture",
+    ed_house_label_above: "Above the picture",
+    ed_house_label_below: "Below the picture",
+    ed_dev_show: "Display",
+    ed_dev_show_default: "Follow display zero",
+    ed_dev_show_always: "Always show",
+    ed_dev_show_active: "Only when active",
+    ed_dev_min_power: "Off below (empty = global)",
+    forecast: "Forecast",
+    forecast_today: "Forecast today",
+    ed_forecast: "Solar forecast",
+    ed_forecast_show: "Show forecast in the solar chart (dashed)",
+    ed_forecast_node: "Show today's forecast (kWh) under the solar icon",
+    ed_forecast_note: "Uses the same forecast as the Home Assistant energy dashboard (e.g. Forecast.Solar or Solcast). It must be configured there for your solar panels.",
+    ed_forecast_sources: "Forecast sources for this card (with several systems tick only the matching one):",
+    ed_price_axis_auto: "Fit axis to the price range (cut off the empty lower part, negative prices supported)",
+    today: "Today",
+    yesterday: "Yesterday",
+    ed_price_costs: "Show electricity costs (grid import) – today, plus yesterday for windows over 24 h",
+    cost_today: "Electricity costs today (grid import)",
+    ed_home_costs: "Show today's electricity costs under \"Home\"",
+    ed_house_upload: "Upload picture",
+    ed_house_media: "…or pick from the media folder",
+    ed_house_image_note: "Pictures in config/www are reachable as /local/…, pictures in the media folder as /media/… (the card fetches a valid signed link automatically).",
+    costs: "Costs",
+    dsel_day: "Day",
+    dsel_week: "Week",
+    dsel_month: "Month",
+    dsel_year: "Year",
+    dsel_range: "Range",
+    ed_date_selection: "Date selection",
+    ed_date_sel_auto: "Follow HA energy date selection",
+    ed_date_sel_card: "Own bar in the card",
+    ed_date_sel_none: "None (always today)",
+    ed_date_selection_note: "With another day or range the card shows the kWh and costs of that period and the charts follow. For past periods current values and animations are hidden. 'HA energy date selection' uses the 'Energy date selection' card on the same dashboard.",
+    ed_import_energy: "Import from energy dashboard",
+    ed_import_none: "No individual devices are configured in the energy dashboard.",
+    ed_import_done: "{n} device(s) imported – please check type, icon and power sensor.",
+    ed_import_nothing: "All devices from the energy dashboard are already present.",
+    view_line: "Line (power)",
+    view_bars: "Bars (kWh, stacked)",
+    view_rank: "Ranking",
+    view_donut: "Donut (shares)",
+    view_sankey: "Energy flow",
+    untracked: "Untracked",
+    total: "Total",
+    ed_devices_view: "Default view of the devices chart",
+    self_consumption: "Self-consumption",
+    autarky: "Self-sufficiency",
+    self_consumption_hint: "Share of solar energy used yourself instead of exported",
+    autarky_hint: "Share of the home consumption not taken from the grid",
+    ed_show_ratios: "Show self-consumption and self-sufficiency",
+    dev_collapse: "Collapse",
+    dev_show_all: "Show {n} devices",
+    dev_show_more: "Show {n} more",
+    ed_dev_collapse: "Device row",
+    ed_dev_collapse_expanded: "Always expanded",
+    ed_dev_collapse_collapsed: "Always collapsed",
+    ed_dev_collapse_top: "Only the biggest consumers",
+    ed_dev_top_n: "Number of biggest consumers",
+    ed_device_colors: "Device colours",
+    ed_device_colors_energy: "Same as energy dashboard",
+    ed_device_colors_auto: "Automatic (maximum contrast)",
+    pv_direct: "Solar",
+    batt_discharge: "Battery discharge",
+    batt_charge: "Battery charge",
+    ed_usage_view: "Default view of the usage chart",
+    view_usage_line: "Line (power)",
+    view_usage_bars: "Bars (kWh, like energy dashboard)",
   },
   nl: {
     solar: "Solar",
@@ -265,6 +558,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "Voor Tibber-opstellingen waarbij de sensor geen prijs-array-attribuut heeft. Roept de service tibber.get_prices rechtstreeks aan in plaats van een prijs-entiteit te gebruiken — vereist de Tibber-integratie, geen prijs-entiteit nodig. Gebruikt het eerste gevonden Tibber-huis.",
     ed_price_entity: "Prijs energieleverancier (€/kWh)",
     ed_gas_price_entity: "Gasprijs entiteit (€/m³) — optioneel",
+    ed_price_history_entity: "Prijssensor voor kosten uit het verleden (optioneel, standaard: prijs van het energiedashboard)",
     ed_cars: "Auto's",
     ed_add_car: "+ Auto toevoegen",
     ed_car_note: "Elke auto krijgt een eigen naam. De node verschijnt bij laden (of altijd met display zero aan).",
@@ -347,7 +641,7 @@ const TRANSLATIONS = {
     ed_battery_ring: "Akku-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_car_ring: "Auto-Symbol als Ring (aus = quadratisch, wie die anderen Symbole)",
     ed_visual_layout: "Visuelle Ansicht verwenden (Hausfoto statt abstrakter Linien)",
-    ed_reduce_effects: "Effekte reduzieren (kein Neon-Leuchten / Textschatten) — für Geräte mit schwächerer GPU",
+    ed_reduce_effects: "Effekte reduzieren (kein Neon-Leuchten, kein Textschatten) – für schwächere Geräte",
     ed_wire_style: "Stil der Flusslinien",
     ed_wire_style_dashed: "Gestrichelt (aktuell)",
     ed_wire_style_neon: "Neon-Leuchten",
@@ -362,6 +656,7 @@ const TRANSLATIONS = {
     ed_price_tibber_service_note: "Für Tibber-Konfigurationen, bei denen der Sensor kein Preis-Array-Attribut hat. Ruft den Dienst tibber.get_prices direkt auf, statt eine Preis-Entität zu verwenden — erfordert die Tibber-Integration, keine Preis-Entität nötig. Verwendet das erste gefundene Tibber-Zuhause.",
     ed_price_entity: "Preis-Anbieter Entität (€/kWh)",
     ed_gas_price_entity: "Gaspreis-Entität (€/m³) — optional",
+    ed_price_history_entity: "Preis-Sensor für vergangene Kosten (optional, Standard: Preis aus dem Energie-Dashboard)",
     ed_cars: "Autos",
     ed_add_car: "+ Auto hinzufügen",
     ed_car_note: "Jedes Auto erhält einen eigenen Namen. Der Knoten erscheint beim Laden (oder immer mit display zero).",
@@ -413,6 +708,182 @@ const TRANSLATIONS = {
     ed_flow_speed: "Fluss-Geschwindigkeit",
     ed_flow_max_power: "Leistung für Höchstgeschwindigkeit (W)",
     ed_flow_off_delay: "Ausschalten nach (s)",
+    tab_grid: "Netz",
+    grid_import: "Bezug",
+    grid_export: "Einspeisung",
+    back_to_now: "Zurück zu jetzt",
+    tab_devices: "Geräte",
+    grid_title: "Netz: Bezug / Einspeisung",
+    battery_soc_title: "Akku Ladestand",
+    devices_title: "Geräte",
+    usage_title: "Verbrauch",
+    devices: "Geräte",
+    active: "aktiv",
+    range_1h: "1h",
+    range_6h: "6h",
+    range_today: "Heute",
+    range_24h: "24h",
+    range_48h: "48h",
+    range_7d: "7 Tage",
+    dev_car: "Auto",
+    dev_wallbox: "Wallbox",
+    dev_ac: "Klima",
+    dev_heatpump: "Wärmepumpe",
+    dev_gardenpump: "Gartenpumpe",
+    dev_oven: "Backofen",
+    dev_hob: "Kochfeld",
+    dev_waterheater: "Durchlauferhitzer",
+    dev_washer: "Waschmaschine",
+    dev_dryer: "Trockner",
+    dev_dishwasher: "Spülmaschine",
+    dev_pool: "Pool",
+    dev_heater: "Heizstab",
+    dev_other: "Gerät",
+    ed_cars: "Verbraucher / Geräte",
+    ed_add_device: "+ Hinzufügen",
+    ed_car_note: "Autos und beliebige andere Geräte (Klima, Wärmepumpe, Backofen …). Alle teilen sich den Platz unten rechts und wechseln sich ab (oder werden statisch untereinander angezeigt).",
+    ed_no_cars: "Noch keine Geräte hinzugefügt.",
+    ed_device_type: "Typ",
+    ed_device_icon: "Symbol",
+    ed_device_power: "Leistung (W)",
+    ed_device_energy: "Energie (kWh) für Tageswert — optional",
+    ed_device_color: "Eigene Farbe",
+    ed_remove_car: "Gerät entfernen",
+    ed_car_display: "Anzeige bei mehreren Geräten",
+    ed_color_car: "Farbe Geräte",
+    ed_solar_position: "Anordnung",
+    ed_solar_right: "Netz links, Solar rechts",
+    ed_solar_left: "Solar links, Netz rechts (wie Original)",
+    ed_house_image: "Eigenes Hausbild (Bild-Entität) — optional",
+    ed_house_image_url: "…oder Pfad/URL eingeben, z. B. /local/haus.png oder /media/haus.png",
+    ed_anchors: "Linien-Endpunkte im Bild",
+    ed_anchor_note: "Bei einem eigenen Bild hier einstellen, wo die Linien im Bild enden (in % von links und von oben).",
+    ed_anchor_x: "von links",
+    ed_anchor_y: "von oben",
+    ed_reset_anchors: "Zurücksetzen",
+    ed_daily: "Tageswerte (kWh)",
+    ed_show_daily: "Heutige kWh mit Richtungspfeil unter den Werten anzeigen",
+    ed_daily_note: "Ohne weitere Angabe werden die kWh aus dem Leistungsverlauf seit Mitternacht berechnet. Wenn du Energie-Sensoren (kWh, z. B. vom Zähler) hast, kannst du sie hier wählen – dann werden deren Tageswerte genutzt. Pfeil zum Haus = Energie ins Haus, Pfeil vom Haus weg = Energie aus dem Haus.",
+    ed_energy_solar: "Solar Energie (kWh)",
+    ed_energy_grid_import: "Netzbezug Energie (kWh)",
+    ed_energy_grid_export: "Einspeisung Energie (kWh)",
+    ed_energy_battery_charge: "Akku geladen Energie (kWh)",
+    ed_energy_battery_discharge: "Akku entladen Energie (kWh)",
+    ed_actions: "Bedienung der Symbole",
+    ed_tap_action: "Antippen",
+    ed_hold_action: "Lange drücken",
+    ed_action_graph: "Passendes Diagramm öffnen",
+    ed_action_more_info: "Detailansicht der Entität",
+    ed_action_none: "Nichts",
+    ed_history_range: "Standard-Zeitspanne (Verlaufsdiagramme)",
+    ed_color_grid_export: "Farbe Einspeisung",
+    ed_chart_tabs_note: "Automatisch zwischen den verfügbaren Tabs wechseln (Preis / Solar / Netz / Akku / Verbrauch / Geräte). Hält an, solange du mit dem Schieberegler einen Zeitpunkt ausgewählt hast.",
+    day_in: "Heute ins Haus",
+    day_out: "Heute aus dem Haus",
+    day_home: "Hausverbrauch heute",
+    ed_flow_min_power: "Linie ausblenden unter",
+    ed_flow_min_power_note: "Unter dieser Leistung gilt ein Strang als „aus“: die Linie wird ausgeblendet und – wenn „Leere Zweige anzeigen“ aus ist – verschwindet ein inaktives Gerät aus der Geräte-Zeile.",
+    ed_car_row: "Alle gleichzeitig (eigene Zeile)",
+    ed_car_scroll: "Abwechselnd (wechselt automatisch)",
+    ed_car_merged: "Statisch (1 Symbol, alle Infos)",
+    ed_color_day_in: "Farbe Tageswert ins Haus",
+    ed_color_day_out: "Farbe Tageswert aus dem Haus",
+    ed_price_minmax: "Tageshöchst- und Tagestiefstpreis einzeichnen",
+    ed_car_note: "Autos und beliebige andere Geräte (Klima, Wärmepumpe, Backofen …). Bei „Alle gleichzeitig“ erscheint unten rechts ein Geräte-Knoten mit der Summe und darunter jedes Gerät mit eigener Linie.",
+    ed_src_grid: "Netz – Leistung",
+    ed_src_battery: "Akku – Leistung",
+    ed_src_grid_e: "Netz – Tageswert (optional)",
+    ed_src_battery_e: "Akku – Tageswert (optional)",
+    ed_src_single: "1 Entität mit Vorzeichen",
+    ed_src_dual: "2 getrennte Entitäten",
+    ed_grid_single: "Netz-Leistung (W, + = Bezug, − = Einspeisung)",
+    ed_grid_pos: "Netzbezug (W)",
+    ed_grid_neg: "Einspeisung (W)",
+    ed_grid_single_e: "Netz Energie (kWh, + = Bezug, − = Einspeisung)",
+    ed_grid_pos_e: "Netzbezug Energie (kWh)",
+    ed_grid_neg_e: "Einspeisung Energie (kWh)",
+    ed_grid_invert: "Vorzeichen umkehren (+ = Einspeisung)",
+    ed_battery_single: "Akku-Leistung (W, + = Entladen, − = Laden)",
+    ed_battery_pos: "Akku entladen (W)",
+    ed_battery_neg: "Akku laden (W)",
+    ed_battery_single_e: "Akku Energie (kWh, + = Entladen, − = Laden)",
+    ed_battery_pos_e: "Akku entladen Energie (kWh)",
+    ed_battery_neg_e: "Akku geladen Energie (kWh)",
+    ed_battery_invert: "Vorzeichen umkehren (+ = Laden)",
+    legend_hide: "Antippen zum Ausblenden",
+    legend_show: "Antippen zum Einblenden",
+    ed_own_icon: "Eigenes Symbol der Karte",
+    ed_house_scale: "Größe Hausbild",
+    ed_house_label_pos: "Position Haus-Text",
+    ed_house_label_left: "Links neben dem Bild",
+    ed_house_label_above: "Über dem Bild",
+    ed_house_label_below: "Unter dem Bild",
+    ed_dev_show: "Anzeige",
+    ed_dev_show_default: "Wie „Leere Zweige anzeigen“",
+    ed_dev_show_always: "Immer anzeigen",
+    ed_dev_show_active: "Nur wenn aktiv",
+    ed_dev_min_power: "Aus unter (leer = global)",
+    forecast: "Prognose",
+    forecast_today: "Prognose heute",
+    ed_forecast: "Solarprognose",
+    ed_forecast_show: "Prognose im Solar-Diagramm anzeigen (gestrichelt)",
+    ed_forecast_node: "Prognose heute (kWh) unter dem Solar-Symbol anzeigen",
+    ed_forecast_note: "Nutzt dieselbe Prognose wie das Energie-Dashboard von Home Assistant (z. B. Forecast.Solar oder Solcast). Sie muss dort unter Einstellungen → Dashboards → Energie bei der Solaranlage eingetragen sein.",
+    ed_forecast_sources: "Prognose-Quellen für diese Karte (bei mehreren Anlagen nur die passende anhaken):",
+    ed_price_axis_auto: "Skala an Preisspanne anpassen (unterer Bereich abgeschnitten, negative Preise möglich)",
+    today: "Heute",
+    yesterday: "Gestern",
+    ed_price_costs: "Stromkosten (Netzbezug) anzeigen – heute, bei mehr als 24 h auch gestern",
+    cost_today: "Stromkosten heute (Netzbezug)",
+    ed_home_costs: "Heutige Stromkosten unter „Haus“ anzeigen",
+    ed_house_upload: "Bild hochladen",
+    ed_house_media: "…oder aus dem Medien-Ordner wählen",
+    ed_house_image_note: "Bilder in config/www erreichst du mit /local/…, Bilder im Medien-Ordner mit /media/… (die Karte holt sich dafür automatisch einen gültigen Link).",
+    costs: "Kosten",
+    dsel_day: "Tag",
+    dsel_week: "Woche",
+    dsel_month: "Monat",
+    dsel_year: "Jahr",
+    dsel_range: "Zeitraum",
+    ed_date_selection: "Datumsauswahl",
+    ed_date_sel_auto: "HA-Datumsauswahl (Energie) folgen",
+    ed_date_sel_card: "Eigene Leiste in der Karte",
+    ed_date_sel_none: "Keine (immer heute)",
+    ed_date_selection_note: "Bei einem anderen Tag oder Zeitraum zeigt die Karte die kWh und Kosten dieses Zeitraums, die Diagramme folgen. Liegt der Zeitraum in der Vergangenheit, werden aktuelle Werte und Animationen ausgeblendet. „HA-Datumsauswahl“ nutzt die Karte „Energie-Datumsauswahl“ auf demselben Dashboard.",
+    ed_import_energy: "Aus Energie-Dashboard importieren",
+    ed_import_none: "Im Energie-Dashboard sind keine einzelnen Geräte eingetragen.",
+    ed_import_done: "{n} Gerät(e) importiert – Typ, Symbol und Leistungssensor bitte prüfen.",
+    ed_import_nothing: "Alle Geräte aus dem Energie-Dashboard sind bereits vorhanden.",
+    view_line: "Linie (Leistung)",
+    view_bars: "Balken (kWh, gestapelt)",
+    view_rank: "Rangliste",
+    view_donut: "Ring (Anteile)",
+    view_sankey: "Energiefluss",
+    untracked: "Nicht erfasst",
+    total: "Gesamt",
+    ed_devices_view: "Standard-Ansicht Geräte-Diagramm",
+    self_consumption: "PV-Eigenverbrauch",
+    autarky: "Autarkiegrad",
+    self_consumption_hint: "Anteil des Solarstroms, der selbst genutzt statt eingespeist wurde",
+    autarky_hint: "Anteil des Hausverbrauchs, der nicht aus dem Netz kam",
+    ed_show_ratios: "PV-Eigenverbrauch und Autarkiegrad anzeigen",
+    dev_collapse: "Einklappen",
+    dev_show_all: "{n} Geräte anzeigen",
+    dev_show_more: "{n} weitere anzeigen",
+    ed_dev_collapse: "Geräte-Zeile",
+    ed_dev_collapse_expanded: "Immer ausgeklappt",
+    ed_dev_collapse_collapsed: "Immer eingeklappt",
+    ed_dev_collapse_top: "Nur die größten Verbraucher",
+    ed_dev_top_n: "Anzahl größte Verbraucher",
+    ed_device_colors: "Gerätefarben",
+    ed_device_colors_energy: "Wie im Energie-Dashboard",
+    ed_device_colors_auto: "Automatisch (maximaler Kontrast)",
+    pv_direct: "PV",
+    batt_discharge: "Akku-Entladung",
+    batt_charge: "Akku-Aufladung",
+    ed_usage_view: "Standard-Ansicht Verbrauchs-Diagramm",
+    view_usage_line: "Linie (Leistung)",
+    view_usage_bars: "Balken (kWh, wie Energie-Dashboard)",
   },
 };
 
@@ -429,9 +900,42 @@ function t(lang, key) {
   return table[key] ?? TRANSLATIONS.en[key] ?? key;
 }
 
+const SUPPORTED_LANGS = ["nl", "en", "de"];
+
+// ---- src/assets/visual-house.js ----
 const VISUAL_HOUSE_IMAGE = "data:image/png;base64,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bXv/vS8tlmWlf0dE9L9xP/3CkwffLWs5WrN56FLX7vq4zba89D1ERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERERI+0vwDJlhz2w7LPmQAAAABJRU5ErkJggg==";
 
-class EnergyFlowPriceCardEditor extends i {
+// ---- src/energy-flow-price-card-editor.js ----
+
+
+
+function cleanDeviceName(n) {
+  return String(n)
+    .replace(/[_\s]*(energy|energie|verbrauch|consumption|total|gesamt|kwh|zähler|zaehler)\b/gi, "")
+    .replace(/\s{2,}/g, " ").trim() || String(n);
+}
+function guessDeviceType(name) {
+  const n = String(name).toLowerCase();
+  const rules = [
+    ["wallbox", /wallbox|ladestation|charger|go-?e|easee|keba|wattpilot/],
+    ["car", /\bauto\b|\bcar\b|tesla|cupra|\bid\.|\bev\b|e-?auto|fahrzeug/],
+    ["heatpump", /w(ä|ae)rmepumpe|heat ?pump|altherma|vitocal|wp\b/],
+    ["ac", /klima|air ?con|\bac\b|split/],
+    ["waterheater", /durchlauf|boiler|warmwasser|water ?heater/],
+    ["washer", /waschmaschine|washer|washing/],
+    ["dryer", /trockner|dryer/],
+    ["dishwasher", /sp(ü|ue)l|dishwasher/],
+    ["oven", /backofen|\bofen\b|oven/],
+    ["hob", /herd|kochfeld|induktion|hob|stove/],
+    ["pool", /pool/],
+    ["gardenpump", /pumpe|pump/],
+    ["heater", /heizstab|heizung|heater|infrarot/],
+  ];
+  for (const [id, re] of rules) if (re.test(n)) return id;
+  return "other";
+}
+
+class EnergyFlowPriceCardEditor extends LitElement {
   static get properties() {
     return { hass: {}, _config: {} };
   }
@@ -468,7 +972,7 @@ class EnergyFlowPriceCardEditor extends i {
 
   _resetColors() {
     const next = { ...this._config };
-    ["color_solar", "color_battery", "color_grid", "color_car", "color_home"].forEach((k) => { next[k] = DEFAULTS[k]; });
+    ["color_solar", "color_battery", "color_grid", "color_grid_export", "color_car", "color_home", "color_day_in", "color_day_out"].forEach((k) => { next[k] = DEFAULTS[k]; });
     next.price_stops = DEFAULT_PRICE_STOPS.map((s) => ({ ...s }));
     this._emit(next);
   }
@@ -482,10 +986,210 @@ class EnergyFlowPriceCardEditor extends i {
     this._emit({ ...this._config, cars });
   }
 
-  _addCar() {
+  // Import the "individual devices" of the HA energy dashboard: name + energy (kWh) sensor,
+  // the matching power (W) sensor of the same device, and a type/icon guessed from the name.
+  async _importEnergyDevices() {
+    const T = (k) => this._t(k);
+    let prefs;
+    try { prefs = await this.hass.callWS({ type: "energy/get_prefs" }); } catch (e) { prefs = null; }
+    const list = prefs?.device_consumption || [];
+    if (!list.length) { this._importMsg = T("ed_import_none"); this.requestUpdate(); return; }
     const cars = this._cars().map((c) => ({ ...c }));
-    cars.push({ name: `${this._t("car")} ${cars.length + 1}`, power: "", soc: "" });
+    const haveE = new Set(cars.map((c) => c.energy).filter(Boolean));
+    const haveP = new Set(cars.map((c) => c.power).filter(Boolean));
+    let added = 0;
+    for (const d of list) {
+      const e = d.stat_consumption;
+      if (!e || haveE.has(e)) continue;
+      const st = this.hass.states[e];
+      const name = cleanDeviceName(d.name || st?.attributes?.friendly_name || e);
+      let power = d.stat_rate || this._findPowerSensor(e);
+      if (power && haveP.has(power)) power = null;
+      const type = guessDeviceType(name);
+      const preset = DEVICE_PRESETS.find((x) => x.id === type) || DEVICE_PRESETS[DEVICE_PRESETS.length - 1];
+      const dev = { type, icon: preset.icon, name, energy: e };
+      if (power) { dev.power = power; haveP.add(power); }
+      cars.push(dev);
+      haveE.add(e);
+      added++;
+    }
+    this._importMsg = added ? T("ed_import_done").replace("{n}", added) : T("ed_import_nothing");
+    if (added) this._emit({ ...this._config, cars });
+    else this.requestUpdate();
+  }
+
+  _findPowerSensor(energyId) {
+    const ents = this.hass.entities || {};
+    const dev = ents[energyId]?.device_id;
+    if (!dev) return null;
+    const isPower = (id) => {
+      const a = this.hass.states[id]?.attributes || {};
+      return a.device_class === "power" || ["W", "kW"].includes(a.unit_of_measurement);
+    };
+    const cands = Object.values(ents)
+      .filter((x) => x.device_id === dev && x.entity_id?.startsWith("sensor.") && isPower(x.entity_id))
+      .map((x) => x.entity_id);
+    return cands[0] || null;
+  }
+
+  _addCar(type = "car") {
+    const cars = this._cars().map((c) => ({ ...c }));
+    const preset = DEVICE_PRESETS.find((p) => p.id === type) || DEVICE_PRESETS[0];
+    const name = this._t("dev_" + preset.id);
+    const same = cars.filter((c) => (c.type || "car") === preset.id).length;
+    cars.push({ type: preset.id, icon: preset.icon, name: same ? `${name} ${same + 1}` : name, power: "" });
     this._emit({ ...this._config, cars });
+  }
+
+  _carType(i, type) {
+    const cars = this._cars().map((c) => ({ ...c }));
+    const old = DEVICE_PRESETS.find((p) => p.id === (cars[i].type || "car"));
+    const preset = DEVICE_PRESETS.find((p) => p.id === type) || DEVICE_PRESETS[0];
+    // follow the preset's icon/name unless the user picked their own
+    if (!cars[i].icon || (old && cars[i].icon === old.icon)) cars[i].icon = preset.icon;
+    if (!cars[i].name || (old && cars[i].name === this._t("dev_" + old.id))) cars[i].name = this._t("dev_" + preset.id);
+    cars[i].type = preset.id;
+    if (preset.id !== "car") { delete cars[i].soc; delete cars[i].charging; }
+    this._emit({ ...this._config, cars });
+  }
+
+  _anchorVal(key) {
+    const a = this._config.visual_anchors?.[key];
+    if (a) return a;
+    if (key === "grid") return this._config.solar_position === "left" ? DEFAULT_ANCHORS.grid_right : DEFAULT_ANCHORS.grid_left;
+    return DEFAULT_ANCHORS[key];
+  }
+  _anchorChange(key, axis, ev) {
+    const va = { ...(this._config.visual_anchors || {}) };
+    va[key] = { ...this._anchorVal(key), [axis]: parseInt(ev.target.value, 10) };
+    this._emit({ ...this._config, visual_anchors: va });
+  }
+  _resetAnchors() {
+    const next = { ...this._config };
+    delete next.visual_anchors;
+    this._emit(next);
+  }
+
+  // Grid / battery source: one signed entity or two separate ones (power or daily energy).
+  _srcBlock(kind, energy) {
+    const T = (k) => this._t(k);
+    const c = this._config;
+    const modeKey = energy ? `energy_${kind}_mode` : `${kind}_mode`;
+    const defMode = energy ? "dual" : (kind === "grid" ? "single" : "dual");
+    const mode = c[modeKey] ?? defMode;
+    const single = energy ? `energy_${kind}` : `${kind}_power`;
+    const invKey = energy ? `energy_${kind}_invert` : `${kind}_invert`;
+    const pos = energy ? (kind === "grid" ? "energy_grid_import" : "energy_battery_discharge") : (kind === "grid" ? "grid_import_power" : "battery_discharge_power");
+    const neg = energy ? (kind === "grid" ? "energy_grid_export" : "energy_battery_charge") : (kind === "grid" ? "grid_export_power" : "battery_charge_power");
+    const sfx = energy ? "_e" : "";
+    return html`
+      <div class="srcblock">
+        <label class="sel-row">
+          <span class="srchead">${T(`ed_src_${kind}${sfx}`)}</span>
+          <select @change=${(e) => this._emit({ ...this._config, [modeKey]: e.target.value })}>
+            <option value="single" ?selected=${mode === "single"}>${T("ed_src_single")}</option>
+            <option value="dual" ?selected=${mode === "dual"}>${T("ed_src_dual")}</option>
+          </select>
+        </label>
+        ${mode === "single" ? html`
+          ${this._entity(single, T(`ed_${kind}_single${sfx}`), energy ? ["sensor"] : undefined)}
+          <ha-formfield label=${T(`ed_${kind}_invert`)}>
+            <ha-switch .checked=${c[invKey] === true} @change=${(e) => this._toggle(invKey, e)}></ha-switch>
+          </ha-formfield>` : html`
+          ${this._entity(pos, T(`ed_${kind}_pos${sfx}`), energy ? ["sensor"] : undefined)}
+          ${this._entity(neg, T(`ed_${kind}_neg${sfx}`), energy ? ["sensor"] : undefined)}`}
+      </div>`;
+  }
+
+  // Upload (HA image upload, like the picture card) and pick from the media folder.
+  _imagePickers() {
+    const T = (k) => this._t(k);
+    if (!customElements.get("ha-selector")) return nothing;
+    const uploaded = (this._config.house_image_url || "").startsWith("/api/image/serve/") ? this._config.house_image_url : "";
+    const media = this._config.house_image_media
+      ? { entity_id: "", media_content_id: this._config.house_image_media, media_content_type: "image/png" } : undefined;
+    return html`
+      <div class="pickrow">
+        <span class="picklbl">${T("ed_house_upload")}</span>
+        <ha-selector .hass=${this.hass} .selector=${{ image: { original: true } }} .value=${uploaded}
+          @value-changed=${(e) => {
+            const v = e.detail?.value;
+            const next = { ...this._config };
+            delete next.house_image_media;
+            if (v) next.house_image_url = v; else if (uploaded) delete next.house_image_url;
+            this._emit(next);
+          }}></ha-selector>
+      </div>
+      <div class="pickrow">
+        <span class="picklbl">${T("ed_house_media")}</span>
+        <ha-selector .hass=${this.hass} .selector=${{ media: { accept: ["image/*"] } }} .value=${media}
+          @value-changed=${(e) => {
+            const id = e.detail?.value?.media_content_id;
+            const next = { ...this._config };
+            if (id) { next.house_image_media = id; delete next.house_image_url; } else delete next.house_image_media;
+            this._emit(next);
+          }}></ha-selector>
+      </div>`;
+  }
+
+  // Forecast sources from the energy dashboard; with several solar systems each card can pick its own.
+  _forecastSources() {
+    const T = (k) => this._t(k);
+    if (!this._fcSrc && this.hass?.callWS && !this._fcSrcBusy) {
+      this._fcSrcBusy = true;
+      (async () => {
+        let ids = [];
+        try {
+          const prefs = await this.hass.callWS({ type: "energy/get_prefs" });
+          ids = (prefs?.energy_sources || []).filter((x) => x.type === "solar").flatMap((x) => x.config_entry_solar_forecast || []);
+        } catch (e) { /* ignore */ }
+        let titles = {};
+        try {
+          const entries = await this.hass.callWS({ type: "config_entries/get" });
+          for (const e of entries || []) titles[e.entry_id] = `${e.title} (${e.domain})`;
+        } catch (e) { /* ignore */ }
+        this._fcSrc = [...new Set(ids)].map((id) => ({ id, title: titles[id] || id }));
+        this.requestUpdate();
+      })();
+    }
+    const list = this._fcSrc || [];
+    if (list.length < 2) return nothing;
+    const chosen = Array.isArray(this._config.solar_forecast_entries) ? this._config.solar_forecast_entries : [];
+    const toggle = (id, on) => {
+      const set = new Set(chosen.length ? chosen : list.map((x) => x.id));
+      if (on) set.add(id); else set.delete(id);
+      const arr = [...set];
+      const next = { ...this._config };
+      if (!arr.length || arr.length === list.length) delete next.solar_forecast_entries; else next.solar_forecast_entries = arr;
+      this._emit(next);
+    };
+    return html`<div class="note">${T("ed_forecast_sources")}</div>
+      ${list.map((x) => html`<label class="chk"><input type="checkbox" .checked=${!chosen.length || chosen.includes(x.id)}
+        @change=${(e) => toggle(x.id, e.target.checked)} /> ${x.title}</label>`)}`;
+  }
+
+  // ha-icon-picker is lazy-loaded by Home Assistant; fall back to a text field until it exists.
+  _iconPicker(value, label, onChange) {
+    const own = html`<label class="sel-row"><span>${this._t("ed_own_icon")}</span>
+      <select @change=${(e) => e.target.value && onChange(e.target.value)}>
+        <option value="" ?selected=${!value?.startsWith("efp:")}>—</option>
+        <option value="efp:heat-pump" ?selected=${value === "efp:heat-pump"}>${this._t("dev_heatpump")}</option>
+      </select></label>`;
+    return html`${own}${this._iconPicker2(value, label, onChange)}`;
+  }
+
+  _iconPicker2(value, label, onChange) {
+    if (customElements.get("ha-icon-picker")) {
+      return html`<ha-icon-picker .hass=${this.hass} .value=${value} .label=${label}
+        @value-changed=${(e) => onChange(e.detail?.value ?? "")}></ha-icon-picker>`;
+    }
+    return html`<label class="sel-row"><span>${label}</span>
+      <input class="carname-input" .value=${value} placeholder="mdi:power-plug" @change=${(e) => onChange(e.target.value)} /></label>`;
+  }
+
+  _entity(key, label, domains) {
+    return html`<ha-entity-picker .hass=${this.hass} .value=${this._get(key)} .label=${label}
+      .includeDomains=${domains} allow-custom-entity @value-changed=${(e) => this._pickEntity(key, e)}></ha-entity-picker>`;
   }
 
   _removeCar(i) {
@@ -517,7 +1221,7 @@ class EnergyFlowPriceCardEditor extends i {
   }
 
   render() {
-    if (!this.hass || !this._config) return A;
+    if (!this.hass || !this._config) return nothing;
     const T = (k) => this._t(k);
     const showFlow = this._config.show_flow !== false;
     const showPrice = this._config.show_price !== false;
@@ -530,22 +1234,23 @@ class EnergyFlowPriceCardEditor extends i {
 
     const entityFields = [
       { key: "solar_power", label: T("ed_solar_power") },
-      { key: "grid_power", label: T("ed_grid_power") },
-      { key: "battery_charge_power", label: T("ed_battery_charge") },
-      { key: "battery_discharge_power", label: T("ed_battery_discharge") },
       { key: "battery_soc", label: T("ed_battery_soc") },
       ...(useTibberService ? [] : [{ key: "price_entity", label: T("ed_price_entity") }]),
+      { key: "price_history_entity", label: T("ed_price_history_entity") },
       { key: "gas_price_entity", label: T("ed_gas_price_entity") },
     ];
     const colorFields = [
       { key: "color_solar", label: T("ed_color_solar") },
       { key: "color_battery", label: T("ed_color_battery") },
       { key: "color_grid", label: T("ed_color_grid") },
+      { key: "color_grid_export", label: T("ed_color_grid_export") },
       { key: "color_car", label: T("ed_color_car") },
       { key: "color_home", label: T("ed_color_home") },
+      { key: "color_day_in", label: T("ed_color_day_in") },
+      { key: "color_day_out", label: T("ed_color_day_out") },
     ];
 
-    return b`
+    return html`
       <div class="root">
         <div class="section">
           <div class="head">${T("ed_display")}</div>
@@ -558,6 +1263,12 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label=${T("ed_display_zero")}>
             <ha-switch .checked=${displayZero} @change=${(e) => this._toggle("display_zero", e)}></ha-switch>
           </ha-formfield>
+          <label class="sel-row">
+            <span>${T("ed_flow_min_power")}</span>
+            <span class="numwrap"><input class="num" type="number" min="0" step="1" .value=${String(this._config.flow_min_power ?? 5)}
+              @change=${(e) => { const v = parseFloat(e.target.value); this._emit({ ...this._config, flow_min_power: isNaN(v) ? 5 : Math.max(0, v) }); }} /> W</span>
+          </label>
+          <div class="note">${T("ed_flow_min_power_note")}</div>
           <ha-formfield label=${T("ed_battery_ring")}>
             <ha-switch .checked=${this._config.battery_ring !== false} @change=${(e) => this._toggle("battery_ring", e)}></ha-switch>
           </ha-formfield>
@@ -567,10 +1278,46 @@ class EnergyFlowPriceCardEditor extends i {
           <ha-formfield label=${T("ed_visual_layout")}>
             <ha-switch .checked=${this._config.use_visual_layout === true} @change=${(e) => this._toggle("use_visual_layout", e)}></ha-switch>
           </ha-formfield>
-          ${this._config.use_visual_layout === true ? b`
-            <ha-formfield label=${T("ed_reduce_effects")}>
-              <ha-switch .checked=${this._config.reduce_effects === true} @change=${(e) => this._toggle("reduce_effects", e)}></ha-switch>
-            </ha-formfield>` : A}
+          ${this._config.use_visual_layout === true ? html`
+            <div class="subblock">
+              <div class="slider-row">
+                <span>${T("ed_house_scale")}: <b>${this._config.house_image_scale ?? 100}%</b></span>
+                <input type="range" min="30" max="130" step="5" .value=${this._config.house_image_scale ?? 100}
+                  @input=${(e) => this._emit({ ...this._config, house_image_scale: parseInt(e.target.value, 10) })} />
+              </div>
+              <label class="sel-row">
+                <span>${T("ed_house_label_pos")}</span>
+                <select @change=${(e) => this._emit({ ...this._config, house_label_position: e.target.value })}>
+                  ${["left", "above", "below"].map((v) => html`<option value=${v} ?selected=${(this._config.house_label_position ?? "left") === v}>${T("ed_house_label_" + v)}</option>`)}
+                </select>
+              </label>
+              ${this._entity("house_image_entity", T("ed_house_image"), ["image"])}
+              ${this._imagePickers()}
+              <input class="carname-input" .value=${this._config.house_image_url ?? ""} placeholder=${T("ed_house_image_url")}
+                @change=${(e) => { const next = { ...this._config }; if (e.target.value) next.house_image_url = e.target.value.trim(); else delete next.house_image_url; delete next.house_image_media; this._emit(next); }} />
+              <div class="note">${T("ed_house_image_note")}</div>
+              <details class="anchors">
+                <summary>${T("ed_anchors")}</summary>
+                <div class="note">${T("ed_anchor_note")}</div>
+                ${["grid", "solar", "battery", "devices"].map((k) => {
+                  const a = this._anchorVal(k);
+                  const lbl = k === "devices" ? T("ed_cars") : T(k);
+                  return html`<div class="anchor-row">
+                    <span class="anchor-lbl">${lbl}</span>
+                    <label>${T("ed_anchor_x")} <b>${a.x}%</b><input type="range" min="0" max="100" .value=${a.x} @input=${(e) => this._anchorChange(k, "x", e)} /></label>
+                    <label>${T("ed_anchor_y")} <b>${a.y}%</b><input type="range" min="0" max="100" .value=${a.y} @input=${(e) => this._anchorChange(k, "y", e)} /></label>
+                  </div>`;
+                })}
+                <button class="reset" @click=${() => this._resetAnchors()}>${T("ed_reset_anchors")}</button>
+              </details>
+            </div>` : nothing}
+          <label class="sel-row">
+            <span>${T("ed_solar_position")}</span>
+            <select .value=${this._config.solar_position ?? "right"} @change=${(e) => this._emit({ ...this._config, solar_position: e.target.value })}>
+              <option value="right">${T("ed_solar_right")}</option>
+              <option value="left">${T("ed_solar_left")}</option>
+            </select>
+          </label>
           <label class="sel-row">
             <span>${T("ed_wire_style")}</span>
             <select .value=${this._config.wire_style ?? "dashed"} @change=${(e) => this._emit({ ...this._config, wire_style: e.target.value })}>
@@ -578,6 +1325,16 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="neon">${T("ed_wire_style_neon")}</option>
             </select>
           </label>
+          <ha-formfield label=${T("ed_reduce_effects")}>
+            <ha-switch .checked=${this._config.reduce_effects === true} @change=${(e) => this._toggle("reduce_effects", e)}></ha-switch>
+          </ha-formfield>
+          <label class="sel-row">
+            <span>${T("ed_date_selection")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, date_selection: e.target.value })}>
+              ${["auto", "card", "none"].map((v) => html`<option value=${v} ?selected=${(this._config.date_selection ?? "auto") === v}>${T("ed_date_sel_" + v)}</option>`)}
+            </select>
+          </label>
+          <div class="note">${T("ed_date_selection_note")}</div>
           <label class="sel-row">
             <span>${T("ed_language")}</span>
             <select .value=${lang} @change=${(e) => this._emit({ ...this._config, language: e.target.value })}>
@@ -596,8 +1353,10 @@ class EnergyFlowPriceCardEditor extends i {
             <ha-switch .checked=${useTibberService} @change=${(e) => this._toggle("price_use_tibber_service", e)}></ha-switch>
           </ha-formfield>
           <div class="note">${T("ed_price_tibber_service_note")}</div>
+          ${this._srcBlock("grid", false)}
+          ${this._srcBlock("battery", false)}
           ${entityFields.map(
-            (f) => b`
+            (f) => html`
               <ha-entity-picker
                 .hass=${this.hass}
                 .value=${this._get(f.key)}
@@ -609,61 +1368,144 @@ class EnergyFlowPriceCardEditor extends i {
         </div>
 
         <div class="section">
-          <div class="head">
-            ${T("ed_cars")}
-            <button class="add" @click=${() => this._addCar()}>${T("ed_add_car")}</button>
-          </div>
+          <div class="head">${T("ed_daily")}</div>
+          <ha-formfield label=${T("ed_show_daily")}>
+            <ha-switch .checked=${this._config.show_daily_energy !== false} @change=${(e) => this._toggle("show_daily_energy", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_show_ratios")}>
+            <ha-switch .checked=${this._config.show_ratios !== false} @change=${(e) => this._toggle("show_ratios", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_home_costs")}>
+            <ha-switch .checked=${this._config.home_show_costs !== false} @change=${(e) => this._toggle("home_show_costs", e)}></ha-switch>
+          </ha-formfield>
+          ${this._config.show_daily_energy !== false ? html`
+            <div class="note">${T("ed_daily_note")}</div>
+            ${this._entity("energy_solar", T("ed_energy_solar"), ["sensor"])}
+            ${this._srcBlock("grid", true)}
+            ${this._srcBlock("battery", true)}` : nothing}
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_forecast")}</div>
+          <ha-formfield label=${T("ed_forecast_show")}>
+            <ha-switch .checked=${this._config.solar_forecast !== false} @change=${(e) => this._toggle("solar_forecast", e)}></ha-switch>
+          </ha-formfield>
+          ${this._config.solar_forecast !== false ? html`
+            <ha-formfield label=${T("ed_forecast_node")}>
+              <ha-switch .checked=${this._config.solar_forecast_node !== false} @change=${(e) => this._toggle("solar_forecast_node", e)}></ha-switch>
+            </ha-formfield>` : nothing}
+          ${this._config.solar_forecast !== false ? this._forecastSources() : nothing}
+          <div class="note">${T("ed_forecast_note")}</div>
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_cars")}</div>
           <div class="note">${T("ed_car_note")}</div>
           <label class="sel-row">
-            <span>${T("ed_car_display")}</span>
-            <select .value=${this._config.car_mode ?? "scroll"} @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
-              <option value="scroll">${T("ed_car_scroll")}</option>
-              <option value="merged">${T("ed_car_merged")}</option>
+            <span>${T("ed_device_colors")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, device_colors: e.target.value })}>
+              ${["energy", "auto"].map((v) => html`<option value=${v} ?selected=${(this._config.device_colors ?? "energy") === v}>${T("ed_device_colors_" + v)}</option>`)}
             </select>
           </label>
-          ${(this._config.car_mode ?? "scroll") === "scroll" ? b`
+          <div class="importrow">
+            <button class="add" @click=${() => this._importEnergyDevices()}><ha-icon icon="mdi:import"></ha-icon> ${T("ed_import_energy")}</button>
+            ${this._importMsg ? html`<span class="importmsg">${this._importMsg}</span>` : nothing}
+          </div>
+          <div class="addrow">
+            <select class="addsel" @change=${(e) => { this._newType = e.target.value; }}>
+              ${DEVICE_PRESETS.map((p) => html`<option value=${p.id} ?selected=${(this._newType || "car") === p.id}>${T("dev_" + p.id)}</option>`)}
+            </select>
+            <button class="add" @click=${() => this._addCar(this._newType || "car")}>${T("ed_add_device")}</button>
+          </div>
+          <label class="sel-row">
+            <span>${T("ed_car_display")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, car_mode: e.target.value })}>
+              ${[["row", T("ed_car_row")], ["scroll", T("ed_car_scroll")], ["merged", T("ed_car_merged")]].map(([v, l]) => html`
+                <option value=${v} ?selected=${(this._config.car_mode ?? "row") === v}>${l}</option>`)}
+            </select>
+          </label>
+          ${(this._config.car_mode ?? "row") === "row" ? html`
+            <label class="sel-row">
+              <span>${T("ed_dev_collapse")}</span>
+              <select @change=${(e) => this._emit({ ...this._config, devices_collapse: e.target.value })}>
+                ${["expanded", "collapsed", "top"].map((v) => html`<option value=${v} ?selected=${(this._config.devices_collapse ?? "expanded") === v}>${T("ed_dev_collapse_" + v)}</option>`)}
+              </select>
+            </label>
+            ${this._config.devices_collapse === "top" ? html`
+              <label class="sel-row">
+                <span>${T("ed_dev_top_n")}</span>
+                <span class="numwrap"><input class="num" type="number" min="1" max="50" step="1" .value=${String(this._config.devices_top_n ?? 4)}
+                  @change=${(e) => this._emit({ ...this._config, devices_top_n: Math.max(1, parseInt(e.target.value, 10) || 4) })} /></span>
+              </label>` : nothing}` : nothing}
+          ${this._config.car_mode === "scroll" ? html`
             <div class="slider-row">
               <span>${T("ed_car_interval")}: <b>${this._config.car_scroll_interval ?? 5}s</b></span>
               <input type="range" min="2" max="15" step="1" .value=${this._config.car_scroll_interval ?? 5}
                 @input=${(e) => this._emit({ ...this._config, car_scroll_interval: parseInt(e.target.value, 10) })} />
-            </div>` : A}
-          ${this._cars().length === 0 ? b`<div class="note">${T("ed_no_cars")}</div>` : A}
-          ${this._cars().map(
-            (car, i) => b`
+            </div>` : nothing}
+          ${this._cars().length === 0 ? html`<div class="note">${T("ed_no_cars")}</div>` : nothing}
+          ${this._cars().map((car, i) => {
+            const type = car.type || "car";
+            const preset = DEVICE_PRESETS.find((p) => p.id === type) || DEVICE_PRESETS[0];
+            return html`
               <div class="carblock">
                 <div class="carhead">
-                  <input
-                    type="text"
-                    class="carname-input"
-                    placeholder=${T("ed_car_name")}
-                    .value=${car.name ?? ""}
-                    @change=${(e) => this._carChange(i, "name", e)}
-                  />
+                  <span class="devicon">${renderIcon(car.icon || preset.icon)}</span>
+                  <input type="text" class="carname-input" placeholder=${T("ed_car_name")} .value=${car.name ?? ""}
+                    @change=${(e) => this._carChange(i, "name", e)} />
                   <button class="mini" @click=${() => this._removeCar(i)} title=${T("ed_remove_car")}>✕</button>
                 </div>
-                <ha-entity-picker
-                  .hass=${this.hass}
-                  .value=${car.power ?? ""}
-                  .label=${T("ed_car_power")}
-                  allow-custom-entity
-                  @value-changed=${(e) => this._carChange(i, "power", e)}
-                ></ha-entity-picker>
-                <ha-entity-picker
-                  .hass=${this.hass}
-                  .value=${car.charging ?? ""}
-                  .label=${T("ed_car_charging")}
-                  allow-custom-entity
-                  @value-changed=${(e) => this._carChange(i, "charging", e)}
-                ></ha-entity-picker>
-                <ha-entity-picker
-                  .hass=${this.hass}
-                  .value=${car.soc ?? ""}
-                  .label=${T("ed_car_soc")}
-                  allow-custom-entity
-                  @value-changed=${(e) => this._carChange(i, "soc", e)}
-                ></ha-entity-picker>
-              </div>`
-          )}
+                <label class="sel-row">
+                  <span>${T("ed_device_type")}</span>
+                  <select @change=${(e) => this._carType(i, e.target.value)}>
+                    ${DEVICE_PRESETS.map((p) => html`<option value=${p.id} ?selected=${p.id === type}>${T("dev_" + p.id)}</option>`)}
+                  </select>
+                </label>
+                ${this._iconPicker(car.icon || preset.icon, T("ed_device_icon"), (v) => this._carChange(i, "icon", { detail: { value: v } }))}
+                <ha-entity-picker .hass=${this.hass} .value=${car.power ?? ""} .label=${type === "car" ? T("ed_car_power") : T("ed_device_power")}
+                  allow-custom-entity @value-changed=${(e) => this._carChange(i, "power", e)}></ha-entity-picker>
+                ${type === "car" ? html`
+                  <ha-entity-picker .hass=${this.hass} .value=${car.charging ?? ""} .label=${T("ed_car_charging")}
+                    allow-custom-entity @value-changed=${(e) => this._carChange(i, "charging", e)}></ha-entity-picker>
+                  <ha-entity-picker .hass=${this.hass} .value=${car.soc ?? ""} .label=${T("ed_car_soc")}
+                    allow-custom-entity @value-changed=${(e) => this._carChange(i, "soc", e)}></ha-entity-picker>` : nothing}
+                ${this._config.show_daily_energy !== false ? html`
+                  <ha-entity-picker .hass=${this.hass} .value=${car.energy ?? ""} .label=${T("ed_device_energy")}
+                    .includeDomains=${["sensor"]} allow-custom-entity @value-changed=${(e) => this._carChange(i, "energy", e)}></ha-entity-picker>` : nothing}
+                <label class="sel-row">
+                  <span>${T("ed_dev_show")}</span>
+                  <select @change=${(e) => this._carChange(i, "show", { target: { value: e.target.value === "default" ? "" : e.target.value } })}>
+                    ${["default", "always", "active"].map((v) => html`<option value=${v} ?selected=${(car.show || "default") === v}>${T("ed_dev_show_" + v)}</option>`)}
+                  </select>
+                </label>
+                <label class="sel-row">
+                  <span>${T("ed_dev_min_power")}</span>
+                  <span class="numwrap"><input class="num" type="number" min="0" step="1" placeholder=${String(this._config.flow_min_power ?? 5)}
+                    .value=${car.min_power ?? ""}
+                    @change=${(e) => { const cars = this._cars().map((x) => ({ ...x })); const v = parseFloat(e.target.value); if (isNaN(v)) delete cars[i].min_power; else cars[i].min_power = Math.max(0, v); this._emit({ ...this._config, cars }); }} /> W</span>
+                </label>
+                <label class="color">
+                  <span>${T("ed_device_color")}</span>
+                  <span class="colorwrap">
+                    <input type="color" .value=${car.color || this._get("color_car", DEFAULTS.color_car)} @input=${(e) => this._carChange(i, "color", e)} />
+                    ${car.color ? html`<button class="mini" @click=${() => this._carChange(i, "color", { target: { value: "" } })}>✕</button>` : nothing}
+                  </span>
+                </label>
+              </div>`;
+          })}
+        </div>
+
+        <div class="section">
+          <div class="head">${T("ed_actions")}</div>
+          ${[["tap_action", "graph"], ["hold_action", "more-info"]].map(([key, def]) => html`
+            <label class="sel-row">
+              <span>${T("ed_" + key)}</span>
+              <select .value=${this._config[key] ?? def} @change=${(e) => this._emit({ ...this._config, [key]: e.target.value })}>
+                <option value="graph">${T("ed_action_graph")}</option>
+                <option value="more-info">${T("ed_action_more_info")}</option>
+                <option value="none">${T("ed_action_none")}</option>
+              </select>
+            </label>`)}
         </div>
 
         <div class="section">
@@ -679,14 +1521,23 @@ class EnergyFlowPriceCardEditor extends i {
               <option value="now">${T("ed_start_now")}</option>
             </select>
           </label>
-          ${this._config.price_start === "now" ? b`
+          ${this._config.price_start === "now" ? html`
             <div class="slider-row">
               <span>${T("ed_lookback_hours")}: <b>${lookbackHours}u</b></span>
               <input type="range" min="1" max="12" step="1" .value=${lookbackHours}
                 @input=${(e) => this._emit({ ...this._config, price_lookback_hours: parseInt(e.target.value, 10) })} />
-            </div>` : A}
+            </div>` : nothing}
           <ha-formfield label=${T("ed_relative_hours")}>
             <ha-switch .checked=${this._config.price_relative_hours === true} @change=${(e) => this._toggle("price_relative_hours", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_price_costs")}>
+            <ha-switch .checked=${this._config.price_show_costs !== false} @change=${(e) => this._toggle("price_show_costs", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_price_axis_auto")}>
+            <ha-switch .checked=${this._config.price_axis_auto !== false} @change=${(e) => this._toggle("price_axis_auto", e)}></ha-switch>
+          </ha-formfield>
+          <ha-formfield label=${T("ed_price_minmax")}>
+            <ha-switch .checked=${this._config.price_show_minmax === true} @change=${(e) => this._toggle("price_show_minmax", e)}></ha-switch>
           </ha-formfield>
           <ha-formfield label=${T("ed_day_marker")}>
             <ha-switch .checked=${this._config.price_show_day_marker === true} @change=${(e) => this._toggle("price_show_day_marker", e)}></ha-switch>
@@ -711,16 +1562,34 @@ class EnergyFlowPriceCardEditor extends i {
 
         <div class="section">
           <div class="head">${T("ed_chart_tabs")}</div>
+          <label class="sel-row">
+            <span>${T("ed_usage_view")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, usage_view: e.target.value })}>
+              ${["line", "bars"].map((v) => html`<option value=${v} ?selected=${(this._config.usage_view ?? "line") === v}>${T("view_usage_" + v)}</option>`)}
+            </select>
+          </label>
+          <label class="sel-row">
+            <span>${T("ed_devices_view")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, devices_view: e.target.value })}>
+              ${["line", "bars", "rank", "donut", "sankey"].map((v) => html`<option value=${v} ?selected=${(this._config.devices_view ?? "line") === v}>${T("view_" + v)}</option>`)}
+            </select>
+          </label>
+          <label class="sel-row">
+            <span>${T("ed_history_range")}</span>
+            <select @change=${(e) => this._emit({ ...this._config, history_range: e.target.value })}>
+              ${HISTORY_RANGES.map((r) => html`<option value=${r.id} ?selected=${r.id === (this._config.history_range ?? "today")}>${T("range_" + r.id)}</option>`)}
+            </select>
+          </label>
           <div class="note">${T("ed_chart_tabs_note")}</div>
           <ha-formfield label=${T("ed_chart_auto_scroll")}>
             <ha-switch .checked=${this._config.chart_auto_scroll === true} @change=${(e) => this._toggle("chart_auto_scroll", e)}></ha-switch>
           </ha-formfield>
-          ${this._config.chart_auto_scroll === true ? b`
+          ${this._config.chart_auto_scroll === true ? html`
             <div class="slider-row">
               <span>${T("ed_chart_scroll_interval")}: <b>${this._config.chart_scroll_interval ?? 8}s</b></span>
               <input type="range" min="3" max="30" step="1" .value=${this._config.chart_scroll_interval ?? 8}
                 @input=${(e) => this._emit({ ...this._config, chart_scroll_interval: parseInt(e.target.value, 10) })} />
-            </div>` : A}
+            </div>` : nothing}
         </div>
 
         <div class="section">
@@ -749,7 +1618,7 @@ class EnergyFlowPriceCardEditor extends i {
           </div>
           <div class="grid">
             ${colorFields.map(
-              (f) => b`
+              (f) => html`
                 <label class="color">
                   <span>${f.label}</span>
                   <input type="color" .value=${this._get(f.key, DEFAULTS[f.key])}
@@ -759,12 +1628,13 @@ class EnergyFlowPriceCardEditor extends i {
           </div>
         </div>
 
-        ${priceProfile === "default" ? b`
+        <div class="version">HA Energy Flow Card · v${window.__EFPC_VERSION || "?"}</div>
+        ${priceProfile === "default" ? html`
           <div class="section">
             <div class="head">${T("ed_price_scale")}</div>
             <div class="note">${T("ed_price_scale_note")}</div>
             ${this._stops().map(
-              (s, i) => b`
+              (s, i) => html`
                 <div class="stop-row">
                   <input type="number" step="0.01" .value=${s.value}
                     @input=${(e) => this._stopChange(i, "value", e)} />
@@ -776,13 +1646,13 @@ class EnergyFlowPriceCardEditor extends i {
             )}
             <button class="add" @click=${() => this._addStop()}>${T("ed_add_point")}</button>
           </div>
-        ` : A}
+        ` : nothing}
       </div>
     `;
   }
 
   static get styles() {
-    return i$3`
+    return css`
       .root { display: flex; flex-direction: column; gap: 18px; padding: 4px; }
       .section { display: flex; flex-direction: column; gap: 8px; }
       .head { font-weight: 600; font-size: 14px; margin-bottom: 2px; color: var(--primary-text-color); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -806,11 +1676,44 @@ class EnergyFlowPriceCardEditor extends i {
       .reset, .add, .mini { cursor: pointer; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 8px; padding: 5px 10px; font-size: 12px; }
       .mini { border-color: var(--error-color, #ef4444); color: var(--error-color, #ef4444); padding: 2px 8px; }
       .add { align-self: flex-start; }
+      .importrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+      .importrow .add { display: inline-flex; align-items: center; gap: 6px; }
+      .importrow ha-icon { --mdc-icon-size: 16px; }
+      .importmsg { font-size: 12px; color: var(--secondary-text-color); }
+      .version { order: 99; font-size: 11px; color: var(--secondary-text-color); text-align: right; opacity: .8; }
+      .pickrow { display: flex; flex-direction: column; gap: 4px; }
+      .picklbl { font-size: 13px; color: var(--secondary-text-color); }
+      ha-selector { display: block; width: 100%; }
+      .chk { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+      .srcblock { display: flex; flex-direction: column; gap: 8px; border: 1px solid var(--divider-color); border-radius: 10px; padding: 10px; }
+      .srchead { font-weight: 600; }
+      .numwrap { display: inline-flex; align-items: center; gap: 6px; }
+      .num { width: 80px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+      .subblock { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 4px 12px; border-left: 2px solid var(--divider-color); }
+      .anchors summary { cursor: pointer; font-size: 13px; padding: 4px 0; }
+      .anchor-row { display: grid; grid-template-columns: 1fr; gap: 2px; font-size: 12px; margin: 6px 0; }
+      .anchor-row label { display: flex; align-items: center; gap: 6px; }
+      .anchor-row label b { min-width: 34px; }
+      .anchor-row input[type="range"] { flex: 1; }
+      .anchor-lbl { font-weight: 600; }
+      .addrow { display: flex; gap: 8px; align-items: center; }
+      .addsel { flex: 1; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); }
+      .addrow .add { align-self: auto; }
+      .devicon { --mdc-icon-size: 22px; color: var(--primary-color); display: inline-flex; }
+      .devicon .efp-icon { width: 22px; height: 22px; }
+      .colorwrap { display: inline-flex; align-items: center; gap: 6px; }
+      ha-icon-picker { display: block; width: 100%; }
     `;
   }
 }
 
 customElements.define("energy-flow-price-card-editor", EnergyFlowPriceCardEditor);
+
+// ---- src/energy-flow-price-card.js ----
+
+
+
+
 
 let _efpUidCounter = 0;
 
@@ -868,6 +1771,70 @@ function fmtPower(w) {
   const a = Math.abs(w);
   if (a >= 1000) return (w / 1000).toFixed(2).replace(".", ",") + " kW";
   return Math.round(w) + " W";
+}
+
+// Unit factor so power is always handled in W (kW / MW sensors are converted).
+function unitFactor(u) {
+  const s = u == null ? "" : String(u).trim();
+  if (s === "kW") return 1000;
+  if (s === "MW") return 1e6;
+  return 1;
+}
+function pw(hass, entity) {
+  const v = num(hass, entity);
+  if (v === null) return null;
+  return v * unitFactor(hass.states[entity]?.attributes?.unit_of_measurement);
+}
+function fmtKWh(kwh) {
+  if (kwh == null || isNaN(kwh)) return "–";
+  return kwh.toFixed(Math.abs(kwh) >= 100 ? 0 : 1).replace(".", ",");
+}
+// "/media/haus.png", "/homeassistant/media/haus.png", "media/haus.png" or a media-source id
+// -> "media-source://media_source/local/haus.png"
+function toMediaSource(u) {
+  if (!u || typeof u !== "string") return null;
+  const v = u.trim();
+  if (v.startsWith("media-source://")) return v;
+  const m = v.match(/^\/?(?:homeassistant\/|config\/)?media\/(.+)$/i);
+  if (m && !/^\/?local\//i.test(v)) return "media-source://media_source/local/" + m[1].replace(/^local\//i, "");
+  return null;
+}
+
+function polyD(pts) {
+  return pts.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+}
+function addDays(ts, n) {
+  const d = new Date(ts);
+  d.setDate(d.getDate() + n);
+  return d.getTime();
+}
+function startOfDay(ts) {
+  const d = new Date(ts);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+function startOfToday() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+// perceptual colour difference (CIE76 in CIELAB)
+function toLab(hex) {
+  const [r, g, b] = hex2rgb(hex).map((v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047), y = f(r * 0.2126 + g * 0.7152 + b * 0.0722), z = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
+}
+function colorDist(a, b) {
+  try { const p = toLab(a), q = toLab(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); } catch (e) { return 999; }
+}
+function hsl2hex(h, s, l) {
+  s /= 100; l /= 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return rgb2hex(f(0) * 255, f(8) * 255, f(4) * 255);
 }
 
 function hex2rgb(h) {
@@ -945,7 +1912,117 @@ function subPathD(pts, dStart, dEnd) {
   return all.map((p, i) => `${i === 0 ? "M" : "L"}${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(" ");
 }
 
-class EnergyFlowPriceCard extends i {
+// Y-axis for the price chart. auto=true: tight range around the actual prices with round
+// steps (lower edge just below the lowest price, negative prices included); auto=false:
+// the classic axis from 0 (or from the lowest negative price) up to the maximum.
+function priceScale(vals, auto, roomTop) {
+  let min = vals.length ? Math.min(...vals) : 0;
+  let max = vals.length ? Math.max(...vals) : 0.4;
+  if (!vals.length) { min = 0; max = 0.4; }
+  const nice = [0.001, 0.002, 0.0025, 0.005, 0.01, 0.02, 0.025, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5];
+  let lo, hi;
+  if (auto) {
+    const span = Math.max(max - min, Math.abs(max) * 0.1, 0.01);
+    lo = min - span * 0.12;
+    hi = max + span * (roomTop ? 0.3 : 0.1);
+    if (min >= 0 && lo < 0) lo = 0;
+  } else {
+    lo = Math.min(0, min * 1.1);
+    hi = Math.max(max, 0.1) * (roomTop ? 1.22 : 1.1);
+  }
+  const step = nice.find((n) => (hi - lo) / n <= 5) || 5;
+  lo = Math.floor(lo / step + 1e-9) * step;
+  hi = Math.ceil(hi / step - 1e-9) * step;
+  if (hi - lo < step) hi = lo + step;
+  const ticks = [];
+  for (let v = hi; v >= lo - step / 2; v -= step) ticks.push(Math.abs(v) < step / 1000 ? 0 : v);
+  const dec = step >= 0.1 ? (step >= 1 ? 0 : (step * 10) % 1 === 0 ? 1 : 2) : step >= 0.01 ? 2 : 3;
+  return { lo, hi, ticks, dec: Math.max(dec, 2), fr: (v) => (v - lo) / (hi - lo) };
+}
+
+// kWh and € of a list of power samples ({t, dur, v in W}) between a and b, priced with the
+// price valid at each sample's midpoint
+function costCalc(samples, priceList, a0, b0) {
+  const prices = priceList.filter((x) => x && !isNaN(x.t) && x.v != null && !isNaN(x.v)).sort((x, y) => x.t - y.t);
+  const priceAt = (t) => {
+    let lo = 0, hi = prices.length - 1, best = null;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (prices[m].t <= t) { best = prices[m]; lo = m + 1; } else hi = m - 1; }
+    return best ? best.v : null;
+  };
+  let kwh = 0, eur = 0, priced = false;
+  for (const p of samples) {
+    const a = Math.max(p.t, a0), b = Math.min(p.t + p.dur, b0);
+    if (b <= a || !p.v) continue;
+    const e = (p.v * (b - a)) / 3600000 / 1000;
+    kwh += e;
+    const pr = prices.length ? priceAt(a + (b - a) / 2) : null;
+    if (pr != null) { eur += e * pr; priced = true; }
+  }
+  return { kwh, eur: priced ? eur : null };
+}
+
+// Reduce a dense history series to at most ~n points (bucket averages).
+function downsample(pts, start, end, n) {
+  if (pts.length <= n * 1.5) return pts;
+  const span = Math.max(1, end - start);
+  const out = [];
+  let bucket = -1, sum = 0, cnt = 0, t0 = 0;
+  for (const p of pts) {
+    const b = Math.min(n - 1, Math.max(0, Math.floor(((p.t - start) / span) * n)));
+    if (b !== bucket) {
+      if (cnt) out.push({ t: t0, v: sum / cnt });
+      bucket = b; sum = 0; cnt = 0; t0 = p.t;
+    }
+    sum += p.v; cnt++;
+  }
+  if (cnt) out.push({ t: t0, v: sum / cnt });
+  return out;
+}
+
+// Combine several step series into one (e.g. battery net = discharge − charge).
+function mergeSeries(arrs, fn) {
+  if (!arrs.some((a) => a.length)) return [];
+  const times = [...new Set(arrs.flatMap((a) => a.map((p) => p.t)))].sort((a, b) => a - b);
+  const idx = arrs.map(() => 0);
+  const cur = arrs.map(() => 0);
+  return times.map((t) => {
+    arrs.forEach((a, i) => {
+      while (idx[i] < a.length && a[idx[i]].t <= t) { cur[i] = a[idx[i]].v; idx[i]++; }
+    });
+    return { t, v: fn(cur) };
+  });
+}
+
+// X-axis labels for an arbitrary time span, aligned to round local times.
+function timeLabels(startMs, endMs, lang, endIsNow = true) {
+  const span = Math.max(1, endMs - startMs);
+  const MIN = 60000;
+  const steps = [5, 10, 15, 30, 60, 120, 180, 240, 360, 720, 1440, 2880].map((m) => m * MIN);
+  const step = steps.find((s) => span / s <= 6) || 2880 * MIN;
+  const mid = new Date(startMs);
+  mid.setHours(0, 0, 0, 0);
+  const base = mid.getTime();
+  const out = [];
+  for (let t = base + Math.ceil((startMs - base) / step) * step; t <= endMs; t += step) {
+    const d = new Date(t);
+    const frac = (t - startMs) / span;
+    if (endIsNow && frac > 0.86) break;
+    let text;
+    if (step >= 1440 * MIN || (span > 86400000 && d.getHours() === 0 && d.getMinutes() === 0)) {
+      text = d.toLocaleDateString(lang, { weekday: "short" });
+    } else {
+      text = d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0");
+    }
+    out.push({ frac, text });
+  }
+  if (endIsNow) {
+    const now = new Date(endMs);
+    out.push({ frac: 1, text: now.getHours() + ":" + String(now.getMinutes()).padStart(2, "0") });
+  }
+  return out;
+}
+
+class EnergyFlowPriceCard extends LitElement {
   static get properties() {
     return { hass: {}, _config: {} };
   }
@@ -1001,11 +2078,64 @@ class EnergyFlowPriceCard extends i {
     if (v.charge !== null) h -= v.charge;
     if (this._config.include_car_in_home) {
       for (const car of this._cars()) {
-        const p = num(this.hass, car.power);
+        const p = pw(this.hass, car.power);
         if (p !== null) h -= p;
       }
     }
     return h;
+  }
+
+  // Grid / battery can come from ONE signed entity or TWO separate entities.
+  // Normalised sign: + = towards the house (grid import, battery discharge),
+  //                  − = away from the house (grid export, battery charge).
+  _src(kind) {
+    const c = this._config;
+    if (kind === "grid") {
+      if (c.grid_mode === "dual") {
+        return { dual: true, pos: c.grid_import_power, neg: c.grid_export_power, entities: [c.grid_import_power, c.grid_export_power].filter(Boolean) };
+      }
+      return { dual: false, signed: c.grid_power, sign: c.grid_invert ? -1 : 1, entities: [c.grid_power].filter(Boolean) };
+    }
+    if (c.battery_mode === "single") {
+      return { dual: false, signed: c.battery_power, sign: c.battery_invert ? -1 : 1, entities: [c.battery_power].filter(Boolean) };
+    }
+    return { dual: true, pos: c.battery_discharge_power, neg: c.battery_charge_power, entities: [c.battery_discharge_power, c.battery_charge_power].filter(Boolean) };
+  }
+
+  _srcValue(kind) {
+    const s = this._src(kind);
+    if (!s.dual) { const v = pw(this.hass, s.signed); return v === null ? null : v * s.sign; }
+    const a = pw(this.hass, s.pos), b = pw(this.hass, s.neg);
+    if (a === null && b === null) return null;
+    return Math.abs(a || 0) - Math.abs(b || 0);
+  }
+
+  _srcSeries(kind, byEntity) {
+    const s = this._src(kind);
+    if (!s.dual) return (byEntity[s.signed] || []).map((p) => ({ t: p.t, v: p.v * s.sign }));
+    const a = byEntity[s.pos] || [], b = byEntity[s.neg] || [];
+    if (!a.length && !b.length) return [];
+    return mergeSeries([a, b], ([x, y]) => Math.abs(x) - Math.abs(y));
+  }
+
+  // Live values in the shape the flow/home calculation expects.
+  _liveV() {
+    const g = this._srcValue("grid");
+    const b = this._srcValue("battery");
+    return {
+      solar: pw(this.hass, this._config.solar_power),
+      grid: g,
+      charge: b === null ? null : Math.max(0, -b),
+      discharge: b === null ? null : Math.max(0, b),
+      soc: num(this.hass, this._config.battery_soc),
+    };
+  }
+
+  // Power (W) below which a branch counts as idle: its line is hidden and, unless
+  // display_zero is on, an idle device disappears from the device row.
+  _thr() {
+    const v = parseFloat(this._config?.flow_min_power);
+    return isNaN(v) ? 5 : Math.max(0, v);
   }
 
   _cars() {
@@ -1027,12 +2157,12 @@ class EnergyFlowPriceCard extends i {
   // that oscillates rapidly (a jittery sensor near 0 W) settles instead of snapping the
   // line's shape back and forth instantly.
   // Returns { show, moving, duration (s), fade ('in'|'out'|null), reversed, dirSwap }.
-  _wireState(key, power, reversed = false) {
+  _wireState(key, power, reversed = false, thr = null) {
     this._wires = this._wires || {};
     const now = Date.now();
     const c = this._config;
     const p = power === null ? 0 : Math.abs(power);
-    const active = p > 5;
+    const active = p > (thr ?? this._thr());
     let w = this._wires[key];
     if (!w) w = this._wires[key] = { lastActive: active ? now : 0, shownSince: active ? now : 0, wasShown: active, dispReversed: reversed, dirPhase: "idle", dirPhaseStart: 0 };
 
@@ -1062,13 +2192,15 @@ class EnergyFlowPriceCard extends i {
     }
     const dirSwap = w.dirPhase !== "idle";
 
-    // speed: linear from 0..flow_max_power, scaled by flow_speed multiplier.
+    // speed: strictly proportional to the power (twice the watts -> twice as fast), so
+    // lines can be compared with each other. Capped at flow_max_power (full speed) and
+    // with a small floor so a few watts still visibly move. flow_speed scales everything.
     const maxP = Math.max(100, c.flow_max_power ?? 5000);
     const frac = Math.max(0, Math.min(1, p / maxP));
     const speedMul = Math.max(0.1, c.flow_speed ?? 1.0);
-    // duration: fast (small number) at high power, slow (large) near zero.
-    // frac 1 -> ~0.5s, frac ~0 -> ~6s. Divided by the user multiplier.
-    const duration = active ? (6 - 5.5 * frac) / speedMul : 0;
+    const MAX_RATE = 6;                                  // animation cycles per second at full power
+    const rate = Math.max(0.06, MAX_RATE * frac) * speedMul;
+    const duration = active ? 1 / rate : 0;
 
     // fade direction
     let fade = null;
@@ -1088,9 +2220,10 @@ class EnergyFlowPriceCard extends i {
       const wires = this._wires || {};
       const now = Date.now();
       const offDelay = Math.max(0, (this._config?.flow_off_delay ?? 20)) * 1000;
-      const pending = Object.values(wires).some((w) => w.wasShown && now - w.lastActive < offDelay + 1000);
-      this.requestUpdate();
-      if (!pending) { clearInterval(this._flowTimer); this._flowTimer = null; }
+      const list = Object.values(wires);
+      const fading = list.some((w) => w.wasShown && now - w.lastActive > 900 && now - w.lastActive < offDelay + 1000);
+      if (fading) this.requestUpdate();
+      if (!list.some((w) => w.wasShown)) { clearInterval(this._flowTimer); this._flowTimer = null; }
     }, 1000);
   }
 
@@ -1182,80 +2315,734 @@ class EnergyFlowPriceCard extends i {
   }
 
   render() {
-    if (!this._config || !this.hass) return A;
-    return b`
+    if (!this._config || !this.hass) return nothing;
+    return html`
       <ha-card>
         <div class="stack">
-          ${this._config.show_flow ? this._renderFlow() : A}
-          ${this._config.show_price ? this._renderPrice() : A}
+          ${this._config.date_selection === "card" ? this._renderDateBar() : nothing}
+          ${this._config.show_flow ? this._renderFlow() : nothing}
+          ${this._config.show_price ? this._renderPrice() : nothing}
         </div>
       </ha-card>
     `;
   }
 
+  // Own date bar: kind (day/week/month/year/range), ‹ label ›, calendar, "today".
+  _ownRange(kind, anchor) {
+    const d = new Date(startOfDay(anchor));
+    if (kind === "week") { const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return { start: d.getTime(), end: addDays(d.getTime(), 7) }; }
+    if (kind === "month") { d.setDate(1); const e = new Date(d); e.setMonth(e.getMonth() + 1); return { start: d.getTime(), end: e.getTime() }; }
+    if (kind === "year") { d.setMonth(0, 1); const e = new Date(d); e.setFullYear(e.getFullYear() + 1); return { start: d.getTime(), end: e.getTime() }; }
+    return { start: d.getTime(), end: addDays(d.getTime(), 1) };
+  }
+  _ownSet(kind, start, end) {
+    this._ownKind = kind;
+    const today = startOfToday();
+    if (kind === "day" && start === today) this._own = null;
+    else this._own = { kind, start, end };
+    this._cursor = null;
+    this.requestUpdate();
+  }
+  _ownShift(dir) {
+    const kind = this._ownKind || "day";
+    const cur = this._own || this._ownRange(kind, Date.now());
+    if (kind === "range") {
+      const len = cur.end - cur.start;
+      return this._ownSet("range", cur.start + dir * len, cur.end + dir * len);
+    }
+    const a = new Date(cur.start);
+    if (kind === "day") a.setDate(a.getDate() + dir);
+    else if (kind === "week") a.setDate(a.getDate() + 7 * dir);
+    else if (kind === "month") a.setMonth(a.getMonth() + dir);
+    else a.setFullYear(a.getFullYear() + dir);
+    const r = this._ownRange(kind, a.getTime());
+    this._ownSet(kind, r.start, r.end);
+  }
+  _renderDateBar() {
+    const T = (k) => this._t(k);
+    const kind = this._ownKind || "day";
+    const cur = this._own || this._ownRange(kind, Date.now());
+    const label = this._periodLabel(cur.start, cur.end);
+    const isNow = cur.start <= Date.now() && Date.now() < cur.end;
+    const iso = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+    const parse = (v) => { const [y, m, dd] = v.split("-").map(Number); return new Date(y, m - 1, dd).getTime(); };
+    const pick = (e) => {
+      if (!e.target.value) return;
+      const r = this._ownRange(kind === "range" ? "day" : kind, parse(e.target.value));
+      this._ownSet(kind === "range" ? "day" : kind, r.start, r.end);
+    };
+    return html`
+      <div class="datebar">
+        <select class="dkind" @change=${(e) => {
+          const k = e.target.value;
+          if (k === "range") { const r = this._own || this._ownRange("day", Date.now()); this._ownSet("range", r.start, r.end); return; }
+          const r = this._ownRange(k, this._own ? this._own.start : Date.now()); this._ownSet(k, r.start, r.end);
+        }}>
+          ${["day", "week", "month", "year", "range"].map((k) => html`<option value=${k} ?selected=${k === kind}>${T("dsel_" + k)}</option>`)}
+        </select>
+        <button class="dnav" @click=${() => this._ownShift(-1)}>‹</button>
+        ${kind === "range" ? html`
+          <input class="ddate" type="date" .value=${iso(cur.start)} max=${iso(cur.end - 1)} @change=${(e) => e.target.value && this._ownSet("range", parse(e.target.value), Math.max(parse(e.target.value) + 86400000, cur.end))} />
+          <span class="dsep">–</span>
+          <input class="ddate" type="date" .value=${iso(cur.end - 1)} min=${iso(cur.start)} @change=${(e) => e.target.value && this._ownSet("range", cur.start, addDays(parse(e.target.value), 1))} />`
+        : html`
+          <label class="dlabel"><ha-icon icon="mdi:calendar"></ha-icon><span>${label}</span>
+            <input class="dhidden" type="date" .value=${iso(cur.start)} @change=${pick}
+              @click=${(e) => { try { e.target.showPicker && e.target.showPicker(); } catch (x) { /* ignore */ } }} />
+          </label>`}
+        <button class="dnav" ?disabled=${isNow} @click=${() => this._ownShift(1)}>›</button>
+        ${this._own ? html`<button class="dtoday" @click=${() => { this._own = null; this._ownKind = "day"; this._cursor = null; this.requestUpdate(); }}>${T("today")}</button>` : nothing}
+      </div>`;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Devices (formerly "cars"). The config key stays `cars` so existing dashboards keep
+  // working; each entry may now carry `type` (preset id), `icon`, `color` and `energy`.
+  // ---------------------------------------------------------------------------
+  _devices() {
+    return this._cars().map((d) => ({ ...d, type: d.type || "car" }));
+  }
+
+  // One distinct colour per device: own colour if set, otherwise the next palette colour that
+  // is clearly different from all colours already in use and from the node colours
+  // (solar/grid/battery/home); beyond the palette further hues are generated.
+  // Energy dashboard preferences (for device colours and import), refreshed every 10 min.
+  _energyPrefs() {
+    const e = this._eprefs;
+    if (!this.hass?.callWS) return null;
+    if (!e || (!e.busy && Date.now() - e.fetched > 600000)) {
+      this._eprefs = { ...(e || {}), busy: true, fetched: Date.now() };
+      this.hass.callWS({ type: "energy/get_prefs" })
+        .then((p) => { this._eprefs = { prefs: p, busy: false, fetched: Date.now() }; this._dcm = null; this.requestUpdate(); })
+        .catch(() => { this._eprefs = { prefs: null, busy: false, fetched: Date.now() }; });
+    }
+    return this._eprefs?.prefs || null;
+  }
+
+  // The colour HA's energy dashboard uses for a device: --graph-color-N by its position in
+  // the energy dashboard's device list.
+  _energyColorOf(d) {
+    const prefs = this._energyPrefs();
+    const list = prefs?.device_consumption || [];
+    if (!list.length) return null;
+    const idx = list.findIndex((x) => (d.energy && x.stat_consumption === d.energy) || (d.power && x.stat_rate === d.power));
+    if (idx < 0) return null;
+    const fetched = this._eprefs?.fetched;
+    if (!this._gcols || this._gcols.fetched !== fetched) {
+      let cs = null;
+      try { cs = getComputedStyle(this); } catch (e) { /* not attached yet */ }
+      if (!cs) return null;
+      this._gcols = { fetched, cols: Array.from({ length: 54 }, (_, k) => (cs.getPropertyValue(`--graph-color-${k + 1}`) || "").trim()) };
+    }
+    return this._gcols.cols[idx % 54] || null;
+  }
+
+  _devColors() {
+    const c = this._config;
+    const devs = this._devices();
+    const okHex = (x) => /^#[0-9a-f]{6}$/i.test(x || "");
+    const reserved = [c.color_solar, c.color_grid, c.color_battery, c.color_home].filter(okHex);
+    const useEnergy = c.device_colors !== "auto";
+    const eCols = devs.map((d) => (useEnergy && !d.color ? this._energyColorOf(d) : null));
+    const key = JSON.stringify([devs.map((d) => d.color || ""), eCols, c.color_car, reserved]);
+    if (this._dcm && this._dcm.key === key) return this._dcm.map;
+    const map = devs.map((d, i) => d.color || eCols[i] || null);
+    const used = map.filter(Boolean).map((x) => (okHex(x) ? x : null)).filter(Boolean);
+    const cand = [...DEVICE_PALETTE];
+    for (let k = 0; k < 36; k++) cand.push(hsl2hex((k * 137.508) % 360, 75, k % 2 ? 72 : 58));
+    const minDist = (col, list) => list.reduce((m, u) => Math.min(m, colorDist(col, u)), 999);
+    let first = true;
+    devs.forEach((d, i) => {
+      if (map[i]) return;
+      let col = null;
+      // the first device keeps the "devices" colour unless it clashes with an own colour
+      if (first && okHex(c.color_car) && minDist(c.color_car, used) > 25) col = c.color_car;
+      first = false;
+      if (!col) {
+        let best = -1;
+        for (const k of cand) {
+          if (used.includes(k)) continue;
+          const score = Math.min(minDist(k, used), minDist(k, reserved) * 1.3);
+          if (score > best) { best = score; col = k; }
+        }
+      }
+      map[i] = col || DEVICE_PALETTE[i % DEVICE_PALETTE.length];
+      used.push(map[i]);
+    });
+    this._dcm = { key, map };
+    return map;
+  }
+
+  _deviceIcon(d) {
+    // older configs stored the MDI heat pump; use the card's own, clearer drawing instead
+    if (d.type === "heatpump" && (!d.icon || d.icon === "mdi:heat-pump")) return "efp:heat-pump";
+    if (d.icon) return d.icon;
+    const p = DEVICE_PRESETS.find((x) => x.id === d.type);
+    return p ? p.icon : "mdi:car-electric";
+  }
+
+  // Which corner each node sits in. Default in this fork: grid top-left, solar top-right.
+  _positions() {
+    const solarRight = this._config.solar_position !== "left";
+    return { grid: solarRight ? "tl" : "tr", solar: solarRight ? "tr" : "tl", battery: "bl", devices: "br" };
+  }
+
+  _anchor(key, side) {
+    const a = this._config.visual_anchors?.[key];
+    if (a && a.x != null && a.y != null) return { x: +a.x, y: +a.y };
+    if (key === "grid") return side === "left" ? DEFAULT_ANCHORS.grid_left : DEFAULT_ANCHORS.grid_right;
+    return DEFAULT_ANCHORS[key];
+  }
+
+  _houseImage() {
+    const c = this._config;
+    const ent = c.house_image_entity && this.hass?.states?.[c.house_image_entity];
+    const pic = ent?.attributes?.entity_picture;
+    if (pic) return pic;
+    const media = c.house_image_media || toMediaSource(c.house_image_url);
+    if (media) return this._resolveMedia(media) || VISUAL_HOUSE_IMAGE;
+    if (c.house_image_url) return c.house_image_url;
+    return VISUAL_HOUSE_IMAGE;
+  }
+
+  // Files in the HA media folder are only reachable through a signed URL; ask HA for one
+  // (valid for a day) and refresh it in time.
+  _resolveMedia(id) {
+    this._media = this._media || {};
+    const m = this._media[id];
+    const now = Date.now();
+    if (m && m.url && now < m.until) return m.url;
+    if (!m || (!m.busy && now - (m.tried || 0) > 30000)) {
+      this._media[id] = { ...(m || {}), busy: true, tried: now };
+      this.hass?.callWS?.({ type: "media_source/resolve_media", media_content_id: id, expires: 86400 })
+        .then((r) => {
+          const url = r?.url ? (this.hass.hassUrl ? this.hass.hassUrl(r.url) : r.url) : null;
+          this._media[id] = { url, until: Date.now() + 23 * 3600000, busy: false, tried: Date.now() };
+          this.requestUpdate();
+        })
+        .catch(() => { this._media[id] = { ...(this._media[id] || {}), busy: false, error: true }; this.requestUpdate(); });
+    }
+    return m?.url || null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Selected period (date picker). Returns null for "today" (normal live behaviour),
+  // otherwise { start, end, live, label }. Source: the card's own date bar, or the
+  // Home Assistant "energy date selection" card on the same dashboard.
+  // ---------------------------------------------------------------------------
+  _period() {
+    const c = this._config;
+    const mode = c.date_selection || "auto";
+    let start, end;
+    if (mode === "card") {
+      if (!this._own) return null;
+      ({ start, end } = this._own);
+    } else if (mode === "auto" || mode === "energy") {
+      const coll = this.hass?.connection?.[`_${c.energy_collection_key || "energy"}`];
+      if (!coll) return null;
+      if (!this._eUnsub && typeof coll.subscribe === "function") {
+        try { this._eUnsub = coll.subscribe(() => this.requestUpdate()); } catch (e) { this._eUnsub = () => {}; }
+      }
+      if (!coll.start) return null;
+      start = +coll.start;
+      end = coll.end ? +coll.end : null;
+    } else return null;
+    // HA ends a day at 23:59:59.999 -> make the end exclusive at midnight
+    if (end != null) {
+      const e2 = new Date(end + 1);
+      if (e2.getHours() === 0 && e2.getMinutes() === 0 && e2.getSeconds() === 0 && e2.getMilliseconds() === 0) end += 1;
+    }
+    const t0 = startOfToday();
+    if (start === t0 && (end == null || end === addDays(t0, 1))) return null;
+    if (end == null) end = Math.max(addDays(startOfDay(start), 1), Date.now());
+    const now = Date.now();
+    return { start, end, live: start <= now && now < end, label: this._periodLabel(start, end) };
+  }
+
+  _periodLabel(start, end) {
+    const lang = resolveLang(this._config.language, this.hass);
+    const s = new Date(start), e = new Date(end - 1);
+    const days = Math.round((startOfDay(end) - startOfDay(start)) / 86400000);
+    if (days <= 1) return s.toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" });
+    if (s.getDate() === 1 && new Date(end).getDate() === 1) {
+      if (s.getMonth() === 0 && days >= 365) return String(s.getFullYear());
+      if (days <= 31) return s.toLocaleDateString(lang, { month: "long", year: "numeric" });
+    }
+    const sameYear = s.getFullYear() === e.getFullYear();
+    return `${s.toLocaleDateString(lang, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) })} – ${e.toLocaleDateString(lang, { day: "numeric", month: "short", year: "numeric" })}`;
+  }
+
+  // Energy, energy-meter changes and costs for the selected period (recorder statistics).
+  async _ensurePeriod(P) {
+    const c = this._config;
+    if (!this.hass?.callWS) return;
+    const devs = this._devices();
+    const uniq = (a) => [...new Set(a.filter(Boolean))];
+    const powers = uniq([c.solar_power, ...this._src("grid").entities, ...this._src("battery").entities, ...devs.map((d) => d.power)]);
+    const energies = uniq([c.energy_solar, ...this._energySrc("grid").entities, ...this._energySrc("battery").entities, ...devs.map((d) => d.energy)]);
+    const key = `${P.start}|${P.end}|${powers.join(",")}|${energies.join(",")}|${c.price_entity || ""}|${c.price_use_tibber_service ? 1 : 0}`;
+    const now = Date.now();
+    const old = this._pd;
+    if (old && old.key === key && (old.busy || old.final || now - old.fetched < 120000)) return;
+    this._pd = { ...(old && old.key === key ? old : { ps: P.start, pe: P.end }), key, busy: true, fetched: now };
+    const end = Math.min(P.end, now);
+    const span = Math.max(0, end - P.start);
+    const period = span <= 8 * 86400000 ? "5minute" : span <= 62 * 86400000 ? "hour" : "day";
+    const step = { "5minute": 300000, hour: 3600000, day: 86400000 }[period];
+    const sIso = new Date(P.start).toISOString(), eIso = new Date(end).toISOString();
+    // all requests in parallel (they used to run one after another, one per energy meter)
+    const statsPeriod = span <= 35 * 86400000 ? "hour" : span <= 400 * 86400000 ? "day" : "month";
+    const pPowers = powers.length && span > 0
+      ? this.hass.callWS({ type: "recorder/statistics_during_period", start_time: sIso, end_time: eIso, statistic_ids: powers, period, types: ["mean"] }).catch(() => ({}))
+      : Promise.resolve({});
+    const pEnergies = energies.length && span > 0
+      ? this.hass.callWS({ type: "recorder/statistics_during_period", start_time: sIso, end_time: eIso, statistic_ids: energies, period: statsPeriod, types: ["change"], units: { energy: "kWh" } }).catch(() => ({}))
+      : Promise.resolve({});
+    const pPrices = this._priceHistory(P.start, end, span);
+    const [rp, re, priceHist] = await Promise.all([pPowers, pEnergies, pPrices]);
+    const rows = {};
+    for (const id of powers) {
+      const arr = rp?.[id];
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+      rows[id] = arr.map((x) => ({ t: typeof x.start === "number" ? x.start : Date.parse(x.start), dur: step, v: (x.mean || 0) * f }))
+        .filter((x) => !isNaN(x.t));
+    }
+    const missing = powers.filter((id) => !rows[id]);
+    if (missing.length && span <= 3 * 86400000) {
+      try {
+        const res = await this.hass.callApi("GET", `history/period/${sIso}?filter_entity_id=${missing.join(",")}&end_time=${encodeURIComponent(eIso)}&minimal_response&no_attributes`);
+        for (const arr of Array.isArray(res) ? res : []) {
+          if (!Array.isArray(arr) || !arr.length) continue;
+          const id = arr[0].entity_id;
+          const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+          const pts = arr.map((x) => ({ t: Math.max(P.start, Date.parse(x.last_changed || x.last_updated)), v: (parseFloat(x.state) || 0) * f }));
+          rows[id] = pts.map((p2, i) => ({ ...p2, dur: (i + 1 < pts.length ? pts[i + 1].t : end) - p2.t }));
+        }
+      } catch (e) { /* no data */ }
+    }
+    const integ = {};
+    for (const [id, arr] of Object.entries(rows)) {
+      let pos = 0, neg = 0;
+      for (const x of arr) {
+        const a = Math.max(x.t, P.start), b = Math.min(x.t + x.dur, end);
+        if (b <= a) continue;
+        const e = (x.v * (b - a)) / 3600000 / 1000;
+        if (e > 0) pos += e; else neg -= e;
+      }
+      integ[id] = { pos, neg };
+    }
+    const stats = {};
+    for (const id of energies) {
+      const arr = re?.[id];
+      if (Array.isArray(arr) && arr.length) stats[id] = arr.reduce((a, x) => a + (typeof x.change === "number" ? x.change : 0), 0);
+    }
+    this._pd = { key, ps: P.start, pe: P.end, busy: false, fetched: Date.now(), final: P.end <= now, rows, integ, stats, priceHist };
+    this.requestUpdate();
+  }
+
+  // Price history for a period: Tibber service or the history of the price entity.
+  // The Tibber service only knows today/tomorrow, so older hours are filled from the
+  // recorder history of a price sensor: price_history_entity, else price_entity, else the
+  // price entity of the grid in the HA energy dashboard (or its fixed price).
+  async _priceHistory(start, end, span) {
+    const c = this._config;
+    if (span > 93 * 86400000) return [];
+    let pts = c.price_use_tibber_service ? await this._tibberRange(start, end) : [];
+    const firstT = pts.length ? pts[0].t : Infinity;
+    if (firstT > start + 900000) {
+      let ent = c.price_history_entity || c.price_entity || "";
+      let fixed = null;
+      if (!ent) {
+        let prefs = this._eprefs?.prefs;
+        if (!prefs) { try { prefs = await this.hass.callWS({ type: "energy/get_prefs" }); } catch (e) { prefs = null; } }
+        const g = (prefs?.energy_sources || []).find((s) => s.type === "grid");
+        const fl = g?.flow_from?.[0] || g;
+        ent = fl?.entity_energy_price || "";
+        if (!ent && fl?.number_energy_price != null) fixed = +fl.number_energy_price;
+      }
+      const until = Math.min(end, firstT);
+      let old = [];
+      if (ent) {
+        try {
+          const res = await this.hass.callApi("GET", `history/period/${new Date(start - 3600000).toISOString()}?filter_entity_id=${ent}&end_time=${encodeURIComponent(new Date(until).toISOString())}&minimal_response&no_attributes`);
+          const arr = Array.isArray(res) && res[0] ? res[0] : [];
+          old = arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
+            .filter((x) => !isNaN(x.v) && !isNaN(x.t) && x.t < until);
+        } catch (e) { old = []; }
+      } else if (fixed != null && !isNaN(fixed)) {
+        old = [{ t: start - 1, v: fixed }];
+      }
+      pts = [...old, ...pts];
+    }
+    return pts.sort((a, b) => a.t - b.t);
+  }
+
+  _pdFor(P) {
+    const d = this._pd;
+    return d && d.ps === P.start && d.pe === P.end ? d : null;
+  }
+
+  async _tibberRange(start, end) {
+    try {
+      const res = await this.hass.connection.sendMessagePromise({
+        type: "call_service", domain: "tibber", service: "get_prices", return_response: true,
+        service_data: { start: new Date(start).toISOString(), end: new Date(end).toISOString() },
+      });
+      const data = Object.values(res?.response?.prices || {})[0] || [];
+      return data.map((x) => ({ t: Date.parse(x.start_time ?? x.from), v: normalizePrice(+(x.price ?? x.total)) }))
+        .filter((x) => !isNaN(x.t) && !isNaN(x.v)).sort((a, b) => a.t - b.t);
+    } catch (e) { return []; }
+  }
+
+  // costs of the grid import in the selected period
+  _periodCost(P, pricePoints) {
+    const d = this._pdFor(P);
+    if (!d || !d.rows) return null;
+    const gs = this._src("grid");
+    let samples = gs.dual
+      ? (d.rows[gs.pos] || []).map((x) => ({ ...x, v: Math.max(0, Math.abs(x.v)) }))
+      : (d.rows[gs.signed] || []).map((x) => ({ ...x, v: Math.max(0, x.v * gs.sign) }));
+    if (!samples.length) return null;
+    return costCalc(samples, [...(d.priceHist || []), ...(pricePoints || [])], P.start, Math.min(P.end, Date.now()));
+  }
+
+  // ---------------------------------------------------------------------------
+  // Today's energy per node (kWh). Either from an optional energy entity (via the
+  // recorder statistics "change" of today) or integrated from the power history.
+  // ---------------------------------------------------------------------------
+  async _ensureDayEnergy() {
+    const c = this._config;
+    if (!this.hass || c.show_daily_energy === false || !this.hass.callApi) return;
+    const devs = this._devices();
+    const powers = [...new Set([c.solar_power, ...this._src("grid").entities, ...this._src("battery").entities, ...devs.map((d) => d.power)].filter(Boolean))];
+    const energies = [...new Set([c.energy_solar, ...this._energySrc("grid").entities, ...this._energySrc("battery").entities, ...devs.map((d) => d.energy)].filter(Boolean))];
+    const midnight = startOfToday();
+    const key = powers.join(",");
+    if (!this._day || this._day.midnight !== midnight || this._day.key !== key) {
+      this._day = { midnight, key, acc: {}, fetchedTo: midnight, lastFetch: 0, busy: false };
+    }
+    const d = this._day;
+    const now = Date.now();
+    if (powers.length && !d.busy && now - d.lastFetch > 60000) {
+      d.busy = true;
+      d.lastFetch = now;
+      try {
+        const url = `history/period/${new Date(d.fetchedTo).toISOString()}?filter_entity_id=${powers.join(",")}` +
+          `&end_time=${encodeURIComponent(new Date(now).toISOString())}&minimal_response&no_attributes`;
+        const res = await this.hass.callApi("GET", url);
+        if (this._day === d) {
+          for (const arr of Array.isArray(res) ? res : []) {
+            if (!Array.isArray(arr) || !arr.length) continue;
+            const id = arr[0].entity_id;
+            const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+            const st = d.acc[id] || (d.acc[id] = { lastT: null, lastV: 0, pos: 0, neg: 0 });
+            for (const s of arr) {
+              const t = Date.parse(s.last_changed || s.last_updated);
+              let val = parseFloat(s.state);
+              val = isNaN(val) ? 0 : val * f;
+              if (isNaN(t)) continue;
+              if (st.lastT === null) { st.lastT = Math.max(t, midnight); st.lastV = val; continue; }
+              if (t <= st.lastT) { st.lastV = val; continue; }
+              const e = (st.lastV * (t - st.lastT)) / 3600000;
+              if (e > 0) st.pos += e; else st.neg -= e;
+              st.lastT = t;
+              st.lastV = val;
+            }
+          }
+          d.fetchedTo = now;
+        }
+      } catch (e) {
+        /* keep what we have */
+      } finally {
+        d.busy = false;
+        this.requestUpdate();
+      }
+    }
+    // Energy entities: today's change from the long-term statistics.
+    this._dayStats = this._dayStats || {};
+    for (const id of energies) {
+      const s = this._dayStats[id];
+      if (s && (s.busy || now - s.fetched < 120000) && s.midnight === midnight) continue;
+      this._dayStats[id] = { ...(s || {}), busy: true, fetched: now, midnight };
+      (async () => {
+        let v = null;
+        try {
+          const r = await this.hass.callWS({
+            type: "recorder/statistic_during_period",
+            statistic_id: id,
+            calendar: { period: "day" },
+            types: ["change"],
+            units: { energy: "kWh" },
+          });
+          if (r && typeof r.change === "number") v = r.change;
+        } catch (e) { /* fall back below */ }
+        if (v === null) {
+          // e.g. a daily utility_meter without statistics: use its state directly
+          const st = this.hass.states[id];
+          const raw = st ? parseFloat(st.state) : NaN;
+          if (!isNaN(raw)) {
+            const u = st.attributes?.unit_of_measurement;
+            v = u === "Wh" ? raw / 1000 : u === "MWh" ? raw * 1000 : raw;
+          }
+        }
+        this._dayStats[id] = { v, busy: false, fetched: Date.now(), midnight };
+        this.requestUpdate();
+      })();
+    }
+  }
+
+  _dayIntegral(entity) {
+    const st = this._day?.acc?.[entity];
+    if (!st || st.lastT == null) return null;
+    let pos = st.pos, neg = st.neg;
+    const cur = pw(this.hass, entity);
+    const v = cur ?? st.lastV ?? 0;
+    const e = (v * Math.max(0, Date.now() - st.lastT)) / 3600000;
+    if (e > 0) pos += e; else neg -= e;
+    return { pos: pos / 1000, neg: neg / 1000 };
+  }
+
+  _daily(devs) {
+    const c = this._config;
+    if (c.show_daily_energy === false) return null;
+    const P = this._period();
+    let I, st;
+    if (P) {
+      this._ensurePeriod(P);
+      const pd = this._pdFor(P);
+      I = (e) => (e && pd?.integ?.[e]) || null;
+      st = (e) => (pd?.stats?.[e] ?? null);
+    } else {
+      this._ensureDayEnergy();
+      I = (e) => (e ? this._dayIntegral(e) : null);
+      st = (e) => this._dayStats?.[e]?.v ?? null;
+    }
+    const pick = (energyEnt, integ, field) => {
+      if (energyEnt) return st(energyEnt);
+      return integ ? integ[field] : null;
+    };
+    const gd = this._srcDay("grid", I, st);
+    const bd = this._srcDay("battery", I, st);
+    const r = {
+      solar: pick(c.energy_solar, I(c.solar_power), "pos"),
+      gridIn: gd.in,
+      gridOut: gd.out,
+      battOut: bd.in,  // discharge = into the house
+      battIn: bd.out,  // charge = out of the house
+      devices: devs.map((d) => pick(d.energy, I(d.power), "pos")),
+    };
+    const parts = [r.solar, r.gridIn, r.battOut, r.gridOut, r.battIn];
+    if (parts.some((x) => x != null)) {
+      let h = (r.solar || 0) + (r.gridIn || 0) + (r.battOut || 0) - (r.gridOut || 0) - (r.battIn || 0);
+      if (c.include_car_in_home) for (const x of r.devices) h -= x || 0;
+      r.home = Math.max(0, h);
+    } else r.home = null;
+    return r;
+  }
+
+  // Daily energy sources for grid/battery: two kWh entities, one signed kWh entity, or none.
+  _energySrc(kind) {
+    const c = this._config;
+    const mode = kind === "grid" ? c.energy_grid_mode : c.energy_battery_mode;
+    if (mode === "single") {
+      const e = kind === "grid" ? c.energy_grid : c.energy_battery;
+      const inv = kind === "grid" ? c.energy_grid_invert : c.energy_battery_invert;
+      return { dual: false, signed: e, sign: inv ? -1 : 1, entities: [e].filter(Boolean) };
+    }
+    const pos = kind === "grid" ? c.energy_grid_import : c.energy_battery_discharge;
+    const neg = kind === "grid" ? c.energy_grid_export : c.energy_battery_charge;
+    return { dual: true, pos, neg, entities: [pos, neg].filter(Boolean) };
+  }
+
+  // { in, out } kWh today for grid/battery (in = towards the house).
+  _srcDay(kind, I, st) {
+    const es = this._energySrc(kind);
+    if (es.entities.length) {
+      if (!es.dual) {
+        const v = st(es.signed);
+        if (v == null) return { in: null, out: null };
+        const x = v * es.sign;
+        return x >= 0 ? { in: x, out: null } : { in: null, out: -x };
+      }
+      // two kWh entities; a missing one falls back to the power history below
+      const fromPower = this._srcDay2(kind, I);
+      return { in: es.pos ? st(es.pos) : fromPower.in, out: es.neg ? st(es.neg) : fromPower.out };
+    }
+    return this._srcDay2(kind, I);
+  }
+
+  _srcDay2(kind, I) {
+    const s = this._src(kind);
+    if (!s.dual) {
+      const r = I(s.signed);
+      if (!r) return { in: null, out: null };
+      return s.sign > 0 ? { in: r.pos, out: r.neg } : { in: r.neg, out: r.pos };
+    }
+    const a = I(s.pos), b = I(s.neg);
+    return { in: a ? a.pos : null, out: b ? b.pos : null };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tap / long-press on a node.
+  // ---------------------------------------------------------------------------
+  _pDown(ev, key) {
+    if (ev.button != null && ev.button !== 0) return;
+    clearTimeout(this._holdTimer);
+    this._press = { key, x: ev.clientX, y: ev.clientY, held: false };
+    this._holdTimer = setTimeout(() => {
+      if (this._press && this._press.key === key) {
+        this._press.held = true;
+        this._doAction(key, "hold");
+      }
+    }, 500);
+  }
+  _pMove(ev) {
+    if (this._press && Math.hypot(ev.clientX - this._press.x, ev.clientY - this._press.y) > 12) {
+      clearTimeout(this._holdTimer);
+      this._press = null;
+    }
+  }
+  _pUp(ev, key) {
+    clearTimeout(this._holdTimer);
+    const p = this._press;
+    this._press = null;
+    if (!p || p.key !== key || p.held) return;
+    this._doAction(key, "tap");
+  }
+  _pCancel() {
+    clearTimeout(this._holdTimer);
+    this._press = null;
+  }
+  _nodeEvents(key) {
+    return {
+      down: (e) => this._pDown(e, key),
+      up: (e) => this._pUp(e, key),
+      move: (e) => this._pMove(e),
+      cancel: () => this._pCancel(),
+    };
+  }
+
+  _doAction(key, kind) {
+    const c = this._config;
+    const action = kind === "hold" ? (c.hold_action ?? "more-info") : (c.tap_action ?? "graph");
+    if (action === "none") return;
+    if (action === "graph") {
+      const tab = key.startsWith("dev:") ? "devices" : { grid: "grid", solar: "solar", battery: c.battery_soc ? "accu" : "usage", home: "usage", devices: "devices" }[key];
+      if (c.show_price && this._chartTabs().some((t) => t.id === tab)) {
+        this._setChartMode(tab, true);
+        const el = this.renderRoot?.querySelector?.(".price");
+        if (el && el.scrollIntoView) {
+          const r = el.getBoundingClientRect();
+          if (r.top > window.innerHeight || r.bottom < 0) el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+        return;
+      }
+      // no matching chart -> fall back to the detail dialog
+    }
+    const ent = this._nodeEntity(key);
+    if (!ent) return;
+    this.dispatchEvent(new CustomEvent("hass-more-info", { detail: { entityId: ent }, bubbles: true, composed: true }));
+  }
+
+  _nodeEntity(key) {
+    const c = this._config;
+    if (key === "grid") return this._src("grid").entities[0] || this._energySrc("grid").entities[0];
+    if (key === "solar") return c.solar_power || c.energy_solar;
+    if (key === "battery") return c.battery_soc || this._src("battery").entities[0];
+    if (key.startsWith("dev:")) return this._devEntities?.[parseInt(key.slice(4), 10)] || null;
+    if (key === "devices") {
+      const devs = this._devices().filter((d) => d.power || d.soc);
+      if (!devs.length) return null;
+      const d = devs[(this._carScrollIdx || 0) % devs.length];
+      return (c.car_mode === "merged" ? devs[0] : d).power || d.soc;
+    }
+    return null;
+  }
+
   _renderFlow() {
     const c = this._config;
-    const v = {
-      solar: num(this.hass, c.solar_power),
-      grid: num(this.hass, c.grid_power),
-      charge: num(this.hass, c.battery_charge_power),
-      discharge: num(this.hass, c.battery_discharge_power),
-      soc: num(this.hass, c.battery_soc),
-    };
+    const hass = this.hass;
+    const P = this._period();
+    const noLive = !!(P && !P.live);   // a past period: no current values, no animation
+    const v = noLive ? { solar: null, grid: null, charge: null, discharge: null, soc: null } : this._liveV();
     const home = this._homePower(v);
 
-    const battValue = (v.charge && v.charge > 5) ? v.charge : (v.discharge && v.discharge > 5) ? v.discharge : (v.charge ?? v.discharge);
-    const battLabel = v.charge && v.charge > 5 ? this._t("charging") : v.discharge && v.discharge > 5 ? this._t("discharging") : "";
+    const thr = this._thr();
+    const battValue = (v.charge && v.charge > thr) ? v.charge : (v.discharge && v.discharge > thr) ? v.discharge : (v.charge ?? v.discharge);
+    const battLabel = v.charge && v.charge > thr ? this._t("charging") : v.discharge && v.discharge > thr ? this._t("discharging") : "";
+    const gridLabel = v.grid === null || Math.abs(v.grid) <= thr ? "" : v.grid < 0 ? this._t("export") : this._t("import");
+    const act = (val) => val !== null && Math.abs(val) > thr;
 
-    const gridLabel = v.grid === null ? "" : v.grid < 0 ? this._t("export") : this._t("import");
-
-    c.display_zero;
-    const act = (val) => val !== null && Math.abs(val) > 5;
-
-    act(v.solar);
-    act(v.grid);
-    act(v.charge) || act(v.discharge);
-
-    // Which entities are configured at all
     const solarHasEnt = !!c.solar_power;
-    const gridHasEnt = !!c.grid_power;
-    const battHasEnt = !!(c.battery_charge_power || c.battery_discharge_power);
+    const gridHasEnt = this._src("grid").entities.length > 0;
+    const battHasEnt = this._src("battery").entities.length > 0;
 
-    // All four nodes are always shown. A node is "muted" (grey) when its
-    // entity is not configured. Colored when configured.
     const GREY = "#6b7280";
     const solarCol = solarHasEnt ? c.color_solar : GREY;
     const gridCol = gridHasEnt ? c.color_grid : GREY;
     const battCol = battHasEnt ? c.color_battery : GREY;
-    c.color_car;
 
-    // Cars. A car with a "charging" (on/off) entity configured can detect a guest
-    // vehicle: if its charger is drawing power but that entity says off, the power
-    // isn't going into the configured car — show a separate "Guest car" node instead
-    // (appears only while that's happening, disappears once the guest stops charging).
-    const guestCars = [];
-    const cars = this._cars().map((car, i) => {
-      const p = num(this.hass, car.power);
-      const soc = num(this.hass, car.soc);
-      const powerActive = act(p);
-      const chargingState = car.charging ? this.hass.states?.[car.charging]?.state : null;
-      const isGuest = !!car.charging && powerActive && chargingState !== "on";
+    // Devices. A car with a "charging" (on/off) entity can detect a guest vehicle (see original).
+    const devs = this._devices();
+    const devColors = this._devColors();
+    const daily = this._daily(devs);
+    const guests = [];
+    const items = devs.map((d, i) => {
+      const p = noLive ? null : pw(hass, d.power);
+      const soc = d.type === "car" && !noLive ? num(hass, d.soc) : null;
+      // per-device threshold (falls back to the global "hide line below" value)
+      const dThr = d.min_power !== undefined && d.min_power !== "" && !isNaN(parseFloat(d.min_power)) ? Math.max(0, parseFloat(d.min_power)) : thr;
+      const powerActive = p !== null && Math.abs(p) > dThr;
+      const chargingState = d.charging ? hass.states?.[d.charging]?.state : null;
+      const isGuest = d.type === "car" && !!d.charging && powerActive && chargingState !== "on";
       if (isGuest) {
-        guestCars.push({ name: this._t("guest_car"), power: p, soc: null, active: true, hasEnt: true });
+        guests.push({ name: this._t("guest_car"), power: p, soc: null, active: true, hasEnt: true, icon: "mdi:car-electric", isCar: true, day: null, entity: d.power, color: devColors[i] });
       }
       return {
-        name: car.name || `${this._t("car")} ${i + 1}`,
+        name: d.name || `${this._t("dev_" + d.type) || this._t("car")} ${i + 1}`,
         power: isGuest ? 0 : p,
         soc,
         active: isGuest ? false : powerActive,
-        hasEnt: !!car.power,
+        hasEnt: !!d.power,
+        icon: this._deviceIcon(d),
+        isCar: d.type === "car",
+        color: devColors[i],
+        day: daily ? daily.devices[i] : null,
+        entity: d.power || d.soc,
+        thr: dThr,
+        showMode: d.show || "default",
       };
     });
-    const allCars = [...cars, ...guestCars];
-    allCars.some((c2) => c2.active);
-    const carHasEnt = allCars.some((c2) => c2.hasEnt);
-    // Always show at least one car node; if none added, show a single placeholder.
-    const carsShown = allCars.length ? allCars : [{ name: this._t("car"), power: null, soc: null, active: false, hasEnt: false }];
+    const allDevs = [...items, ...guests];
+    const devHasEnt = allDevs.some((x) => x.hasEnt);
+    this._devEntities = allDevs.map((x) => x.entity);
+    const devMode = ["merged", "scroll"].includes(c.car_mode) ? c.car_mode : "row";
+    const rowMode = devMode === "row" && allDevs.length > 1;
+    const rowAll = rowMode
+      ? allDevs
+          .map((d, idx) => ({ ...d, idx, past: noLive, ws: this._wireState("dev:" + idx, d.active ? d.power : 0, true, d.thr ?? thr) }))
+          .filter((d) => noLive
+            ? (d.showMode === "always" || c.display_zero || (d.day != null && d.day > 0.005))
+            : (d.showMode === "always" || (d.showMode === "active" ? d.ws.show : (c.display_zero || d.ws.show))))
+      : [];
+    // Collapse: "expanded" | "collapsed" | "top" (only the biggest N consumers); the
+    // button under the row toggles between the configured state and showing everything.
+    const collapseMode = ["collapsed", "top"].includes(c.devices_collapse) ? c.devices_collapse : "expanded";
+    const topN = Math.max(1, parseInt(c.devices_top_n, 10) || 4);
+    const open = this._devOpen ?? (collapseMode === "expanded");
+    const metric = (d) => (noLive ? (d.day || 0) : (d.active ? Math.abs(d.power || 0) : 0) * 1e6 + (d.day || 0));
+    let rowDevs = rowAll;
+    if (!open) {
+      if (collapseMode === "top") {
+        const keep = new Set([...rowAll].sort((a, b) => metric(b) - metric(a)).slice(0, topN).map((d) => d.idx));
+        rowDevs = rowAll.filter((d) => keep.has(d.idx));
+      } else rowDevs = [];
+    }
+    const hiddenCount = rowAll.length - rowDevs.length;
+    const canToggle = rowMode && rowAll.length > 0 && (collapseMode !== "expanded" || this._devOpen === false || rowAll.length > topN)
+      && !(collapseMode === "top" && rowAll.length <= topN);
+    const devsShown = allDevs.length ? allDevs : [{ name: this._t("devices"), power: null, soc: null, active: false, hasEnt: false, icon: "mdi:power-plug", isCar: false, day: null }];
 
     const bs = (() => {
       const r = 23, circ = 2 * Math.PI * r;
@@ -1263,252 +3050,431 @@ class EnergyFlowPriceCard extends i {
       return { circ, offset: circ * (1 - pct) };
     })();
 
-    // House square center in the 720x190 viewBox. Lowered a bit.
-    // Icon ~58px; horizontal half-width in viewBox units ≈ 34.
-    const HX = 360, HY = 104;          // vertical center of the house square (lowered)
-    const HL = HX - 34, HR = HX + 34;  // left / right edge of the square
-
-    // Visual layout: an actual house photo replaces the abstract square. It's drawn as a
-    // centered 190x190 sub-region of this same 720x190 viewBox (matching HX), so each wire
-    // can aim at a specific spot on the picture (solar panels / battery box / car) instead
-    // of the shared square edge used by the abstract layout.
     const visual = !!c.use_visual_layout;
-    const VX = HX - 95, VY = 0, VS = 190;
-    const visPt = (px, py) => ({ x: VX + (px / 100) * VS, y: VY + (py / 100) * VS });
-    const EP = {
-      solar: visual ? visPt(46, 31) : { x: HL, y: HY },
-      grid: visual ? visPt(80, 40) : { x: HR, y: HY },
-      battery: visual ? visPt(58, 63) : { x: HL, y: HY },
-      car: visual ? visPt(76, 81) : { x: HR, y: HY },
+    const reduceEffects = !!c.reduce_effects;
+    const pos = this._positions();
+    const sideOf = (k) => (pos[k][1] === "l" ? "left" : "right");
+    const isTop = (k) => pos[k][0] === "t";
+    const arrowToHouse = (k) => (sideOf(k) === "left" ? "→" : "←");
+    const arrowFromHouse = (k) => (sideOf(k) === "left" ? "←" : "→");
+
+    // Wire power / direction (reversed = flowing from the house to the node).
+    const battPow = v.charge && v.charge > thr ? v.charge : (v.discharge && v.discharge > thr ? v.discharge : 0);
+    const devPow = (() => { let m = 0; for (const x of allDevs) { if (x.active && Math.abs(x.power) > m) m = Math.abs(x.power); } return m; })();
+    const ws = {
+      solar: this._wireState("solar", v.solar, false),
+      grid: this._wireState("grid", v.grid, v.grid < 0),
+      battery: this._wireState("batt", battPow, !!(v.charge && v.charge > thr)),
+      devices: this._wireState("car", devPow, true),
     };
-    // Wire icon-side start points. In visual mode these sit above/below the whole
-    // icon+text block and further out horizontally, so lines don't cross the photo's
-    // wattage text. The abstract layout's smooth curve doesn't have that problem, so it
-    // keeps its original, closer-to-the-icon start points.
-    const TOP_Y = visual ? 4 : 52;
-    const IX_L = visual ? 110 : 70, IX_R = visual ? 610 : 650;
-    // Battery and car share one horizontal height, just like solar/grid share TOP_Y.
-    const BOT_Y_BATT = visual ? 186 : 138;
-    const BOT_Y_CAR = visual ? 186 : 138;
-    // Solar/battery share one vertical bend line, and grid/car share another, so the
-    // top and bottom line on each side are true mirror images of each other — only a
-    // short final jog reaches each anchor's own slightly different spot on the photo.
-    const FX_L = visual ? (EP.solar.x + EP.battery.x) / 2 : HL;
-    const FX_R = visual ? (EP.grid.x + EP.car.x) / 2 : HR;
-    const huisLeftPct = 50;
+    if (Object.values(ws).some((w) => w.show) || rowDevs.some((d) => d.ws.show)) this._scheduleFlowTick();
 
-    // Per-wire animation states
-    const solarPow = v.solar;
-    const gridPow = v.grid;
-    const battPow = v.charge && v.charge > 5 ? v.charge : (v.discharge && v.discharge > 5 ? v.discharge : 0);
-    const carPow = (() => { let m = 0; for (const c2 of allCars) { if (c2.active && Math.abs(c2.power) > m) m = Math.abs(c2.power); } return m; })();
+    // ---- wire geometry, in real pixels of the measured flow box ----
+    // Every wire is made of horizontal and vertical segments only.
+    const g = this._geo;
+    const W = g?.W || 0, H = g?.FH || 190, HW = g?.H || H;
+    const wirePts = {};
+    if (W && g.home) {
+      if (!visual) {
+        // Abstract layout: down (or up) from the icon, then straight into the house square.
+        const hb = g.home;
+        for (const k of ["grid", "solar", "battery", "devices"]) {
+          const a = g[k];
+          if (!a) continue;
+          const top = isTop(k);
+          const left = sideOf(k) === "left";
+          const y = top ? hb.cy - 12 : hb.cy + 12;
+          const xEnd = left ? hb.left - 1 : hb.right + 1;
+          const yStart = top ? a.bottom + 4 : a.top - 4;
+          wirePts[k] = [{ x: a.cx, y: yStart }, { x: a.cx, y }, { x: xEnd, y }];
+        }
+      } else {
+        // Visual layout: along the top/bottom edge, down a shared bend line, into the photo.
+        const pic = g.pic && g.pic.width ? g.pic : { left: W / 2 - 95, top: 0, width: 190, height: 190 };
+        const visPt = (p) => ({ x: pic.left + (p.x / 100) * pic.width, y: pic.top + (p.y / 100) * pic.height });
+        const EP = {};
+        for (const k of ["grid", "solar", "battery", "devices"]) EP[k] = visPt(this._anchor(k, sideOf(k)));
+        const keysOn = (side) => ["grid", "solar", "battery", "devices"].filter((k) => sideOf(k) === side);
+        const frame = {};
+        for (const side of ["left", "right"]) {
+          const ks = keysOn(side);
+          frame[side] = ks.reduce((s, k) => s + EP[k].x, 0) / (ks.length || 1);
+        }
+        for (const k of ["grid", "solar", "battery", "devices"]) {
+          const a = g[k];
+          if (!a) continue;
+          const left = sideOf(k) === "left";
+          const iconX = left ? a.right + 8 : a.left - 8;
+          const iconY = isTop(k) ? 4 : H - 4;
+          // straight along the edge to exactly above/below the anchor, then straight down/up
+          // into it: one bend only, the line ends exactly at the configured end point
+          wirePts[k] = [{ x: iconX, y: iconY }, { x: EP[k].x, y: iconY }, { x: EP[k].x, y: EP[k].y }];
+        }
+      }
+    }
 
-    const wSolar = this._wireState("solar", solarPow, false);
-    const wGrid = this._wireState("grid", gridPow, gridPow < 0);
-    const wBatt = this._wireState("batt", battPow, v.charge && v.charge > 5);
-    const wCar = this._wireState("car", carPow, true);
-    if (wSolar.show || wGrid.show || wBatt.show || wCar.show) this._scheduleFlowTick();
+    // Device row: from the "devices" hub down to a bus line, then into each device.
+    const rowWires = [];
+    if (W && g.devices && rowDevs.length) {
+      const hub = g.devices;
+      const found = rowDevs.map((d) => ({ d, a: g["dev" + d.idx] })).filter((x) => x.a);
+      const tops = [...new Set(found.map((x) => Math.round(x.a.top)))].sort((a, b) => a - b);
+      const bus = (t) => t - 10;
+      for (const { d, a } of found) {
+        const r = tops.indexOf(Math.round(a.top));
+        const y0 = bus(tops[0]);
+        const pts = [{ x: hub.cx, y: hub.bottom + 4 }, { x: hub.cx, y: y0 }];
+        if (r > 0) {
+          const yr = bus(tops[r]);
+          pts.push({ x: W - 4, y: y0 }, { x: W - 4, y: yr }, { x: a.cx, y: yr });
+        } else pts.push({ x: a.cx, y: y0 });
+        pts.push({ x: a.cx, y: a.top - 4 });
+        const clean = pts.filter((p, i) => i === 0 || Math.abs(p.x - pts[i - 1].x) > 0.5 || Math.abs(p.y - pts[i - 1].y) > 0.5);
+        rowWires.push({ key: "dev" + d.idx, pts: clean, st: d.ws, color: d.color || c.color_car });
+      }
+    }
 
     const neon = c.wire_style === "neon";
-    // Neon: a calm grey base wire (same as the dashed style), with an occasional glowing
-    // pulse sweeping along it in the direction of actual flow (short dash + long gap).
-    // Speed isn't set via animation-duration here (rewriting that on every power change
-    // restarts the animation from 0%); instead the CSS animation runs at a fixed base
-    // duration and `updated()` retunes its playbackRate live, so a wire that changes
-    // power every second speeds up/slows down smoothly instead of visibly resetting.
-    const reduceEffects = !!c.reduce_effects;
-    const liveStyle = (st, color) => {
-      const glow = neon && !reduceEffects ? `filter:drop-shadow(0 0 2px ${color}) drop-shadow(0 0 6px ${color});` : "";
-      return `stroke:${color};${glow}${st.moving ? "" : "animation-play-state:paused;"}`;
-    };
+    // No CSS filter here: drop-shadow on animated paths is recomputed every frame and made
+    // the animation stutter. The neon glow is an extra wide, translucent copy of the pulse.
+    const liveStyle = (st, color) => `stroke:${color};${st.moving ? "" : "animation-play-state:paused;"}`;
+    const livePath = (st, color, d) => svg`
+      ${neon && !reduceEffects ? svg`<path class="${liveClass(st)} glow" style="${liveStyle(st, color)}" data-speed="${st.duration}" d="${d}"></path>` : nothing}
+      <path class="${liveClass(st)}" style="${liveStyle(st, color)}" data-speed="${st.duration}" d="${d}"></path>`;
     const liveClass = (st) => `live ${neon ? "neon" : "dashed"}${st.fade === "in" ? " fade-in" : ""}${st.fade === "out" ? " fade-out" : ""}${st.moving ? "" : " still"}${st.dirSwap ? " dir-swap" : ""}`;
 
-    // Visual-mode wires run in clean horizontal/vertical segments via a shared bend
-    // line (frameX) — a photo reads better with straight "circuit style" connectors,
-    // and sharing the bend keeps the top/bottom line on each side true mirror images.
-    // The abstract layout keeps its smooth curve. `reversed` traces the SAME physical
-    // line backwards (same corners) so the dim base wire and the live overlay always
-    // stay perfectly aligned — only the flow animation's apparent direction changes.
-    const elbowD = (iconX, iconY, ep, frameX, reversed) => {
-      const pts = [{ x: iconX, y: iconY }, { x: frameX, y: iconY }, { x: frameX, y: ep.y }, { x: ep.x, y: ep.y }];
-      const p = reversed ? [...pts].reverse() : pts;
-      return `M${p[0].x},${p[0].y} L${p[1].x},${p[1].y} L${p[2].x},${p[2].y} L${p[3].x},${p[3].y}`;
-    };
-    const wireD = (iconX, iconY, ep, frameX, curveCtrlX, reversed) => visual
-      ? elbowD(iconX, iconY, ep, frameX, reversed)
-      : (reversed ? `M${ep.x},${ep.y} Q${curveCtrlX},${HY} ${iconX},${iconY}` : `M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}`);
-
-    // The base wire fades in from the icon end and out again near the house. In visual
-    // mode this is computed along the wire's real (bent) arc length so the fade sits at
-    // the actual tips instead of drifting into the bend on longer runs; the abstract
-    // layout's smooth curve has no sharp corner, so a simple straight-line gradient is
-    // used there instead.
+    // Dim base wire that fades in/out at both tips (measured along the bent path).
     const gradId = (name) => `efp-fade-${name}-${this._uid}`;
-    const FADE_LEN = 40;
-    const baseWire = (name, iconX, iconY, ep, frameX, curveCtrlX) => {
-      if (!visual) {
-        const id = gradId(name);
-        return {
-          defs: w`<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="${iconX}" y1="${iconY}" x2="${ep.x}" y2="${ep.y}">
-            <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-            <stop offset="0.12" stop-color="#fff" stop-opacity="0.07"></stop>
-            <stop offset="0.94" stop-color="#fff" stop-opacity="0.07"></stop>
-            <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
-          </linearGradient>`,
-          path: w`<path class="wire" style="stroke:url(#${id})" d="M${iconX},${iconY} Q${curveCtrlX},${HY} ${ep.x},${ep.y}"></path>`,
-        };
-      }
-      const pts = [{ x: iconX, y: iconY }, { x: frameX, y: iconY }, { x: frameX, y: ep.y }, { x: ep.x, y: ep.y }];
+    const FADE_LEN = 30;
+    const baseWire = (name, pts) => {
+      if (!pts) return { defs: nothing, path: nothing };
       const total = polyLen(pts);
+      if (total < 2) return { defs: nothing, path: nothing };
       const fl = Math.min(FADE_LEN, total / 2);
       const aEnd = polyPointAt(pts, fl);
       const bStart = polyPointAt(pts, total - fl);
+      const last = pts[pts.length - 1];
       const idIn = gradId(name + "-in"), idOut = gradId(name + "-out");
       return {
-        defs: w`
-          <linearGradient id="${idIn}" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" y1="${pts[0].y}" x2="${aEnd.x}" y2="${aEnd.y}">
+        defs: svg`
+          <linearGradient id="${idIn}" gradientUnits="userSpaceOnUse" x1="${pts[0].x}" y1="${pts[0].y}" x2="${aEnd.x + 0.01}" y2="${aEnd.y + 0.01}">
             <stop offset="0" stop-color="#fff" stop-opacity="0"></stop>
-            <stop offset="1" stop-color="#fff" stop-opacity="0.07"></stop>
+            <stop offset="1" stop-color="#fff" stop-opacity="0.09"></stop>
           </linearGradient>
-          <linearGradient id="${idOut}" gradientUnits="userSpaceOnUse" x1="${bStart.x}" y1="${bStart.y}" x2="${pts[3].x}" y2="${pts[3].y}">
-            <stop offset="0" stop-color="#fff" stop-opacity="0.07"></stop>
+          <linearGradient id="${idOut}" gradientUnits="userSpaceOnUse" x1="${bStart.x}" y1="${bStart.y}" x2="${last.x + 0.01}" y2="${last.y + 0.01}">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.09"></stop>
             <stop offset="1" stop-color="#fff" stop-opacity="0"></stop>
           </linearGradient>`,
-        path: w`
+        path: svg`
           <path class="wire" style="stroke:url(#${idIn})" d="${subPathD(pts, 0, fl)}"></path>
-          ${total - 2 * fl > 0.5 ? w`<path class="wire" d="${subPathD(pts, fl, total - fl)}"></path>` : A}
+          ${total - 2 * fl > 0.5 ? svg`<path class="wire" d="${subPathD(pts, fl, total - fl)}"></path>` : nothing}
           <path class="wire" style="stroke:url(#${idOut})" d="${subPathD(pts, total - fl, total)}"></path>`,
       };
     };
-    const wSolarBase = baseWire("solar", IX_L, TOP_Y, EP.solar, FX_L, 220);
-    const wGridBase = baseWire("grid", IX_R, TOP_Y, EP.grid, FX_R, 500);
-    const wBattBase = baseWire("battery", IX_L, BOT_Y_BATT, EP.battery, FX_L, 220);
-    const wCarBase = baseWire("car", IX_R, BOT_Y_CAR, EP.car, FX_R, 500);
+    const liveD = (pts, reversed) => polyD(reversed ? [...pts].reverse() : pts);
+    const wireColor = { solar: c.color_solar, grid: c.color_grid, battery: c.color_battery, devices: c.color_car };
+    const wireKeys = ["grid", "solar", "battery", "devices"];
+    const bases = Object.fromEntries(wireKeys.map((k) => [k, baseWire(k, wirePts[k])]));
 
-    return b`
-      <div class="flow">
-        ${visual ? b`<img class="housepic" src="${VISUAL_HOUSE_IMAGE}" alt="" />` : A}
-        <svg class="wires" viewBox="0 0 720 190" preserveAspectRatio="none">
-          <defs>
-            ${wSolarBase.defs}${wGridBase.defs}${wBattBase.defs}${wCarBase.defs}
-          </defs>
-          ${wSolarBase.path}
-          ${wSolar.show ? w`<path class="${liveClass(wSolar)}" style="${liveStyle(wSolar, c.color_solar)}" data-speed="${wSolar.duration}" d="${wireD(IX_L, TOP_Y, EP.solar, FX_L, 220, false)}"></path>` : A}
+    // Today's kWh: one line per direction, with a "into the house" / "out of the house" icon.
+    // Each node gets its own symbol with a direction: a dedicated MDI icon where one exists
+    // (grid, battery), otherwise the node's icon with a small arrow badge
+    // (badge ↗ = the node delivers energy, ↙ = the node takes energy).
+    const dIcon = (base, badge) => badge
+      ? html`<span class="dic">${renderIcon(base)}<ha-icon class="badge" icon="${badge}"></ha-icon></span>`
+      : html`<span class="dic">${renderIcon(base)}</span>`;
+    const OUT_OF_NODE = "mdi:arrow-top-right-thick", INTO_NODE = "mdi:arrow-bottom-left-thick";
+    const DAY_ICONS = {
+      // MDI draws these from the tower's point of view, so they are used crosswise here
+      grid: { in: ["mdi:transmission-tower-export"], out: ["mdi:transmission-tower-import"] },
+      battery: { in: ["mdi:battery-arrow-down"], out: ["mdi:battery-arrow-up"] },
+      solar: { in: ["mdi:solar-power-variant", OUT_OF_NODE] },
+    };
+    const dayLine = (k, dir, x, icon) => {
+      if (!daily || x == null) return nothing;
+      const ic = icon || DAY_ICONS[k]?.[dir] || [dir === "in" ? "mdi:home-import-outline" : "mdi:home-export-outline"];
+      return html`<span class="day ${dir}" title=${this._t(dir === "in" ? "day_in" : "day_out")}>${dIcon(ic[0], ic[1])}${fmtKWh(x)} kWh</span>`;
+    };
+    const dayIn = (x, k) => dayLine(k, "in", x);
+    const dayOut = (x, k, icon) => dayLine(k, "out", x, icon ? [icon, INTO_NODE] : null);
+    const fcToday = !P && c.solar_forecast !== false && c.solar_forecast_node !== false ? this._forecastToday() : null;
+    const fcLine = fcToday != null
+      ? html`<span class="day fc" title=${this._t("forecast_today")}><span class="dic"><ha-icon icon="mdi:weather-partly-cloudy"></ha-icon></span>${fmtKWh(fcToday)} kWh</span>` : nothing;
+    // today's electricity costs (grid import × price) under the house, same calculation as in the price chart
+    let homeCostLine = nothing;
+    if (c.home_show_costs !== false && c.price_show_costs !== false && this._src("grid").entities.length && (c.price_entity || c.price_use_tibber_service)) {
+      this._ensureCostData();
+      if (c.price_use_tibber_service) this._ensureTibberPrices();
+      const r = P ? this._periodCost(P, this._priceData().points) : this._costFor(startOfToday(), this._priceData().points);
+      if (r && r.eur != null) {
+        homeCostLine = html`<span class="day cost" title=${P ? `${this._t("costs")} ${P.label}` : this._t("cost_today")}><span class="dic"><ha-icon icon="mdi:cash"></ha-icon></span>${r.eur.toFixed(2).replace(".", ",")} €</span>`;
+      }
+    }
+    const homeDayLine = daily && daily.home != null
+      ? html`<span class="day home" title=${this._t("day_home")}><span class="dic"><ha-icon icon="mdi:home-lightning-bolt-outline"></ha-icon></span>${fmtKWh(daily.home)} kWh</span>` : nothing;
 
-          ${wGridBase.path}
-          ${wGrid.show ? w`<path class="${liveClass(wGrid)}" style="${liveStyle(wGrid, c.color_grid)}" data-speed="${wGrid.duration}" d="${wireD(IX_R, TOP_Y, EP.grid, FX_R, 500, wGrid.reversed)}"></path>` : A}
+    const node = (k, muted, inner, extraCls = "") => {
+      const ev = this._nodeEvents(k);
+      return html`<div class="node ${pos[k]} ${extraCls} ${muted ? "muted" : ""}"
+        @pointerdown=${ev.down} @pointerup=${ev.up} @pointermove=${ev.move}
+        @pointerleave=${ev.cancel} @pointercancel=${ev.cancel}
+        @contextmenu=${(e) => e.preventDefault()}>${inner}</div>`;
+    };
+    const squareIcon = (k, icon, col) => html`
+      <div class="ic" data-anc="${k}" style="color:${col};border-color:${col}66;background:${col}22">
+        ${renderIcon(icon)}
+      </div>`;
 
-          ${wBattBase.path}
-          ${wBatt.show ? w`<path class="${liveClass(wBatt)}" style="${liveStyle(wBatt, c.color_battery)}" data-speed="${wBatt.duration}" d="${wireD(IX_L, BOT_Y_BATT, EP.battery, FX_L, 220, wBatt.reversed)}"></path>` : A}
+    const homeEv = this._nodeEvents("home");
 
-          ${wCarBase.path}
-          ${wCar.show ? w`<path class="${liveClass(wCar)}" style="${liveStyle(wCar, c.color_car)}" data-speed="${wCar.duration}" d="${wireD(IX_R, BOT_Y_CAR, EP.car, FX_R, 500, true)}"></path>` : A}
-        </svg>
+    const rowBases = rowWires.map((w) => baseWire(w.key, w.pts));
+    // House picture size (visual layout), in % of the flow height. The "Home" label sits
+    // just left of the picture, using its measured width (falls back to a square picture).
+    const picScale = Math.max(30, Math.min(130, parseFloat(c.house_image_scale) || 100));
+    const picHalf = g?.pic?.width ? g.pic.width / 2 : ((daily ? 236 : 190) * picScale) / 200;
+    const picHalfH = g?.pic?.height ? g.pic.height / 2 : ((daily ? 236 : 190) * picScale) / 200;
+    const labelPos = ["above", "below"].includes(c.house_label_position) ? c.house_label_position : "left";
+    // With the text above/below, the picture moves to the opposite edge to make room for it.
+    const picAlign = labelPos === "below" ? "top:0;transform:translate(-50%,0)"
+      : labelPos === "above" ? "top:auto;bottom:0;transform:translate(-50%,0)" : "";
+    const flowH = daily ? 236 : 190;
+    const picTop = g?.pic?.height ? g.pic.top : labelPos === "above" ? flowH - 2 * picHalfH : 0;
+    const picBottom = g?.pic?.height ? g.pic.bottom : picTop + 2 * picHalfH;
+    // keep the text inside the flow area (it can be 3 lines high with kWh + costs)
+    const lblH = g?.huislbl?.height || 60;
+    const huisStyle = labelPos === "below"
+      ? `top:${Math.max(0, Math.min(picBottom + 2, flowH - lblH))}px;align-items:center;text-align:center;transform:translate(-50%, 0)`
+      : labelPos === "above"
+        ? `top:${Math.max(0, picTop - 2 - lblH)}px;align-items:center;text-align:center;transform:translate(-50%, 0)`
+        : `transform:translate(calc(-100% - ${picHalf + 22}px), -50%)`;
+    const wrapStyle = `--efp-day-in:${c.color_day_in || "#34d399"};--efp-day-out:${c.color_day_out || "#fb923c"};--efp-day-home:${c.color_home}`;
 
-        <div class="node tl ${solarHasEnt ? "" : "muted"}">
-          <div class="ic" style="color:${solarCol};border-color:${solarCol}66;background:${solarCol}22">
-            <ha-icon icon="mdi:solar-power-variant"></ha-icon>
-          </div>
-          <div class="txt"><span class="lbl">${this._t("solar")}</span><span class="val" style="color:${solarCol}">${fmtPower(v.solar)}</span></div>
-        </div>
+    return html`
+      <div class="flowwrap ${noLive ? "past" : ""}" style="${wrapStyle}">
+      <svg class="wires" viewBox="0 0 ${W || 1} ${HW}" preserveAspectRatio="none">
+        <defs>${wireKeys.map((k) => bases[k].defs)}${rowBases.map((b) => b.defs)}</defs>
+        ${wireKeys.map((k) => {
+          const pts = wirePts[k];
+          if (!pts) return nothing;
+          const st = ws[k];
+          return svg`${bases[k].path}
+            ${st.show && !noLive ? livePath(st, wireColor[k], liveD(pts, st.reversed)) : nothing}`;
+        })}
+        ${rowWires.map((w, i) => svg`${rowBases[i].path}
+          ${w.st.show && !noLive ? livePath(w.st, w.color, liveD(w.pts, false)) : nothing}`)}
+      </svg>
+      <div class="flow ${visual ? "visual" : ""} ${daily ? "tall" : ""}">
+        ${P && (c.date_selection || "auto") !== "card" ? html`<div class="plabel"><ha-icon icon="mdi:calendar"></ha-icon>${P.label}</div>` : nothing}
+        ${visual ? html`<img class="housepic" data-anc="pic" src="${this._houseImage()}" alt="" style="height:${picScale}%;${picAlign}" @load=${() => this._measure(true)} />` : nothing}
 
-        <div class="node tr ${gridHasEnt ? "" : "muted"}">
-          <div class="ic" style="color:${gridCol};border-color:${gridCol}66;background:${gridCol}22">
-            <ha-icon icon="mdi:transmission-tower"></ha-icon>
-          </div>
-          <div class="txt"><span class="lbl">${this._t("grid")}</span><span class="val" style="color:${gridCol}">${fmtPower(v.grid)}</span>${gridLabel ? b`<span class="sub" style="color:${gridCol}">${gridLabel}</span>` : A}</div>
-        </div>
+        ${node("solar", !solarHasEnt, html`
+          ${squareIcon("solar", "mdi:solar-power-variant", solarCol)}
+          <div class="txt"><span class="lbl">${this._t("solar")}</span><span class="val" style="color:${solarCol}">${fmtPower(v.solar)}</span>${dayIn(daily?.solar, "solar")}${fcLine}</div>`)}
 
-        <div class="node bl ${battHasEnt ? "" : "muted"}">
+        ${node("grid", !gridHasEnt, html`
+          ${squareIcon("grid", "mdi:transmission-tower", gridCol)}
+          <div class="txt"><span class="lbl">${this._t("grid")}</span><span class="val" style="color:${gridCol}">${fmtPower(v.grid)}</span>${gridLabel ? html`<span class="sub" style="color:${gridCol}">${gridLabel}</span>` : nothing}${dayIn(daily?.gridIn, "grid")}${dayOut(daily?.gridOut, "grid")}</div>`)}
+
+        ${node("battery", !battHasEnt, html`
           ${c.battery_ring !== false
-            ? b`<div class="socwrap">
+            ? html`<div class="socwrap" data-anc="battery">
                 <svg class="socring" viewBox="0 0 52 52">
                   <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
-                  ${battHasEnt && v.soc !== null ? w`<circle cx="26" cy="26" r="23" fill="none" stroke="${battCol}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : A}
+                  ${battHasEnt && v.soc !== null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${battCol}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${bs.circ}" stroke-dashoffset="${bs.offset}" transform="rotate(-90 26 26)"></circle>` : nothing}
                 </svg>
-                <div class="ic round" style="color:${battCol}">
-                  <ha-icon icon="mdi:battery-charging"></ha-icon>
-                </div>
+                <div class="ic round" style="color:${battCol}"><ha-icon icon="mdi:battery-charging"></ha-icon></div>
               </div>`
-            : b`<div class="ic" style="color:${battCol};border-color:${battCol}66;background:${battCol}22">
-                <ha-icon icon="mdi:battery-charging"></ha-icon>
-              </div>`}
-          <div class="txt"><span class="lbl">${this._t("battery")}${battHasEnt && v.soc !== null ? b` · <b style="color:${battCol}">${Math.round(v.soc)}%</b>` : A}</span><span class="val" style="color:${battCol}">${fmtPower(battValue)}</span>${battLabel ? b`<span class="sub" style="color:${battCol}">${battLabel}</span>` : A}</div>
-        </div>
+            : squareIcon("battery", "mdi:battery-charging", battCol)}
+          <div class="txt"><span class="lbl">${this._t("battery")}${battHasEnt && v.soc !== null ? html` · <b style="color:${battCol}">${Math.round(v.soc)}%</b>` : nothing}</span><span class="val" style="color:${battCol}">${fmtPower(battValue)}</span>${battLabel ? html`<span class="sub" style="color:${battCol}">${battLabel}</span>` : nothing}${dayIn(daily?.battOut, "battery")}${dayOut(daily?.battIn, "battery")}</div>`)}
 
-        ${this._renderCars(carsShown, c, carHasEnt)}
+        ${rowMode
+          ? this._renderDeviceHub(allDevs, c, devHasEnt, node, daily, dayOut)
+          : this._renderDevices(devsShown, c, devHasEnt, node, dayOut, devMode)}
 
-        ${visual ? b`<div class="huis-wire"></div>` : A}
-        <div class="huis ${visual ? "huis-visual" : ""}${reduceEffects ? " no-fx" : ""}" style="${visual ? "" : `left:${huisLeftPct}%`}">
-          ${visual ? A : b`<div class="ic" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
+        ${visual && labelPos === "left" ? html`<div class="huis-wire" style="left:calc(50% - ${picHalf + 6}px)"></div>` : nothing}
+        <div class="huis ${visual ? "huis-visual" : ""}${reduceEffects ? " no-fx" : ""}" data-anc="huislbl" style="${visual ? huisStyle : ""}"
+          @pointerdown=${homeEv.down} @pointerup=${homeEv.up} @pointermove=${homeEv.move}
+          @pointerleave=${homeEv.cancel} @pointercancel=${homeEv.cancel} @contextmenu=${(e) => e.preventDefault()}>
+          ${visual ? nothing : html`<div class="ic" data-anc="home" style="color:${c.color_home};border-color:${c.color_home}66;background:${c.color_home}1f">
             <ha-icon icon="mdi:home"></ha-icon>
           </div>`}
+          ${visual ? html`<span class="anc-home" data-anc="home"></span>` : nothing}
           <span class="lbl">${this._t("home")}</span>
           <span class="val" style="color:${c.color_home}">${fmtPower(home)}</span>
+          ${homeDayLine}
+          ${homeCostLine}
         </div>
+      </div>
+      ${rowDevs.length ? html`<div class="devrow">${rowDevs.map((d) => this._renderDeviceItem(d, c, dayOut))}</div>` : nothing}
+      ${canToggle ? html`<button class="devtoggle" @click=${() => { this._devOpen = !open; this.requestUpdate(); }}>
+          <ha-icon icon=${open ? "mdi:chevron-up" : "mdi:chevron-down"}></ha-icon>
+          ${open ? this._t("dev_collapse") : hiddenCount === rowAll.length
+            ? this._t("dev_show_all").replace("{n}", rowAll.length)
+            : this._t("dev_show_more").replace("{n}", hiddenCount)}
+        </button>` : nothing}
+      ${this._renderRatios(daily, P)}
       </div>
     `;
   }
 
-  _renderCars(cars, c, carHasEnt = true) {
-    const GREY = "#6b7280";
-    const cc = carHasEnt ? c.color_car : GREY;
-    const mode = c.car_mode === "merged" ? "merged" : "scroll";
-    const showRing = c.car_ring !== false;
-    const carInfo = (car) => b`
-      <span class="lbl">${car.name}${car.soc !== null ? b` · <b style="color:${cc}">${Math.round(car.soc)}%</b>` : A}</span>
-      <span class="val" style="color:${cc}">${fmtPower(car.power)}</span>
-      ${car.active ? b`<span class="sub" style="color:${cc}">${this._t("charging")}</span>` : A}
-    `;
-    const squareIcon = b`
-      <div class="ic" style="color:${cc};border-color:${cc}66;background:${cc}22">
-        <ha-icon icon="mdi:car-electric"></ha-icon>
+  // PV self-consumption and self-sufficiency (like the HA energy dashboard gauges),
+  // for today or the selected period.
+  _renderRatios(daily, P) {
+    const c = this._config;
+    if (c.show_ratios === false || !daily) return nothing;
+    const clamp = (x) => Math.max(0, Math.min(1, x));
+    const solar = daily.solar, out = daily.gridOut, inn = daily.gridIn, home = daily.home;
+    const selfCons = solar != null && solar > 0.01 && out != null ? clamp((solar - out) / solar) : null;
+    const autarky = home != null && home > 0.01 && inn != null ? clamp(1 - inn / home) : null;
+    if (selfCons == null && autarky == null) return nothing;
+    const ring = (frac, color, icon, label, hint) => {
+      const r = 15, circ = 2 * Math.PI * r;
+      return html`<div class="ratio" title=${hint}>
+        <div class="rring">
+          <svg viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="${r}" fill="none" stroke="rgba(127,127,127,.2)" stroke-width="3.2"></circle>
+            ${frac != null ? svg`<circle cx="18" cy="18" r="${r}" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round"
+              stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - frac)}" transform="rotate(-90 18 18)"></circle>` : nothing}
+          </svg>
+          <ha-icon icon="${icon}" style="color:${color}"></ha-icon>
+        </div>
+        <div class="rtxt"><span class="rv" style="color:${color}">${frac != null ? Math.round(frac * 100) + " %" : "–"}</span><span class="rl">${label}</span></div>
       </div>`;
-    // Ring reflects one specific car's SoC, so it only makes sense when there's a single
-    // clear "current" car — the lone car, or whichever one is currently cycled into view.
-    const ringIcon = (car) => {
+    };
+    const when = P ? P.label : this._t("today");
+    return html`<div class="ratios">
+      ${selfCons != null ? ring(selfCons, c.color_solar, "mdi:solar-power-variant", this._t("self_consumption"), `${this._t("self_consumption_hint")} (${when})`) : nothing}
+      ${autarky != null ? ring(autarky, c.color_battery, "mdi:home-lightning-bolt-outline", this._t("autarky"), `${this._t("autarky_hint")} (${when})`) : nothing}
+    </div>`;
+  }
+
+  // "Devices" hub in the bottom-right corner when every device is shown in its own row.
+  _renderDeviceHub(devs, c, hasEnt, node, daily, dayOut) {
+    const cc = hasEnt ? c.color_car : "#6b7280";
+    const total = devs.reduce((s, d) => s + (d.active && d.power > 0 ? d.power : 0), 0);
+    const anyDay = daily && devs.some((d) => d.day != null);
+    const dayTotal = anyDay ? devs.reduce((s, d) => s + (d.day || 0), 0) : null;
+    const activeCount = devs.filter((d) => d.active).length;
+    return node("devices", !hasEnt, html`
+      <div class="ic" data-anc="devices" style="color:${cc};border-color:${cc}66;background:${cc}22">
+        <ha-icon icon="mdi:power-socket-de"></ha-icon>
+      </div>
+      <div class="txt">
+        <span class="lbl">${this._t("devices")}</span>
+        <span class="val" style="color:${cc}">${fmtPower(total)}</span>
+        ${activeCount ? html`<span class="sub" style="color:${cc}">${activeCount} ${this._t("active")}</span>` : nothing}
+        ${dayOut(dayTotal, "devices", "mdi:power-socket-de")}
+      </div>`, "car");
+  }
+
+  _renderDeviceItem(d, c, dayOut) {
+    const cc = d.hasEnt ? d.color || c.color_car : "#6b7280";
+    const ev = this._nodeEvents("dev:" + d.idx);
+    const ring = c.car_ring !== false && d.isCar && d.soc != null;
+    const r = 18, circ = 2 * Math.PI * r;
+    const pct = d.soc == null ? 0 : Math.max(0, Math.min(100, d.soc)) / 100;
+    return html`<div class="devitem ${d.active || d.past ? "" : "idle"}"
+      @pointerdown=${ev.down} @pointerup=${ev.up} @pointermove=${ev.move}
+      @pointerleave=${ev.cancel} @pointercancel=${ev.cancel} @contextmenu=${(e) => e.preventDefault()}>
+      ${ring
+        ? html`<div class="socwrap sm" data-anc="dev${d.idx}">
+            <svg class="socring" viewBox="0 0 42 42">
+              <circle cx="21" cy="21" r="${r}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3"></circle>
+              ${svg`<circle cx="21" cy="21" r="${r}" fill="none" stroke="${cc}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct)}" transform="rotate(-90 21 21)"></circle>`}
+            </svg>
+            <div class="ic round" style="color:${cc}">${renderIcon(d.icon)}</div>
+          </div>`
+        : html`<div class="ic" data-anc="dev${d.idx}" style="color:${cc};border-color:${cc}66;background:${cc}22">${renderIcon(d.icon)}</div>`}
+      <span class="lbl">${d.name}${d.soc != null ? html` · <b style="color:${cc}">${Math.round(d.soc)}%</b>` : nothing}</span>
+      <span class="val" style="color:${cc}">${fmtPower(d.power)}</span>
+      ${d.active ? html`<span class="sub" style="color:${cc}">${d.isCar ? this._t("charging") : this._t("active")}</span>` : nothing}
+      ${dayOut(d.day, "devices", d.icon)}
+    </div>`;
+  }
+
+  _renderDevices(devs, c, hasEnt, node, dayOut, mode) {
+    const GREY = "#6b7280";
+    const colOf = (d) => (hasEnt ? d.color || c.color_car : GREY);
+    const showRing = c.car_ring !== false;
+    const info = (d) => {
+      const cc = colOf(d);
+      return html`
+        <span class="lbl">${d.name}${d.soc != null ? html` · <b style="color:${cc}">${Math.round(d.soc)}%</b>` : nothing}</span>
+        <span class="val" style="color:${cc}">${fmtPower(d.power)}</span>
+        ${d.active ? html`<span class="sub" style="color:${cc}">${d.isCar ? this._t("charging") : this._t("active")}</span>` : nothing}
+        ${dayOut(d.day, "devices", d.icon)}`;
+    };
+    const squareIcon = (icon, cc) => html`
+      <div class="ic" data-anc="devices" style="color:${cc};border-color:${cc}66;background:${cc}22">
+        ${renderIcon(icon)}
+      </div>`;
+    const ringIcon = (d) => {
+      const cc = colOf(d);
       const r = 23, circ = 2 * Math.PI * r;
-      const pct = car?.soc == null ? 0 : Math.max(0, Math.min(100, car.soc)) / 100;
-      const offset = circ * (1 - pct);
-      return b`
-        <div class="socwrap">
+      const pct = d?.soc == null ? 0 : Math.max(0, Math.min(100, d.soc)) / 100;
+      return html`
+        <div class="socwrap" data-anc="devices">
           <svg class="socring" viewBox="0 0 52 52">
             <circle cx="26" cy="26" r="23" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3.5"></circle>
-            ${carHasEnt && car?.soc != null ? w`<circle cx="26" cy="26" r="23" fill="none" stroke="${cc}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" transform="rotate(-90 26 26)"></circle>` : A}
+            ${hasEnt && d?.soc != null ? svg`<circle cx="26" cy="26" r="23" fill="none" stroke="${cc}" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct)}" transform="rotate(-90 26 26)"></circle>` : nothing}
           </svg>
-          <div class="ic round" style="color:${cc}">
-            <ha-icon icon="mdi:car-electric"></ha-icon>
-          </div>
+          <div class="ic round" style="color:${cc}">${renderIcon(d.icon)}</div>
         </div>`;
     };
+    const iconFor = (d) => (showRing && d.isCar && d.soc != null ? ringIcon(d) : squareIcon(d.icon, colOf(d)));
 
-    if (mode === "merged" || cars.length === 1) {
-      // icon in corner, info to the left (mirror of accu)
-      const single = cars.length === 1 ? cars[0] : null;
-      const icon = showRing && single ? ringIcon(single) : squareIcon;
-      return b`
-        <div class="node br car ${carHasEnt ? "" : "muted"}">
-          <div class="txt carinfos">
-            ${cars.map((car) => b`<div class="cartxt">${carInfo(car)}</div>`)}
-          </div>
-          ${icon}
-        </div>`;
+    if (mode !== "scroll" || devs.length === 1) {
+      const single = devs.length === 1 ? devs[0] : null;
+      const sameIcon = devs.every((d) => d.icon === devs[0].icon);
+      const icon = single ? iconFor(single) : squareIcon(sameIcon ? devs[0].icon : "mdi:power-plug", hasEnt ? c.color_car : GREY);
+      return node("devices", !hasEnt, html`
+        ${icon}
+        <div class="txt carinfos">${devs.map((d) => html`<div class="cartxt">${info(d)}</div>`)}</div>`, "car");
     }
 
-    // scroll mode: icon (and ring, if enabled) cycles together with the shown car
-    const idx = this._carScrollIdx % cars.length;
-    const car = cars[idx];
-    const icon = showRing ? ringIcon(car) : squareIcon;
-    return b`
-      <div class="node br car ${carHasEnt ? "" : "muted"}">
-        <div class="txt">
-          <div class="cartxt caranim" data-k=${idx}>${carInfo(car)}</div>
-          <div class="cardots">
-            ${cars.map((_, i) => b`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? cc : "rgba(255,255,255,.25)"}"></span>`)}
-          </div>
+    const idx = (this._carScrollIdx || 0) % devs.length;
+    const d = devs[idx];
+    return node("devices", !hasEnt, html`
+      ${iconFor(d)}
+      <div class="txt">
+        <div class="cartxt caranim" data-k=${idx}>${info(d)}</div>
+        <div class="cardots">
+          ${devs.map((_, i) => html`<span class="dot ${i === idx ? "on" : ""}" style="background:${i === idx ? colOf(d) : "rgba(255,255,255,.25)"}"></span>`)}
         </div>
-        ${icon}
-      </div>`;
+      </div>`, "car");
+  }
+
+  // Measure where the icons actually are, so wires can start/end exactly at them.
+  _measure(force = false) {
+    const flow = this.renderRoot?.querySelector?.(".flowwrap");
+    const top = this.renderRoot?.querySelector?.(".flow");
+    if (!flow || !top) return;
+    if (this._roTarget !== flow && typeof ResizeObserver !== "undefined") {
+      if (this._ro) this._ro.disconnect();
+      this._ro = new ResizeObserver(() => this._measure());
+      this._ro.observe(flow);
+      this._roTarget = flow;
+    }
+    const fr = flow.getBoundingClientRect();
+    if (!fr.width) return;
+    const m = { W: Math.round(fr.width), H: Math.round(fr.height), FH: Math.round(top.getBoundingClientRect().height) };
+    flow.querySelectorAll("[data-anc]").forEach((el) => {
+      const r = el.getBoundingClientRect();
+      const box = {
+        left: r.left - fr.left, right: r.right - fr.left, top: r.top - fr.top, bottom: r.bottom - fr.top,
+        width: r.width, height: r.height,
+      };
+      box.cx = box.left + r.width / 2;
+      box.cy = box.top + r.height / 2;
+      for (const k in box) box[k] = Math.round(box[k] * 2) / 2;
+      m[el.dataset.anc] = box;
+    });
+    const sig = JSON.stringify(m);
+    if (force || sig !== this._geoSig) {
+      this._geoSig = sig;
+      this._geo = m;
+      this.requestUpdate();
+    }
   }
 
   connectedCallback() {
@@ -1522,6 +3488,9 @@ class EnergyFlowPriceCard extends i {
     if (this._carTimer) { clearInterval(this._carTimer); this._carTimer = null; }
     if (this._flowTimer) { clearInterval(this._flowTimer); this._flowTimer = null; }
     if (this._chartTimer) { clearInterval(this._chartTimer); this._chartTimer = null; }
+    if (this._ro) { this._ro.disconnect(); this._ro = null; this._roTarget = null; }
+    if (this._eUnsub) { try { this._eUnsub(); } catch (e) { /* ignore */ } this._eUnsub = null; }
+    clearTimeout(this._holdTimer);
   }
 
   _startCarScroll() {
@@ -1533,7 +3502,37 @@ class EnergyFlowPriceCard extends i {
     }, secs * 1000);
   }
 
+  // Home Assistant hands every card a new `hass` object on ANY state change in the system.
+  // Only re-render when one of the entities this card actually uses has changed.
+  shouldUpdate(changed) {
+    if (!changed.has("hass") || changed.size > 1) return true;
+    const old = changed.get("hass");
+    if (!old || !this._config || !this.hass) return true;
+    if (old.language !== this.hass.language || old.themes !== this.hass.themes || old.locale !== this.hass.locale) return true;
+    const ids = this._watchIds();
+    for (const id of ids) if (old.states[id] !== this.hass.states[id]) return true;
+    return false;
+  }
+
+  _watchIds() {
+    if (this._watch && this._watch.cfg === this._config) return this._watch.ids;
+    const ids = new Set();
+    const walk = (v) => {
+      if (typeof v === "string") { if (/^[a-z_]+\.[a-z0-9_]+$/i.test(v)) ids.add(v); }
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v && typeof v === "object") Object.values(v).forEach(walk);
+    };
+    walk(this._config);
+    this._watch = { cfg: this._config, ids: [...ids] };
+    return this._watch.ids;
+  }
+
   updated() {
+    // measure icon positions at most once per animation frame (layout reads are expensive)
+    if (!this._measureQueued) {
+      this._measureQueued = true;
+      requestAnimationFrame(() => { this._measureQueued = false; this._measure(); });
+    }
     // Restart the fade+slide animation whenever the shown car changes.
     const el = this.renderRoot?.querySelector?.(".caranim");
     if (el && el.dataset.k !== this._lastCarK) {
@@ -1575,12 +3574,14 @@ class EnergyFlowPriceCard extends i {
     return [
       { id: "price", label: this._t("tab_price"), show: !!c.price_entity || !!c.price_use_tibber_service },
       { id: "solar", label: this._t("tab_solar"), show: !!c.solar_power },
+      { id: "grid", label: this._t("tab_grid"), show: this._src("grid").entities.length > 0 },
       { id: "accu", label: this._t("tab_battery"), show: !!c.battery_soc },
       {
         id: "usage",
         label: this._t("tab_usage"),
-        show: !!(c.solar_power || c.battery_charge_power || c.battery_discharge_power || c.grid_power),
+        show: !!(c.solar_power || this._src("grid").entities.length || this._src("battery").entities.length),
       },
+      { id: "devices", label: this._t("tab_devices"), show: this._devices().some((d) => d.power || d.energy) },
     ].filter((t) => t.show);
   }
 
@@ -1588,30 +3589,45 @@ class EnergyFlowPriceCard extends i {
     const c = this._config;
     const mode = this._chartMode || "price";
     const tabs = this._chartTabs();
-    // if selected tab is unavailable, fall back to first
     const activeMode = tabs.some((t) => t.id === mode) ? mode : (tabs[0]?.id || "price");
 
-    const tabBar = tabs.length > 1 ? b`
+    const tabBar = tabs.length > 1 ? html`
       <div class="tabs">
-        ${tabs.map((t) => b`
+        ${tabs.map((t) => html`
           <button class="tab ${t.id === activeMode ? "on" : ""}" @click=${() => this._setChartMode(t.id, true)}>${t.label}</button>`)}
-      </div>` : A;
+      </div>` : nothing;
+
+    // Time-span chips: price chart -> hours ahead; all other charts -> history span.
+    let ranges;
+    if (activeMode === "price") {
+      const cur = this._priceHours ?? Math.max(8, Math.min(48, c.price_hours || 24));
+      ranges = html`<div class="ranges">${PRICE_RANGES.map((h) => html`
+        <button class="rng ${h === cur ? "on" : ""}" @click=${() => { this._priceHours = h; this._selectedSlot = null; this._tapLock = false; this._pauseAutoScroll(); this.requestUpdate(); }}>${h}h</button>`)}</div>`;
+    } else if (this._period()) {
+      ranges = html`<div class="ranges"><span class="rng on period"><ha-icon icon="mdi:calendar"></ha-icon>${this._period().label}</span></div>`;
+    } else {
+      const cur = this._histRange ?? c.history_range ?? "today";
+      ranges = html`<div class="ranges">${HISTORY_RANGES.map((r) => html`
+        <button class="rng ${r.id === cur ? "on" : ""}" @click=${() => { this._histRange = r.id; this._cursor = null; this._pauseAutoScroll(); this.requestUpdate(); }}>${this._t("range_" + r.id)}</button>`)}</div>`;
+    }
 
     let body;
     if (activeMode === "price") body = this._priceChart(c);
-    else if (activeMode === "usage") body = this._usageChart(c);
     else body = this._historyChart(c, activeMode);
 
-    return b`<div class="price">${tabBar}<div class="chartbody" data-k=${activeMode}>${body}</div></div>`;
+    return html`<div class="price">${tabBar}${ranges}<div class="chartbody" data-k=${activeMode}>${body}</div></div>`;
   }
 
   _setChartMode(m, manual = false) {
+    if (this._chartMode !== m) { this._cursor = null; }
     this._chartMode = m;
-    if (m === "usage") this._ensureUsageHistory();
-    else if (m !== "price") this._ensureHistory(m);
-    // A manual click overrides auto-scroll for a while so the user's choice sticks.
-    if (manual && this._config?.chart_auto_scroll) this._startChartScroll();
+    if (manual) this._pauseAutoScroll();
     this.requestUpdate();
+  }
+
+  // A manual interaction restarts the auto-scroll timer so the user's choice sticks.
+  _pauseAutoScroll() {
+    if (this._config?.chart_auto_scroll) this._startChartScroll();
   }
 
   _startChartScroll() {
@@ -1619,6 +3635,7 @@ class EnergyFlowPriceCard extends i {
     if (!this._config?.chart_auto_scroll) return;
     const secs = Math.max(3, this._config.chart_scroll_interval || 8);
     this._chartTimer = setInterval(() => {
+      if (this._cursor != null || this._tapLock) return; // user is inspecting a point in time
       const tabs = this._chartTabs();
       if (tabs.length < 2) return;
       const mode = this._chartMode || "price";
@@ -1628,214 +3645,873 @@ class EnergyFlowPriceCard extends i {
     }, secs * 1000);
   }
 
-  // Fetch today's history for solar/accu once, cache it.
-  async _ensureHistory(mode) {
-    const c = this._config;
-    const entity = mode === "solar" ? c.solar_power : c.battery_soc;
-    if (!entity || !this.hass) return;
-    this._history = this._history || {};
-    const cacheKey = mode + "|" + entity;
-    // refresh at most every 5 min
-    const cached = this._history[cacheKey];
-    if (cached && Date.now() - cached.fetched < 300000) return;
-
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
+  // Solar forecast exactly like the HA energy dashboard: the forecast integrations
+  // (Forecast.Solar, Solcast, …) configured there, summed, via energy/solar_forecast.
+  async _ensureForecast() {
+    if (this._config.solar_forecast === false || !this.hass?.callWS) return;
+    const f = this._fc;
+    const sel = JSON.stringify(this._config.solar_forecast_entries || []);
+    if (f && f.sel === sel && (f.busy || Date.now() - f.fetched < 900000)) return;
+    this._fc = { ...(f && f.sel === sel ? f : { points: [] }), busy: true, fetched: Date.now(), sel };
+    let ids = null;
     try {
-      const url = `history/period/${start.toISOString()}?filter_entity_id=${entity}&minimal_response`;
-      const res = await this.hass.callApi("GET", url);
-      const arr = Array.isArray(res) && res[0] ? res[0] : [];
-      const points = arr.map((s) => ({
-        t: new Date(s.last_changed || s.last_updated).getTime(),
-        v: parseFloat(s.state),
-      })).filter((p) => !isNaN(p.v));
-      this._history[cacheKey] = { fetched: Date.now(), points };
-      this.requestUpdate();
+      const prefs = await this.hass.callWS({ type: "energy/get_prefs" });
+      ids = (prefs?.energy_sources || []).filter((x) => x.type === "solar").flatMap((x) => x.config_entry_solar_forecast || []);
+    } catch (e) { /* no energy prefs -> use every forecast */ }
+    let data;
+    try {
+      data = (await this.hass.callWS({ type: "energy/solar_forecast" })) || {};
     } catch (e) {
-      this._history[cacheKey] = { fetched: Date.now(), points: [], error: true };
+      this._fc = { busy: false, fetched: Date.now(), points: [], error: true };
       this.requestUpdate();
+      return;
     }
-  }
-
-  // Fetch the last hour of raw power history (W) for all flow entities at once — reuses
-  // the same entities already configured for the flow diagram, no separate config needed.
-  // One REST call for every entity (comma-separated filter_entity_id) instead of the
-  // one-entity-at-a-time pattern _ensureHistory() uses for the Solar/Battery tabs.
-  async _ensureUsageHistory() {
-    const c = this._config;
-    const entities = [c.solar_power, c.battery_charge_power, c.battery_discharge_power, c.grid_power].filter(Boolean);
-    if (!entities.length || !this.hass) return;
-    const cacheKey = entities.join(",");
-    this._usageHistory = this._usageHistory || {};
-    const cached = this._usageHistory[cacheKey];
-    if (cached && Date.now() - cached.fetched < 60000) return; // refresh every minute
-
-    const start = new Date(Date.now() - 3600000); // last hour
-    try {
-      const url = `history/period/${start.toISOString()}?filter_entity_id=${entities.join(",")}&minimal_response`;
-      const res = await this.hass.callApi("GET", url);
-      const byEntity = {};
-      for (const arr of (Array.isArray(res) ? res : [])) {
-        if (!Array.isArray(arr) || !arr.length) continue;
-        const id = arr[0].entity_id;
-        byEntity[id] = arr.map((s) => ({
-          t: new Date(s.last_changed || s.last_updated).getTime(),
-          v: parseFloat(s.state),
-        })).filter((p) => !isNaN(p.v));
+    // optional per-card selection (e.g. two buildings in one Home Assistant)
+    const chosen = Array.isArray(this._config.solar_forecast_entries) ? this._config.solar_forecast_entries.filter(Boolean) : [];
+    const use = chosen.length ? chosen : (ids && ids.length ? ids : Object.keys(data));
+    // Like the energy dashboard: collect everything into whole-hour buckets. Some forecasts
+    // (e.g. Forecast.Solar) also contain odd timestamps such as sunrise/sunset (07:43),
+    // which must not be mistaken for a shorter time step.
+    const HOUR = 3600000;
+    const sum = new Map();
+    for (const id of use) {
+      for (const [k, wh] of Object.entries(data[id]?.wh_hours || {})) {
+        const t = Date.parse(k);
+        if (isNaN(t)) continue;
+        const h = Math.floor(t / HOUR) * HOUR;
+        sum.set(h, (sum.get(h) || 0) + (+wh || 0));
       }
-      this._usageHistory[cacheKey] = { fetched: Date.now(), byEntity };
-      this.requestUpdate();
-    } catch (e) {
-      this._usageHistory[cacheKey] = { fetched: Date.now(), byEntity: {}, error: true };
-      this.requestUpdate();
     }
+    const ts = [...sum.keys()].sort((a, b) => a - b);
+    // Wh per hour == average power in W for that hour, drawn at the middle of the hour
+    const points = ts.map((t) => ({ t, wh: sum.get(t), v: sum.get(t) }));
+    this._fc = { busy: false, fetched: Date.now(), points, step: HOUR, sel };
+    this.requestUpdate();
   }
 
-  _usageChart(c) {
-    const entities = [c.solar_power, c.battery_charge_power, c.battery_discharge_power, c.grid_power].filter(Boolean);
-    const cacheKey = entities.join(",");
-    const cached = this._usageHistory?.[cacheKey];
-    if (!cached) this._ensureUsageHistory();
-    const byEntity = cached?.byEntity || {};
+  _forecastPoints() {
+    if (this._config.solar_forecast === false) return null;
+    this._ensureForecast();
+    const pts = this._fc?.points;
+    return pts && pts.length ? pts : null;
+  }
 
-    const startMs = Date.now() - 3600000;
+  // forecast kWh for today (whole day) or null when no forecast is configured
+  _forecastToday() {
+    const pts = this._forecastPoints();
+    if (!pts) return null;
+    const a = startOfToday(), b = a + 86400000;
+    return pts.filter((p) => p.t >= a && p.t < b).reduce((x, p) => x + p.wh, 0) / 1000;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Electricity costs: grid import (5-minute means from the recorder statistics, raw
+  // history as fallback) × the price valid at that time. Yesterday's prices come from
+  // the history of the price entity (provider attributes usually start today).
+  // ---------------------------------------------------------------------------
+  async _ensureCostData() {
+    const c = this._config;
+    if (!this.hass?.callWS || c.price_show_costs === false) return;
+    const gs = this._src("grid");
+    if (!gs.entities.length) return;
+    const y0 = startOfToday() - 86400000;
+    const key = gs.entities.join(",") + "|" + (c.price_entity || "") + "|" + y0;
     const now = Date.now();
-    const span = Math.max(1, now - startMs);
-
-    // Three series: solar, battery (discharge=+, charge=-, net contribution to the
-    // home), and grid (positive=import, negative=export/"teruglevering").
-    const series = [
-      { key: c.solar_power, color: c.color_solar, name: this._t("solar") },
-      { key: c.battery_discharge_power, extraKey: c.battery_charge_power, color: c.color_battery, name: this._t("battery") },
-      { key: c.grid_power, color: c.color_grid, name: this._t("grid") },
-    ].filter((s) => s.key || s.extraKey);
-
-    const seriesPoints = series.map((s) => {
-      if (s.extraKey !== undefined) {
-        // battery: merge discharge (+) and charge (-) sample times into one net series
-        const dis = (byEntity[s.key] || []);
-        const chg = (byEntity[s.extraKey] || []);
-        const times = [...new Set([...dis.map((p) => p.t), ...chg.map((p) => p.t)])].sort((a, b) => a - b);
-        const valueAt = (arr, t) => { let last = 0; for (const p of arr) { if (p.t > t) break; last = p.v; } return last; };
-        return { ...s, points: times.map((t) => ({ t, v: valueAt(dis, t) - valueAt(chg, t) })) };
+    const old = this._cost;
+    if (old && old.key === key && (old.busy || now - old.fetched < 300000)) return;
+    this._cost = { ...(old && old.key === key ? old : {}), key, busy: true, fetched: now };
+    const startIso = new Date(y0).toISOString();
+    const endIso = new Date(now).toISOString();
+    const grid = {};
+    try {
+      const r = await this.hass.callWS({
+        type: "recorder/statistics_during_period", start_time: startIso, end_time: endIso,
+        statistic_ids: gs.entities, period: "5minute", types: ["mean"],
+      });
+      for (const id of gs.entities) {
+        const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+        const arr = r?.[id];
+        if (Array.isArray(arr) && arr.length) {
+          grid[id] = arr.map((x) => ({ t: typeof x.start === "number" ? x.start : Date.parse(x.start), v: (x.mean || 0) * f, dur: 300000 }));
+        }
       }
-      return { ...s, points: (byEntity[s.key] || []).map((p) => ({ t: p.t, v: p.v })) };
-    }).filter((s) => s.points.length);
-
-    const allVals = seriesPoints.flatMap((s) => s.points.map((p) => p.v));
-    const maxV = Math.max(10, ...allVals.map(Math.abs)) * 1.1;
-
-    const pathFor = (points) => points.length
-      ? points.map((p, i) => {
-          const x = Math.max(0, Math.min(1, (p.t - startMs) / span)) * 100;
-          const y = 50 - Math.max(-1, Math.min(1, p.v / maxV)) * 50;
-          return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-        }).join(" ")
-      : "";
-
-    const labelEvery = 15; // minutes
-    const labels = [];
-    for (let m = 0; m <= 60; m += labelEvery) {
-      const d = new Date(startMs + m * 60000);
-      labels.push({ frac: (m * 60000) / span, text: d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0") });
+    } catch (e) { /* fall back to history */ }
+    const missing = gs.entities.filter((id) => !grid[id]);
+    if (missing.length) {
+      try {
+        const res = await this.hass.callApi("GET", `history/period/${startIso}?filter_entity_id=${missing.join(",")}&end_time=${encodeURIComponent(endIso)}&minimal_response&no_attributes`);
+        for (const arr of Array.isArray(res) ? res : []) {
+          if (!Array.isArray(arr) || !arr.length) continue;
+          const id = arr[0].entity_id;
+          const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+          const pts = arr.map((x) => ({ t: Math.max(y0, Date.parse(x.last_changed || x.last_updated)), v: (parseFloat(x.state) || 0) * f }));
+          grid[id] = pts.map((p, i) => ({ ...p, dur: (i + 1 < pts.length ? pts[i + 1].t : now) - p.t }));
+        }
+      } catch (e) { /* no data */ }
     }
+    const priceHist = await this._priceHistory(y0, now, now - y0);
+    this._cost = { key, busy: false, fetched: Date.now(), grid, priceHist };
+    this.requestUpdate();
+  }
 
-    const yTicks = [1, 0.5, 0, -0.5, -1].map((f) => Math.round(maxV * f));
+  // { kwh, eur } of grid import for the local day starting at dayStart (null if no data)
+  _costFor(dayStart, pricePoints) {
+    const d = this._cost;
+    if (!d || !d.grid) return null;
+    const gs = this._src("grid");
+    // import power samples (W) with their duration
+    let samples = [];
+    if (gs.dual) samples = (d.grid[gs.pos] || []).map((p) => ({ ...p, v: Math.max(0, Math.abs(p.v)) }));
+    else samples = (d.grid[gs.signed] || []).map((p) => ({ ...p, v: Math.max(0, p.v * gs.sign) }));
+    if (!samples.length) return null;
+    // price lookup: provider list wins where it has data, history of the entity fills the rest
+    return costCalc(samples, [...(d.priceHist || []), ...(pricePoints || [])], dayStart, Math.min(addDays(dayStart, 1), Date.now()));
+  }
 
-    return b`
-      <div class="chdr">
-        <span class="t">${this._t("usage_title")}</span>
-        <div class="usage-legend">
-          ${seriesPoints.map((s) => b`<span class="usage-legend-item"><i style="background:${s.color}"></i>${s.name}</span>`)}
-        </div>
-      </div>
-      <div class="chart">
-        <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
-        <div class="plot">
-          ${seriesPoints.length
-            ? b`<svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <line x1="0" y1="50" x2="100" y2="50" stroke="var(--divider-color, rgba(255,255,255,.2))" stroke-width="0.5" vector-effect="non-scaling-stroke"></line>
-                ${seriesPoints.map((s) => w`<path d="${pathFor(s.points)}" fill="none" stroke="${s.color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>`)}
-              </svg>`
-            : b`<div class="empty">${cached?.error ? this._t("history_none") : this._t("history_loading")}</div>`}
-          <div class="nowline right" data-now="${this._t("now")}" style="left:100%"></div>
-        </div>
-        <div class="xaxis">
-          ${labels.map((l) => b`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
-        </div>
-      </div>
-    `;
+  _rangeSpec() {
+    const id = this._histRange ?? this._config.history_range ?? "today";
+    const r = HISTORY_RANGES.find((x) => x.id === id) || HISTORY_RANGES.find((x) => x.id === "today");
+    const end = Date.now();
+    const start = r.hours == null ? startOfToday() : end - r.hours * 3600000;
+    return { id: r.id, start, end, now: end, hours: (end - start) / 3600000 };
+  }
+
+  // Load (and cache) history for a set of entities over the chosen span. Spans longer
+  // than 24 h use the recorder's 5-minute/hourly statistics (much lighter), falling back
+  // to raw history for entities without statistics.
+  _seriesData(entities, spec) {
+    entities = [...new Set(entities.filter(Boolean))];
+    if (!entities.length || !this.hass) return { byEntity: {}, loaded: true };
+    this._hcache = this._hcache || {};
+    const key = entities.join(",") + "|" + spec.id;
+    const final = spec.past;
+    const cached = this._hcache[key];
+    const maxAge = spec.hours > 24 ? 600000 : 60000;
+    if (!cached || (!cached.busy && !(final && cached.loaded) && Date.now() - cached.fetched > maxAge)) {
+      this._hcache[key] = { ...(cached || { byEntity: {} }), busy: true, fetched: Date.now() };
+      this._fetchSeries(entities, spec).then((res) => {
+        this._hcache[key] = { ...res, busy: false, fetched: Date.now(), loaded: true };
+        this.requestUpdate();
+      });
+    }
+    return this._hcache[key];
+  }
+
+  async _fetchSeries(entities, spec) {
+    const byEntity = {};
+    const factor = (id) => unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+    let missing = entities;
+    let error = false;
+    if (spec.hours > 24 && this.hass.callWS) {
+      try {
+        const r = await this.hass.callWS({
+          type: "recorder/statistics_during_period",
+          start_time: new Date(spec.start).toISOString(),
+          end_time: new Date(spec.end).toISOString(),
+          statistic_ids: entities,
+          period: spec.hours > 48 ? "hour" : "5minute",
+          types: ["mean"],
+        });
+        for (const id of entities) {
+          const arr = r?.[id];
+          if (!Array.isArray(arr) || !arr.length) continue;
+          const f = factor(id);
+          byEntity[id] = arr
+            .map((s) => ({ t: typeof s.start === "number" ? s.start : Date.parse(s.start), v: s.mean * f }))
+            .filter((p) => !isNaN(p.v) && !isNaN(p.t));
+        }
+      } catch (e) { /* fall back to history */ }
+      missing = entities.filter((id) => !byEntity[id]);
+    }
+    if (missing.length) {
+      try {
+        const url = `history/period/${new Date(spec.start).toISOString()}?filter_entity_id=${missing.join(",")}` +
+          `&end_time=${encodeURIComponent(new Date(spec.end).toISOString())}&minimal_response&no_attributes`;
+        const res = await this.hass.callApi("GET", url);
+        for (const arr of Array.isArray(res) ? res : []) {
+          if (!Array.isArray(arr) || !arr.length) continue;
+          const id = arr[0].entity_id;
+          const f = factor(id);
+          const pts = arr.map((s) => ({
+            t: Math.max(spec.start, Date.parse(s.last_changed || s.last_updated)),
+            v: parseFloat(s.state) * f,
+          })).filter((p) => !isNaN(p.v) && !isNaN(p.t));
+          byEntity[id] = downsample(pts, spec.start, spec.end, 600);
+        }
+      } catch (e) {
+        error = true;
+      }
+    }
+    return { byEntity, error };
   }
 
   _historyChart(c, mode) {
-    const entity = mode === "solar" ? c.solar_power : c.battery_soc;
-    const color = mode === "solar" ? c.color_solar : c.color_battery;
-    const title = mode === "solar" ? this._t("solar_today") : this._t("battery_today");
-
-    const cacheKey = mode + "|" + entity;
-    const cached = this._history?.[cacheKey];
-    if (!cached) { this._ensureHistory(mode); }
-    const points = cached?.points || [];
-
-    // build a smooth area/line over today 00:00 -> now (axis ends at NOW)
-    const start = new Date(); start.setHours(0, 0, 0, 0);
-    const startMs = start.getTime();
-    const now = Date.now();
-    const span = Math.max(1, now - startMs);
-
-    let maxV = mode === "accu" ? 100 : Math.max(10, ...points.map((p) => p.v)) * 1.1;
-    const path = points.length
-      ? points.map((p, i) => {
-          const x = Math.max(0, Math.min(1, (p.t - startMs) / span)) * 100;
-          const y = 100 - Math.max(0, Math.min(1, p.v / maxV)) * 100;
-          return `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`;
-        }).join(" ")
-      : "";
-    const areaPath = path ? `${path} L100,100 L0,100 Z` : "";
-
-    // labels only up to the current hour; axis runs 00:00 -> now
-    const nowHour = now / 3600000 - startMs / 3600000; // hours since midnight (fractional)
-    const labelEvery = nowHour <= 8 ? 2 : 3;
-    const labels = [];
-    for (let h = 0; h <= Math.floor(nowHour); h += labelEvery) {
-      labels.push({ frac: (h * 3600000) / span, text: h + ":00" });
+    let spec = this._rangeSpec();
+    const P = this._period();
+    if (P) {
+      const end = Math.min(P.end, Date.now());
+      spec = { id: `p${P.start}-${P.end}`, start: P.start, end: P.live ? end : P.end, now: end, hours: (end - P.start) / 3600000, past: !P.live, label: P.label };
     }
-    // always show the current time at the far right
-    const curD = new Date(now);
-    labels.push({ frac: 1, text: curD.getHours() + ":" + String(curD.getMinutes()).padStart(2, "0") });
-    const nowFrac = 1; // now is the right edge
+    const T = (k) => this._t(k);
+    const live = (e) => pw(this.hass, e);
+    let series = [];
+    let opts = {};
+    let entities = [];
 
-    const cur = num(this.hass, entity);
-    const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => Math.round(maxV * f) + (mode === "accu" ? "" : ""));
+    if (mode === "solar") {
+      entities = [c.solar_power];
+      series = [{ name: T("solar"), color: c.color_solar, entity: c.solar_power, area: true, live: live(c.solar_power) }];
+      opts = { title: T("tab_solar") };
+      const fc = this._forecastPoints();
+      if (fc) {
+        // "today": like the energy dashboard, the axis runs to midnight so the rest of the day's forecast is visible
+        if (spec.id === "today") spec = { ...spec, end: spec.start + 86400000 };
+        const half = (this._fc.step || 3600000) / 2;
+        const total = this._forecastToday();
+        series.push({
+          name: T("forecast"), color: c.color_solar, forecast: true,
+          points: fc.map((p) => ({ t: p.t + half, v: p.v })).filter((p) => p.t >= spec.start - half * 2 && p.t <= spec.end + half * 2),
+          legendNow: total != null && spec.id === "today" ? `${T("forecast_today")} ${fmtKWh(total)} kWh` : null,
+        });
+      }
+    } else if (mode === "grid") {
+      entities = this._src("grid").entities;
+      series = [{
+        name: T("grid"), color: c.color_grid, src: "grid", live: this._srcValue("grid"), split: true,
+        label: (v) => (v < 0 ? T("grid_export") : T("grid_import")),
+      }];
+      opts = { title: T("grid_title"), signed: true, splitColors: { pos: c.color_grid, neg: c.color_grid_export || "#22c55e" } };
+    } else if (mode === "accu") {
+      entities = [c.battery_soc];
+      series = [{ name: T("battery"), color: c.color_battery, entity: c.battery_soc, area: true, live: num(this.hass, c.battery_soc) }];
+      opts = { title: T("battery_soc_title"), fixedMax: 100, unit: "%" };
+    } else if (mode === "usage" && (this._useView || c.usage_view || "line") === "bars") {
+      return this._usageBars(c, spec);
+    } else if (mode === "usage") {
+      entities = [c.solar_power, ...this._src("battery").entities, ...this._src("grid").entities];
+      opts = { title: T("usage_title"), signed: true, merged: true };
+    } else if (mode === "devices" && (this._devView || c.devices_view || "line") !== "line") {
+      return this._devicesAltChart(c, spec, this._devView || c.devices_view);
+    } else if (mode === "devices") {
+      const cols = this._devColors();
+      const devs = this._devices().map((d, i) => ({ ...d, idx: i })).filter((d) => d.power);
+      entities = devs.map((d) => d.power);
+      series = devs.map((d) => ({
+        name: d.name || this._t("dev_" + d.type), color: cols[d.idx],
+        entity: d.power, live: live(d.power),
+      }));
+      opts = { title: T("devices_title") };
+    }
 
-    return b`
+    const data = this._seriesData(entities, spec);
+    const byEntity = data.byEntity || {};
+
+    if (mode === "usage") {
+      // solar, battery (discharge +, charge −), grid (+ import, − export) and the computed home use
+      const sol = byEntity[c.solar_power] || [];
+      const grd = this._srcSeries("grid", byEntity);
+      const battPts = this._srcSeries("battery", byEntity);
+      const homePts = mergeSeries([sol, grd, battPts], ([s, g, b]) => s + g + b);
+      const vv = this._liveV();
+      series = [
+        c.solar_power ? { name: T("solar"), color: c.color_solar, points: sol, live: vv.solar } : null,
+        battPts.length ? { name: T("battery"), color: c.color_battery, points: battPts, live: this._srcValue("battery") } : null,
+        grd.length ? { name: T("grid"), color: c.color_grid, points: grd, live: vv.grid } : null,
+        homePts.length ? { name: T("home"), color: c.color_home, points: homePts, live: this._homePower(vv), area: true } : null,
+      ].filter(Boolean);
+    } else {
+      series = series.map((s) => (s.forecast ? s : { ...s, points: s.src ? this._srcSeries(s.src, byEntity) : (byEntity[s.entity] || []) }));
+    }
+
+    return this._lineChart({ ...opts, series, spec, loading: !data.loaded, error: data.error, toggleKey: mode, headExtra: mode === "devices" ? this._devViewSwitch() : mode === "usage" ? this._useViewSwitch() : nothing });
+  }
+
+  // Generic time-series chart (line/area) with a draggable time cursor underneath.
+  _lineChart({ title, series, spec, signed = false, fixedMax = null, unit = "W", splitColors = null, loading = false, error = false, toggleKey = null, headExtra = nothing }) {
+    const startMs = spec.start;
+    const endMs = spec.end;
+    const span = Math.max(1, endMs - startMs);
+    const lang = resolveLang(this._config.language, this.hass);
+
+    const nowMs = Math.min(endMs, spec.now ?? endMs);
+    const nowFrac = (nowMs - startMs) / span;
+    // extend every measured series to "now" with its live (or last) value
+    const S = series.map((s) => {
+      if (s.forecast) return { ...s, pts: (s.points || []).slice() };
+      const pts = (s.points || []).filter((p) => p.t <= nowMs);
+      if (pts.length) {
+        const lastV = !spec.past && s.live != null && !isNaN(s.live) ? s.live : pts[pts.length - 1].v;
+        pts.push({ t: nowMs, v: lastV });
+      }
+      return { ...s, pts };
+    });
+    // Series switched off by tapping their legend entry (per chart, kept while the card lives).
+    const canToggle = !!toggleKey && S.length > 1;
+    const hidden = canToggle ? (this._hidden?.[toggleKey] || new Set()) : new Set();
+    const toggle = (name) => {
+      this._hidden = this._hidden || {};
+      const set = new Set(this._hidden[toggleKey] || []);
+      if (set.has(name)) set.delete(name); else set.add(name);
+      this._hidden[toggleKey] = set;
+      this.requestUpdate();
+    };
+    const SV = S.filter((s) => !hidden.has(s.name));
+    const hasData = SV.some((s) => s.pts.length);
+
+    const vals = SV.flatMap((s) => s.pts.map((p) => p.v));
+    let minV, maxV;
+    if (fixedMax != null) { minV = 0; maxV = fixedMax; }
+    else {
+      maxV = Math.max(0, ...vals);
+      minV = signed ? Math.min(0, ...vals) : 0;
+      if (maxV - minV < 10) maxV = minV + 10;
+      const pad = (maxV - minV) * 0.08;
+      maxV += pad;
+      if (minV < 0) minV -= pad;
+    }
+    const xOf = (t) => Math.max(0, Math.min(1, (t - startMs) / span)) * 100;
+    const yOf = (v) => ((maxV - v) / (maxV - minV)) * 100;
+    const y0 = yOf(Math.max(minV, Math.min(maxV, 0)));
+    // step lines (a value holds until the next change), which is how HA records power
+    const stepPath = (pts) => {
+      let d = "";
+      pts.forEach((p, i) => {
+        const x = xOf(p.t).toFixed(2), y = yOf(p.v).toFixed(2);
+        if (i === 0) d = `M${x},${y}`;
+        else d += ` H${x} V${y}`;
+      });
+      return d;
+    };
+    const areaPath = (pts) => {
+      if (!pts.length) return "";
+      return `${stepPath(pts)} L${xOf(pts[pts.length - 1].t).toFixed(2)},${y0.toFixed(2)} L${xOf(pts[0].t).toFixed(2)},${y0.toFixed(2)} Z`;
+    };
+
+    const fmtVal = (v) => {
+      if (v == null || isNaN(v)) return "–";
+      if (unit === "%") return Math.round(v) + "%";
+      return fmtPower(v);
+    };
+    const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => {
+      const v = maxV - f * (maxV - minV);
+      if (unit === "%") return Math.round(v) + "";
+      const a = Math.abs(maxV) > Math.abs(minV) ? Math.abs(maxV) : Math.abs(minV);
+      return a >= 1000 ? (v / 1000).toFixed(1).replace(".", ",") + "k" : String(Math.round(v));
+    });
+
+    const labels = timeLabels(startMs, endMs, lang, nowMs >= endMs);
+
+    // cursor
+    const cur = this._cursor;
+    const tCur = cur == null ? null : startMs + cur * span;
+    const valueAt = (pts, t, linear = false) => {
+      if (!pts.length || t > pts[pts.length - 1].t + 1000) return null;
+      if (linear) {
+        if (t < pts[0].t) return null;
+        for (let i = 1; i < pts.length; i++) {
+          if (pts[i].t >= t) { const a = pts[i - 1], b = pts[i]; return a.v + ((b.v - a.v) * (t - a.t)) / Math.max(1, b.t - a.t); }
+        }
+        return pts[pts.length - 1].v;
+      }
+      let last = null;
+      for (const p of pts) { if (p.t > t) break; last = p.v; }
+      return last;
+    };
+    const timeTxt = tCur == null
+      ? (spec.past ? spec.label : this._t("now"))
+      : new Date(tCur).toLocaleString(lang, span > 86400000
+        ? { weekday: "short", hour: "2-digit", minute: "2-digit" }
+        : { hour: "2-digit", minute: "2-digit" });
+
+    const clipPos = `efp-cp-${this._uid}`, clipNeg = `efp-cn-${this._uid}`;
+
+    return html`
       <div class="chdr">
-        <span class="t">${title}</span>
-        ${cur !== null ? b`<span class="now">${this._t("now")}: <b>${mode === "accu" ? Math.round(cur) + "%" : fmtPower(cur)}</b></span>` : A}
+        <span class="t">${title}${headExtra}</span>
+        <span class="now ${cur != null ? "sel" : ""}"><ha-icon icon="mdi:clock-outline"></ha-icon><b>${timeTxt}</b>${cur != null ? this._resetBtn(() => { this._cursor = null; this.requestUpdate(); }) : nothing}</span>
+      </div>
+      <div class="usage-legend">
+        ${S.map((s) => {
+          const v = tCur == null
+            ? (s.forecast ? valueAt(s.pts, nowMs, true) : ((spec.past ? null : s.live) ?? (s.pts.length ? s.pts[s.pts.length - 1].v : null)))
+            : valueAt(s.pts, tCur, !!s.forecast);
+          const lbl = s.label && v != null ? s.label(v) : s.name;
+          if (s.forecast && tCur == null && s.legendNow) {
+            const off = hidden.has(s.name);
+            return html`<span class="usage-legend-item fc ${canToggle ? "tog" : ""} ${off ? "off" : ""}"
+              @click=${canToggle ? () => toggle(s.name) : null}><i class="dash" style="border-color:${s.color}"></i><b style="color:${s.color}">${s.legendNow}</b></span>`;
+          }
+          const col = s.split && splitColors && v != null ? (v < 0 ? splitColors.neg : splitColors.pos) : s.color;
+          const off = hidden.has(s.name);
+          return html`<span class="usage-legend-item ${canToggle ? "tog" : ""} ${off ? "off" : ""}"
+            title=${canToggle ? this._t(off ? "legend_show" : "legend_hide") : ""}
+            @click=${canToggle ? () => toggle(s.name) : null}>${s.forecast ? html`<i class="dash" style="border-color:${col}"></i>` : html`<i style="background:${col}"></i>`}${lbl} <b style="color:${col}">${fmtVal(s.split && v != null ? Math.abs(v) : v)}</b></span>`;
+        })}
       </div>
       <div class="chart">
-        <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
+        <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
         <div class="plot">
-          ${points.length
-            ? b`<svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
-                <path d="${areaPath}" fill="${color}22"></path>
-                <path d="${path}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>
+          ${hasData
+            ? html`<svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <defs>
+                  <clipPath id="${clipPos}"><rect x="0" y="0" width="100" height="${y0}"></rect></clipPath>
+                  <clipPath id="${clipNeg}"><rect x="0" y="${y0}" width="100" height="${Math.max(0, 100 - y0)}"></rect></clipPath>
+                </defs>
+                ${minV < 0 ? svg`<line x1="0" y1="${y0}" x2="100" y2="${y0}" stroke="var(--divider-color, rgba(255,255,255,.2))" stroke-width="1" vector-effect="non-scaling-stroke"></line>` : nothing}
+                ${SV.map((s) => {
+                  if (!s.pts.length) return nothing;
+                  const line = stepPath(s.pts);
+                  if (s.split && splitColors) {
+                    const area = areaPath(s.pts);
+                    return svg`
+                      <path d="${area}" fill="${splitColors.pos}33" clip-path="url(#${clipPos})"></path>
+                      <path d="${area}" fill="${splitColors.neg}33" clip-path="url(#${clipNeg})"></path>
+                      <path d="${line}" fill="none" stroke="${splitColors.pos}" stroke-width="1.5" vector-effect="non-scaling-stroke" clip-path="url(#${clipPos})"></path>
+                      <path d="${line}" fill="none" stroke="${splitColors.neg}" stroke-width="1.5" vector-effect="non-scaling-stroke" clip-path="url(#${clipNeg})"></path>`;
+                  }
+                  if (s.forecast) {
+                    const d = s.pts.map((p, i) => `${i ? "L" : "M"}${xOf(p.t).toFixed(2)},${yOf(p.v).toFixed(2)}`).join(" ");
+                    return svg`<path d="${d}" fill="none" stroke="${s.color}" stroke-opacity=".75" stroke-width="1.5" stroke-dasharray="4 3" vector-effect="non-scaling-stroke"></path>`;
+                  }
+                  return svg`
+                    ${s.area ? svg`<path d="${areaPath(s.pts)}" fill="${s.color}22"></path>` : nothing}
+                    <path d="${line}" fill="none" stroke="${s.color}" stroke-width="1.5" vector-effect="non-scaling-stroke"></path>`;
+                })}
               </svg>`
-            : b`<div class="empty">${cached?.error ? this._t("history_none") : this._t("history_loading")}</div>`}
-          <div class="nowline right" data-now="${this._t("now")}" style="left:${Math.min(100, nowFrac * 100)}%"></div>
+            : html`<div class="empty">${error ? this._t("history_none") : loading ? this._t("history_loading") : this._t("history_none")}</div>`}
+          ${spec.past ? nothing : html`<div class="nowline ${nowFrac > 0.85 ? "right" : ""}" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>`}
+          ${tCur != null ? html`
+            <div class="cursor" style="left:${cur * 100}%"></div>
+            ${SV.map((s) => {
+              const v = valueAt(s.pts, tCur, !!s.forecast);
+              if (v == null) return nothing;
+              const col = s.split && splitColors ? (v < 0 ? splitColors.neg : splitColors.pos) : s.color;
+              return html`<span class="cdot" style="left:${cur * 100}%;top:${yOf(v)}%;background:${col}"></span>`;
+            })}` : nothing}
         </div>
         <div class="xaxis">
-          ${labels.map((l) => b`<span class="tick" style="left:${Math.min(100, l.frac * 100)}%">${l.text}</span>`)}
+          ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
         </div>
       </div>
+      ${this._scrubber(cur == null ? nowFrac : cur, (f) => { this._cursor = Math.abs(f - nowFrac) < 0.003 ? null : f; this.requestUpdate(); })}
     `;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Devices: alternative views (stacked kWh bars, ranking, donut, energy flow)
+  // ---------------------------------------------------------------------------
+  _useViewSwitch() {
+    const cur = this._useView || this._config.usage_view || "line";
+    const views = [["line", "mdi:chart-line"], ["bars", "mdi:chart-bar-stacked"]];
+    return html`<span class="vsw">${views.map(([id, icon]) => html`<button class="vbtn ${id === cur ? "on" : ""}" title=${this._t("view_" + id)}
+      @click=${(e) => { e.stopPropagation(); this._useView = id; this._cursor = null; this._pauseAutoScroll(); this.requestUpdate(); }}><ha-icon icon=${icon}></ha-icon></button>`)}</span>`;
+  }
+
+  // Energy-dashboard style usage bars: per hour/day the consumption by source above zero
+  // (PV used directly, battery discharge, grid import) and battery charge / grid export below.
+  _usageBars(c, spec) {
+    const out = this._usageBars2(c, spec);
+    const d = this._devEnergy(spec);
+    return d && d.stale ? html`<div class="stalewrap">${out}<div class="staleov"><ha-icon icon="mdi:loading" class="spin"></ha-icon></div></div>` : out;
+  }
+
+  _usageBars2(c, spec) {
+    const T = (k) => this._t(k);
+    const lang = resolveLang(c.language, this.hass);
+    const data = this._devEnergy(spec);
+    const head = (extra) => html`<div class="chdr"><span class="t">${T("usage_title")}${this._useViewSwitch()}</span>${extra}</div>`;
+    if (!data || !data.loaded) return html`${head(nothing)}<div class="chart"><div class="plot"><div class="empty">${T("history_loading")}</div></div></div>`;
+    const n = data.buckets.length || 1;
+    const pvDirect = data.buckets.map((_, i) => Math.max(0, data.solar[i] - data.grid.neg[i] - data.batt.neg[i]));
+    const series = [
+      { id: "pv", name: T("pv_direct"), color: c.color_solar, sign: 1, vals: pvDirect },
+      { id: "bout", name: T("batt_discharge"), color: c.color_battery, sign: 1, vals: data.batt.pos },
+      { id: "gin", name: T("grid_import"), color: c.color_grid, sign: 1, vals: data.grid.pos },
+      { id: "bin", name: T("batt_charge"), color: c.color_batt_charge || "#f472b6", sign: -1, vals: data.batt.neg },
+      { id: "gout", name: T("grid_export"), color: (() => { const e = c.color_grid_export || "#22c55e"; return colorDist(e, c.color_battery || "#4caf50") < 35 ? "#8b5cf6" : e; })(), sign: -1, vals: data.grid.neg },
+    ].filter((x) => x.vals.some((v) => v > 0.0005));
+    const hidden = this._hidden?.usagebars || new Set();
+    const toggle = (id) => {
+      this._hidden = this._hidden || {};
+      const set = new Set(this._hidden.usagebars || []);
+      if (set.has(id)) set.delete(id); else set.add(id);
+      this._hidden.usagebars = set;
+      this.requestUpdate();
+    };
+    const vis = series.filter((x) => !hidden.has(x.id));
+    const posSum = data.buckets.map((_, i) => vis.filter((x) => x.sign > 0).reduce((a, x) => a + (x.vals[i] || 0), 0));
+    const negSum = data.buckets.map((_, i) => vis.filter((x) => x.sign < 0).reduce((a, x) => a + (x.vals[i] || 0), 0));
+    let hi = Math.max(0.1, ...posSum), lo = Math.max(0, ...negSum);
+    const pad = (hi + lo) * 0.06; hi += pad; if (lo > 0) lo += pad;
+    const yOf = (v) => ((hi - v) / (hi + lo)) * 100;
+    const y0 = yOf(0);
+    const cur = this._cursor;
+    const bi = cur == null ? null : Math.max(0, Math.min(n - 1, Math.floor(cur * n)));
+    const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" || data.period === "15min" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
+    const labels = [];
+    const every = Math.max(1, Math.ceil(n / 6));
+    for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : data.period === "15min" ? (() => { const d = new Date(data.buckets[i].t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); })() : fmtB(data.buckets[i].t) });
+    const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => hi - f * (hi + lo));
+    const dec = hi + lo < 4 ? 1 : 0;
+    const kwh = (x) => `${fmtKWh(x)} kWh`;
+    const total = (x) => x.vals.reduce((a, v) => a + (v || 0), 0);
+    return html`
+      ${head(html`<span class="now ${bi != null ? "sel" : ""}"><ha-icon icon="mdi:clock-outline"></ha-icon><b>${bi != null ? fmtB(data.buckets[bi].t) : (spec.label || T("range_" + spec.id))}</b>${bi != null ? this._resetBtn(() => { this._cursor = null; this.requestUpdate(); }) : nothing}</span>`)}
+      <div class="usage-legend">${series.map((x) => {
+        const off = hidden.has(x.id);
+        const v = bi != null ? (x.vals[bi] || 0) : total(x);
+        return html`<span class="usage-legend-item tog ${off ? "off" : ""}" @click=${() => toggle(x.id)}><i style="background:${x.color}"></i>${x.name} <b style="color:${x.color}">${x.sign < 0 && v > 0 ? "−" : ""}${kwh(v)}</b></span>`;
+      })}</div>
+      <div class="chart">
+        <div class="yaxis">${ticks.map((t) => html`<span>${(Math.abs(t) < 1e-9 ? 0 : t).toFixed(dec).replace(".", ",")}</span>`)}</div>
+        <div class="plot">
+          <svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
+            <line x1="0" y1="${y0}" x2="100" y2="${y0}" stroke="var(--divider-color, rgba(255,255,255,.25))" stroke-width="1" vector-effect="non-scaling-stroke"></line>
+            ${data.buckets.map((b, i) => {
+              const w = 100 / n, x0 = i * w + w * 0.14, bw = w * 0.72;
+              const on = bi == null || bi === i;
+              let up = 0, down = 0;
+              return svg`${vis.map((x) => {
+                const v = x.vals[i] || 0;
+                if (v <= 0) return nothing;
+                let ya, yb;
+                if (x.sign > 0) { ya = yOf(up + v); yb = yOf(up); up += v; } else { ya = yOf(-down); yb = yOf(-(down + v)); down += v; }
+                return svg`<rect x="${x0}" y="${ya}" width="${bw}" height="${Math.max(0.2, yb - ya)}" fill="${x.color}" fill-opacity="${on ? 0.45 : 0.15}"
+                  stroke="${x.color}" stroke-opacity="${on ? 1 : 0.4}" stroke-width="1" vector-effect="non-scaling-stroke"></rect>`;
+              })}`;
+            })}
+          </svg>
+          ${bi != null ? html`<div class="cursor" style="left:${((bi + 0.5) / n) * 100}%"></div>` : nothing}
+        </div>
+        <div class="xaxis">${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}</div>
+      </div>
+      ${this._scrubber(cur == null ? 1 : cur, (f) => { this._cursor = f >= 0.999 ? null : f; this.requestUpdate(); })}`;
+  }
+
+  _devViewSwitch() {
+    const cur = this._devView || this._config.devices_view || "line";
+    const views = [["line", "mdi:chart-line"], ["bars", "mdi:chart-bar-stacked"], ["rank", "mdi:format-list-bulleted-square"], ["donut", "mdi:chart-donut"], ["sankey", "mdi:chart-sankey"]];
+    return html`<span class="vsw">${views.map(([id, icon]) => html`<button class="vbtn ${id === cur ? "on" : ""}" title=${this._t("view_" + id)}
+      @click=${(e) => { e.stopPropagation(); this._devView = id; this._cursor = null; this._pauseAutoScroll(); this.requestUpdate(); }}><ha-icon icon=${icon}></ha-icon></button>`)}</span>`;
+  }
+
+  // kWh per device and bucket (hour / day / month) plus the house consumption per bucket.
+  _devEnergy(spec) {
+    const c = this._config;
+    const devs = this._devices().map((d, i) => ({ ...d, idx: i })).filter((d) => d.power || d.energy);
+    const span = Math.max(1, spec.end - spec.start);
+    // display buckets: 15 min up to 6 h, hours up to ~2 days, then days / months
+    const period = span <= 6.1 * 3600000 ? "15min" : span <= 2.1 * 86400000 ? "hour" : span <= 92 * 86400000 ? "day" : "month";
+    // data resolution: 5-minute statistics up to ~2 days (includes the running hour), then hourly / daily
+    const fetchPeriod = span <= 2.1 * 86400000 ? "5minute" : span <= 35 * 86400000 ? "hour" : period === "month" ? "month" : "day";
+    const gs = this._src("grid"), bs = this._src("battery");
+    const base = [c.solar_power, ...gs.entities, ...bs.entities].filter(Boolean);
+    const ids = [...new Set([...devs.map((d) => d.energy || d.power), ...base].filter(Boolean))];
+    // rolling ranges (1h, 6h, 24h, 48h, 7d) move their start every render: key them by a
+    // 10-minute slot so the same range is not fetched again and again
+    const fixedStart = spec.past || spec.id === "today" || String(spec.id).startsWith("p");
+    const key = `${spec.id}|${fixedStart ? spec.start : Math.floor(spec.start / 600000)}|${period}|${ids.join(",")}`;
+    this._dcache = this._dcache || {};
+    const cached = this._dcache[key];
+    const maxAge = spec.past ? Infinity : 300000;
+    if (!cached || (!cached.busy && Date.now() - cached.fetched > maxAge)) {
+      this._dcache[key] = { ...(cached || {}), busy: true, fetched: Date.now() };
+      (async () => {
+        // display buckets (computed first, so the request can start at the first bucket)
+        const buckets = [];
+        const d0 = new Date(spec.start);
+        if (period === "15min") d0.setMinutes(Math.floor(d0.getMinutes() / 15) * 15, 0, 0);
+        else if (period === "hour") d0.setMinutes(0, 0, 0); else d0.setHours(0, 0, 0, 0);
+        if (period === "month") d0.setDate(1);
+        for (let t = d0.getTime(); t < spec.end && buckets.length < 400;) {
+          const n = new Date(t);
+          if (period === "15min") n.setMinutes(n.getMinutes() + 15);
+          else if (period === "hour") n.setHours(n.getHours() + 1); else if (period === "day") n.setDate(n.getDate() + 1); else n.setMonth(n.getMonth() + 1);
+          buckets.push({ t, e: n.getTime() });
+          t = n.getTime();
+        }
+        const fetchStart = buckets.length ? buckets[0].t : spec.start;
+        const [r, priceHist] = await Promise.all([
+          this.hass.callWS({
+            type: "recorder/statistics_during_period", start_time: new Date(fetchStart).toISOString(), end_time: new Date(spec.end).toISOString(),
+            statistic_ids: ids, period: fetchPeriod, types: ["change", "mean"], units: { energy: "kWh" },
+          }).catch(() => ({})),
+          this._priceHistory(spec.start, Math.min(spec.end, Date.now()), span),
+        ]);
+        const idxOf = (t) => { for (let i = buckets.length - 1; i >= 0; i--) if (t >= buckets[i].t) return i; return -1; };
+        // per entity: Map(rowStart -> kWh) at data resolution
+        const rowMap = (id, kind) => {
+          const m = new Map();
+          const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+          for (const x of r?.[id] || []) {
+            const t = typeof x.start === "number" ? x.start : Date.parse(x.start);
+            if (isNaN(t)) continue;
+            const te = typeof x.end === "number" ? x.end : Date.parse(x.end);
+            const dur = (isNaN(te) ? t + ({ "5minute": 300000, hour: 3600000, day: 86400000 }[fetchPeriod] || 3600000) : te) - t;
+            const v = kind === "energy" ? (x.change ?? null) : x.mean != null ? (x.mean * f * dur) / 3600000 / 1000 : null;
+            if (v != null) m.set(t, (m.get(t) || 0) + v);
+          }
+          return m;
+        };
+        const toBuckets = (m, fn = (v) => v) => {
+          const out = buckets.map(() => null);
+          for (const [t, v] of m) { const i = idxOf(t); if (i >= 0) out[i] = (out[i] || 0) + fn(v); }
+          return out;
+        };
+        const devMaps = devs.map((d) => {
+          const m = d.energy ? rowMap(d.energy, "energy") : rowMap(d.power, "power");
+          for (const [t, v] of m) m.set(t, Math.max(0, v));
+          return m;
+        });
+        const per = devs.map((d, k) => ({ d, vals: toBuckets(devMaps[k]) }));
+        const srcMaps = (s2) => {
+          if (!s2.entities.length) return { pos: new Map(), neg: new Map() };
+          const pos = new Map(), neg = new Map();
+          if (!s2.dual) {
+            for (const [t, v0] of rowMap(s2.signed, "power")) { const v = v0 * s2.sign; pos.set(t, Math.max(0, v)); neg.set(t, Math.max(0, -v)); }
+          } else {
+            for (const [t, v] of rowMap(s2.pos, "power")) pos.set(t, Math.abs(v));
+            for (const [t, v] of rowMap(s2.neg, "power")) neg.set(t, Math.abs(v));
+          }
+          return { pos, neg };
+        };
+        const solarM = c.solar_power ? rowMap(c.solar_power, "power") : new Map();
+        const gM = srcMaps(gs), bM = srcMaps(bs);
+        const times = [...new Set([...solarM.keys(), ...gM.pos.keys(), ...gM.neg.keys(), ...bM.pos.keys(), ...bM.neg.keys()])].sort((a, b) => a - b);
+        const homeM = new Map();
+        for (const t of times) {
+          homeM.set(t, Math.max(0, Math.max(0, solarM.get(t) || 0) + (gM.pos.get(t) || 0) - (gM.neg.get(t) || 0) + (bM.pos.get(t) || 0) - (bM.neg.get(t) || 0)));
+        }
+        const solar = toBuckets(solarM, (v) => Math.max(0, v)).map((x) => x || 0);
+        const grid = { pos: toBuckets(gM.pos).map((x) => x || 0), neg: toBuckets(gM.neg).map((x) => x || 0) };
+        const batt = { pos: toBuckets(bM.pos).map((x) => x || 0), neg: toBuckets(bM.neg).map((x) => x || 0) };
+        const home = toBuckets(homeM).map((x) => x || 0);
+        // costs: grid import of each row x price at that time, shared out to the devices by
+        // their share of the home consumption in that row (sum of devices + untracked = total)
+        let costs = null;
+        const prices = [...priceHist, ...((this._priceData && this._priceData().points) || [])]
+          .filter((x) => x && !isNaN(x.t) && x.v != null && !isNaN(x.v)).sort((a, b) => a.t - b.t);
+        if (prices.length && gM.pos.size) {
+          const priceAt = (t) => {
+            let lo = 0, hi = prices.length - 1, best = null;
+            while (lo <= hi) { const m = (lo + hi) >> 1; if (prices[m].t <= t) { best = prices[m]; lo = m + 1; } else hi = m - 1; }
+            return best ? best.v : null;
+          };
+          const rowLen = fetchPeriod === "5minute" ? 300000 : fetchPeriod === "hour" ? 3600000 : 86400000;
+          const avgPrice = (t) => {
+            if (fetchPeriod !== "day" && fetchPeriod !== "month") return priceAt(t + rowLen / 2);
+            let sum = 0, n = 0;
+            for (let h = 0; h < 24; h++) { const p2 = priceAt(t + h * 3600000 + 1800000); if (p2 != null) { sum += p2; n++; } }
+            return n ? sum / n : null;
+          };
+          const dev = devs.map(() => 0);
+          let total = 0, tracked = 0;
+          for (const [t, gin] of gM.pos) {
+            const pr = avgPrice(t);
+            if (pr == null || !gin) continue;
+            const cost = gin * pr;
+            total += cost;
+            const h = homeM.get(t) || 0;
+            const sumDev = devMaps.reduce((a, m) => a + (m.get(t) || 0), 0);
+            const denom = Math.max(h, sumDev);
+            if (denom <= 0) continue;
+            devMaps.forEach((m, k) => { const share = (m.get(t) || 0) / denom; dev[k] += cost * share; tracked += cost * share; });
+          }
+          costs = { dev, total, untracked: Math.max(0, total - tracked) };
+        }
+        const res = { busy: false, fetched: Date.now(), loaded: true, period, buckets, per, home, solar, grid, batt, costs };
+        this._dcache[key] = res;
+        this._dlast = res;
+        this.requestUpdate();
+      })();
+    }
+    const cur = this._dcache[key];
+    // while a new range is loading keep showing the previous result (dimmed)
+    if (!cur.loaded && this._dlast) return { ...this._dlast, stale: true };
+    return cur;
+  }
+
+  _devicesAltChart(c, spec, view) {
+    const out = this._devicesAltChart2(c, spec, view);
+    const d = this._devEnergy(spec);
+    return d && d.stale ? html`<div class="stalewrap">${out}<div class="staleov"><ha-icon icon="mdi:loading" class="spin"></ha-icon></div></div>` : out;
+  }
+
+  _devicesAltChart2(c, spec, view) {
+    const T = (k) => this._t(k);
+    const lang = resolveLang(c.language, this.hass);
+    const data = this._devEnergy(spec);
+    const head = html`<div class="chdr"><span class="t">${T("devices_title")}${this._devViewSwitch()}</span>
+      <span class="now"><ha-icon icon="mdi:calendar"></ha-icon><b>${spec.label || T("range_" + spec.id) || ""}</b></span></div>`;
+    if (!data || !data.loaded) return html`${head}<div class="chart"><div class="plot"><div class="empty">${T("history_loading")}</div></div></div>`;
+    const hidden = this._hidden?.devices || new Set();
+    const toggle = (name) => {
+      this._hidden = this._hidden || {};
+      const set = new Set(this._hidden.devices || []);
+      if (set.has(name)) set.delete(name); else set.add(name);
+      this._hidden.devices = set;
+      this.requestUpdate();
+    };
+    const GREY = "#6b7280";
+    const items = data.per.map(({ d, vals }, k) => ({
+      name: d.name || T("dev_" + d.type), color: this._devColors()[d.idx], icon: this._deviceIcon(d),
+      vals, total: vals.reduce((a, v) => a + (v || 0), 0), cost: data.costs ? data.costs.dev[k] : null,
+    }));
+    const homeTotal = data.home.reduce((a, v) => a + v, 0);
+    const trackedTotal = items.reduce((a, x) => a + x.total, 0);
+    const untracked = { name: T("untracked"), color: GREY, icon: "mdi:help-circle-outline", vals: data.home.map((h, i) => Math.max(0, h - items.reduce((a, x) => a + (x.vals[i] || 0), 0))), total: Math.max(0, homeTotal - trackedTotal), cost: data.costs ? data.costs.untracked : null };
+    const eur = (x) => (x == null ? "" : x.toFixed(2).replace(".", ",") + " €");
+    const all = [...items, ...(c.solar_power || this._src("grid").entities.length ? [untracked] : [])];
+    const vis = all.filter((x) => !hidden.has(x.name));
+    const kwh = (x) => `${fmtKWh(x)} kWh`;
+    const legend = (vals) => html`<div class="usage-legend">${all.map((x) => {
+      const off = hidden.has(x.name);
+      return html`<span class="usage-legend-item tog ${off ? "off" : ""}" @click=${() => toggle(x.name)}><i style="background:${x.color}"></i>${x.name} <b style="color:${x.color}">${vals ? kwh(vals(x)) : kwh(x.total)}</b></span>`;
+    })}</div>`;
+
+    if (view === "bars") {
+      const n = data.buckets.length || 1;
+      const sums = data.buckets.map((_, i) => vis.reduce((a, x) => a + (x.vals[i] || 0), 0));
+      const maxV = Math.max(0.1, ...sums) * 1.08;
+      const cur = this._cursor;
+      const bi = cur == null ? null : Math.max(0, Math.min(n - 1, Math.floor(cur * n)));
+      const fmtB = (t) => new Date(t).toLocaleString(lang, data.period === "hour" || data.period === "15min" ? { hour: "2-digit", minute: "2-digit" } : data.period === "day" ? { weekday: "short", day: "numeric", month: "numeric" } : { month: "short", year: "numeric" });
+      const labels = [];
+      const every = Math.max(1, Math.ceil(n / 6));
+      for (let i = 0; i < n; i += every) labels.push({ frac: (i + 0.5) / n, text: data.period === "hour" ? new Date(data.buckets[i].t).getHours() + ":00" : data.period === "15min" ? (() => { const d = new Date(data.buckets[i].t); return d.getHours() + ":" + String(d.getMinutes()).padStart(2, "0"); })() : fmtB(data.buckets[i].t) });
+      const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(maxV < 2 ? 2 : 1).replace(".", ","));
+      return html`
+        <div class="chdr"><span class="t">${T("devices_title")}${this._devViewSwitch()}</span>
+          <span class="now ${bi != null ? "sel" : ""}"><ha-icon icon="mdi:clock-outline"></ha-icon><b>${bi != null ? fmtB(data.buckets[bi].t) : (spec.label || T("range_" + spec.id))}</b>${bi != null ? this._resetBtn(() => { this._cursor = null; this.requestUpdate(); }) : nothing}</span></div>
+        ${legend(bi != null ? (x) => x.vals[bi] || 0 : null)}
+        <div class="chart">
+          <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
+          <div class="plot">
+            <svg class="hist" viewBox="0 0 100 100" preserveAspectRatio="none">
+              ${data.buckets.map((b, i) => {
+                let y = 100;
+                const w = 100 / n, x0 = i * w + w * 0.12, bw = w * 0.76;
+                return svg`${vis.map((x) => {
+                  const v = x.vals[i] || 0;
+                  if (v <= 0) return nothing;
+                  const h = (v / maxV) * 100;
+                  y -= h;
+                  const on = bi == null || bi === i;
+                  return svg`<rect x="${x0}" y="${y}" width="${bw}" height="${h}" fill="${x.color}" fill-opacity="${on ? 0.45 : 0.15}"
+                    stroke="${x.color}" stroke-opacity="${on ? 1 : 0.4}" stroke-width="1" vector-effect="non-scaling-stroke"></rect>`;
+                })}`;
+              })}
+            </svg>
+            ${bi != null ? html`<div class="cursor" style="left:${((bi + 0.5) / n) * 100}%"></div>` : nothing}
+          </div>
+          <div class="xaxis">${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}</div>
+        </div>
+        ${this._scrubber(cur == null ? 1 : cur, (f) => { this._cursor = f >= 0.999 ? null : f; this.requestUpdate(); })}`;
+    }
+
+    const sorted = [...vis].sort((a, b) => b.total - a.total);
+    const total = sorted.reduce((a, x) => a + x.total, 0);
+
+    if (view === "rank") {
+      const maxV = Math.max(0.001, ...sorted.map((x) => x.total));
+      return html`${head}${legend(null)}
+        <div class="rank">${sorted.map((x) => html`
+          <div class="rrow" @click=${() => toggle(x.name)}>
+            <span class="rname"><span class="rico" style="color:${x.color}">${renderIcon(x.icon)}</span>${x.name}</span>
+            <span class="rbarw"><span class="rbar" style="width:${(x.total / maxV) * 100}%;--c:${x.color}"></span></span>
+            <span class="rval">${kwh(x.total)}${x.cost != null ? html`<em class="rcost">${eur(x.cost)}</em>` : nothing}<small>${total ? Math.round((x.total / total) * 100) : 0} %</small></span>
+          </div>`)}</div>`;
+    }
+
+    if (view === "donut") {
+      const R = 38, r0 = 26;
+      let a0 = -Math.PI / 2;
+      const arc = (a1, a2) => {
+        const p = (rad, a) => `${(50 + rad * Math.cos(a)).toFixed(2)},${(50 + rad * Math.sin(a)).toFixed(2)}`;
+        const large = a2 - a1 > Math.PI ? 1 : 0;
+        return `M${p(R, a1)} A${R},${R} 0 ${large} 1 ${p(R, a2)} L${p(r0, a2)} A${r0},${r0} 0 ${large} 0 ${p(r0, a1)} Z`;
+      };
+      return html`${head}
+        <div class="donutwrap">
+          <svg class="donut" viewBox="0 0 100 100">
+            ${total > 0 ? sorted.map((x) => {
+              const a = (x.total / total) * Math.PI * 2;
+              if (a <= 0) return nothing;
+              const a1 = a0, a2 = a0 + Math.min(a, Math.PI * 2 - 0.0001);
+              a0 += a;
+              return svg`<path d="${arc(a1 + 0.01, a2 - 0.01)}" fill="${x.color}" fill-opacity=".5" stroke="${x.color}" stroke-width=".6" @click=${() => toggle(x.name)}><title>${x.name}: ${kwh(x.total)}</title></path>`;
+            }) : nothing}
+            <text x="50" y="47" text-anchor="middle" class="dt1">${T("total")}</text>
+            <text x="50" y="58" text-anchor="middle" class="dt2">${kwh(total)}</text>
+          </svg>
+          <div class="dlist">${all.map((x) => {
+            const off = hidden.has(x.name);
+            return html`<span class="usage-legend-item tog ${off ? "off" : ""}" @click=${() => toggle(x.name)}><i style="background:${x.color}"></i>${x.name} <b style="color:${x.color}">${kwh(x.total)}</b>${x.cost != null ? html`<em class="rcost">${eur(x.cost)}</em>` : nothing}</span>`;
+          })}</div>
+        </div>`;
+    }
+
+    // energy flow (sankey): sources -> house -> devices
+    const sum = (a) => a.reduce((x, v) => x + v, 0);
+    const gridIn = sum(data.grid.pos), battOut = sum(data.batt.pos);
+    const pvDirect = Math.max(0, homeTotal - gridIn - battOut);
+    const srcs = [
+      { name: T("grid"), color: c.color_grid, v: Math.min(gridIn, homeTotal) },
+      { name: T("solar"), color: c.color_solar, v: pvDirect },
+      { name: T("battery"), color: c.color_battery, v: Math.min(battOut, homeTotal) },
+    ].filter((x) => x.v > 0.005);
+    const outs = sorted.filter((x) => x.total > 0.005);
+    const H = 100 + Math.max(0, outs.length - 6) * 12, Wd = 300, gap = 3, nodeW = 6, TOP = 12;
+    const scale = (list, tot) => {
+      const avail = H - gap * Math.max(0, list.length - 1);
+      return list.map((x) => Math.max(1.5, (x.v / (tot || 1)) * avail));
+    };
+    const srcTot = sum(srcs.map((x) => x.v)) || 1;
+    const outV = outs.map((x) => ({ ...x, v: x.total }));
+    const outTot = sum(outV.map((x) => x.v)) || 1;
+    const sh = scale(srcs, srcTot), oh = scale(outV, outTot);
+    const colX = [2, 128, 198];
+    const houseH = H;
+    const band = (x1, y1a, y1b, x2, y2a, y2b, color) => {
+      const mx = (x1 + x2) / 2;
+      return svg`<path d="M${x1},${y1a} C${mx},${y1a} ${mx},${y2a} ${x2},${y2a} L${x2},${y2b} C${mx},${y2b} ${mx},${y1b} ${x1},${y1b} Z" fill="${color}" fill-opacity=".28"></path>`;
+    };
+    let ys = TOP, yh = TOP, yo = TOP, yh2 = TOP;
+    const srcNodes = srcs.map((x, i) => { const y = ys; ys += sh[i] + gap; const hIn = (x.v / srcTot) * houseH; const yHouse = yh; yh += hIn; return { ...x, y, h: sh[i], yHouse, hIn }; });
+    const outNodes = outV.map((x, i) => { const y = yo; yo += oh[i] + gap; const hOut = (x.v / outTot) * houseH; const yHouse = yh2; yh2 += hOut; return { ...x, y, h: oh[i], yHouse, hOut }; });
+    return html`${head}
+      <div class="sankeywrap">
+        <svg class="sankey" viewBox="0 0 ${Wd} ${H + TOP + 2}" preserveAspectRatio="xMidYMid meet">
+          ${srcNodes.map((n) => band(colX[0] + nodeW, n.y, n.y + n.h, colX[1], n.yHouse, n.yHouse + n.hIn, n.color))}
+          ${outNodes.map((n) => band(colX[1] + nodeW, n.yHouse, n.yHouse + n.hOut, colX[2], n.y, n.y + n.h, n.color))}
+          ${srcNodes.map((n) => svg`<rect x="${colX[0]}" y="${n.y}" width="${nodeW}" height="${n.h}" fill="${n.color}" rx="1"></rect>
+            <text x="${colX[0] + nodeW + 3}" y="${n.y + n.h / 2}" class="sk">${n.name} · ${fmtKWh(n.v)}</text>`)}
+          <rect x="${colX[1]}" y="${TOP}" width="${nodeW}" height="${houseH}" fill="${c.color_home}" rx="1"></rect>
+          <text x="${colX[1] + nodeW / 2}" y="5" text-anchor="middle" class="sk b">${T("home")} · ${fmtKWh(homeTotal)} kWh</text>
+          ${outNodes.map((n) => svg`<rect x="${colX[2]}" y="${n.y}" width="${nodeW}" height="${n.h}" fill="${n.color}" rx="1"></rect>
+            <text x="${colX[2] + nodeW + 3}" y="${n.y + n.h / 2}" class="sk">${n.name} · ${fmtKWh(n.v)}</text>`)}
+        </svg>
+      </div>`;
+  }
+
+  // Slider under a chart to pick an exact point in time.
+  _scrubber(frac, onInput) {
+    return html`
+      <div class="scrub">
+        <input type="range" min="0" max="1000" step="1" .value=${String(Math.round(frac * 1000))}
+          @input=${(e) => onInput(parseInt(e.target.value, 10) / 1000)} />
+      </div>`;
+  }
+
+  _resetBtn(onReset) {
+    return html`<button class="scrub-now" title=${this._t("back_to_now")} @click=${onReset}>✕</button>`;
   }
 
   _priceChart(c) {
     if (c.price_use_tibber_service) this._ensureTibberPrices();
     const { points: allPoints, current } = this._priceData();
     const now = Date.now();
-    const hours = Math.max(8, Math.min(48, c.price_hours || 24));
+    const hours = this._priceHours ?? Math.max(8, Math.min(48, c.price_hours || 24));
 
     // Fixed axis: from start of current hour to +hours.
     const axisStart = new Date();
@@ -1886,7 +4562,25 @@ class EnergyFlowPriceCard extends i {
     }
 
     const withData = slots.filter((s) => s.v !== null);
-    const maxV = withData.length ? Math.max(...withData.map((s) => s.v), 0.1) * 1.1 : 0.4;
+    const showMinMax = !!c.price_show_minmax;
+    const sc = priceScale(withData.map((s) => s.v), c.price_axis_auto !== false, showMinMax);
+    // Daily highest / lowest price within the visible window (only for days with enough data).
+    const minMax = [];
+    if (showMinMax) {
+      const byDay = new Map();
+      slots.forEach((s, i) => {
+        if (s.v === null) return;
+        const k = new Date(s.t).toDateString();
+        if (!byDay.has(k)) byDay.set(k, []);
+        byDay.get(k).push(i);
+      });
+      for (const idxs of byDay.values()) {
+        if (idxs.length < 4) continue;
+        let lo = idxs[0], hi = idxs[0];
+        for (const i of idxs) { if (slots[i].v < slots[lo].v) lo = i; if (slots[i].v > slots[hi].v) hi = i; }
+        minMax.push({ i: hi, kind: "max" }, { i: lo, kind: "min" });
+      }
+    }
 
     const nowFrac = Math.max(0, Math.min(1, (now - startMs) / (endMs - startMs)));
 
@@ -1898,7 +4592,7 @@ class EnergyFlowPriceCard extends i {
       labels.push({ frac: h / hours, text: d.getHours() + ":00" });
     }
 
-    const yTicks = [1, 0.75, 0.5, 0.25, 0].map((f) => (maxV * f).toFixed(2).replace(".", ","));
+    const yTicks = sc.ticks.map((v) => v.toFixed(sc.dec).replace(".", ","));
 
     const sel = this._selectedSlot;
     const profile = this._activeProfile();
@@ -1942,52 +4636,101 @@ class EnergyFlowPriceCard extends i {
 
     const gasPrice = num(this.hass, c.gas_price_entity);
 
-    return b`
+    // Costs of today's (and for windows over 24 h also yesterday's) grid import.
+    let costChips = nothing;
+    const P = this._period();
+    if (P && c.price_show_costs !== false && this._src("grid").entities.length) {
+      this._ensurePeriod(P);
+      const r = this._periodCost(P, allPoints);
+      if (r) costChips = html`<span class="now cost"><ha-icon icon="mdi:cash"></ha-icon>${P.label}: <b>${r.eur != null ? r.eur.toFixed(2).replace(".", ",") + " €" : "–"}</b><small>${fmtKWh(r.kwh)} kWh</small></span>`;
+    } else if (c.price_show_costs !== false && this._src("grid").entities.length) {
+      this._ensureCostData();
+      const today = startOfToday();
+      const days = hours > 24 ? [today - 86400000, today] : [today];
+      const fmtEur = (x) => x.toFixed(2).replace(".", ",") + " €";
+      const chips = days.map((d) => {
+        const r = this._costFor(d, allPoints);
+        if (!r) return nothing;
+        const lbl = d === today ? this._t("today") : this._t("yesterday");
+        return html`<span class="now cost" title="${lbl}: ${fmtKWh(r.kwh)} kWh ${this._t("grid_import")}"><ha-icon icon="mdi:cash"></ha-icon>${lbl}: <b>${r.eur != null ? fmtEur(r.eur) : "–"}</b><small>${fmtKWh(r.kwh)} kWh</small></span>`;
+      });
+      costChips = chips;
+    }
+
+    return html`
       <div class="chdr">
-        <span class="t">${this._t("price_title")} (${hours}u)</span>
+        <span class="t">${this._t("price_title")} (${hours}h)</span>
         <div class="chdr-right">
           ${sel
-            ? b`<span class="now sel"><ha-icon icon="mdi:flash"></ha-icon>${new Date(sel.t).toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b></span>`
+            ? html`<span class="now sel"><ha-icon icon="mdi:flash"></ha-icon>${new Date(sel.t).toLocaleString(resolveLang(c.language, this.hass), { weekday: "short", hour: "2-digit", minute: "2-digit" })}: <b>${sel.v.toFixed(3).replace(".", ",")}</b>${this._tapLock ? this._resetBtn(() => { this._selectedSlot = null; this._tapLock = false; this.requestUpdate(); }) : nothing}</span>`
             : current !== null
-              ? b`<span class="now"><ha-icon icon="mdi:flash"></ha-icon>${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
-              : A}
-          ${gasPrice !== null ? b`<span class="now gas"><ha-icon icon="mdi:fire"></ha-icon><b>${gasPrice.toFixed(3).replace(".", ",")}</b></span>` : A}
+              ? html`<span class="now"><ha-icon icon="mdi:flash"></ha-icon>${this._t("now")}: <b>${current.toFixed(3).replace(".", ",")}</b></span>`
+              : nothing}
+          ${costChips}
+          ${gasPrice !== null ? html`<span class="now gas"><ha-icon icon="mdi:fire"></ha-icon><b>${gasPrice.toFixed(3).replace(".", ",")}</b></span>` : nothing}
         </div>
       </div>
       <div class="chart ${showRel ? "has-rel" : ""}">
-        <div class="yaxis">${yTicks.map((t) => b`<span>${t}</span>`)}</div>
+        <div class="yaxis">${yTicks.map((t) => html`<span>${t}</span>`)}</div>
         <div class="plot">
           ${profile.chart_style === "bars"
-            ? this._priceBarsBody(slots, maxV, stops, sel, profile)
-            : this._priceLineBody(slots, maxV, profile, sel)}
-          ${dayMarkers.map((d) => b`<div class="daymarker" data-label="${d.text}" style="left:${d.frac * 100}%"></div>`)}
+            ? this._priceBarsBody(slots, sc, stops, sel, profile)
+            : this._priceLineBody(slots, sc, profile, sel)}
+          ${sc.lo < 0 && sc.hi > 0 ? html`<div class="zeroline" style="bottom:${sc.fr(0) * 100}%"></div>` : nothing}
+          ${dayMarkers.map((d) => html`<div class="daymarker" data-label="${d.text}" style="left:${d.frac * 100}%"></div>`)}
+          ${minMax.map((m) => {
+            const sl = slots[m.i];
+            const x = profile.chart_style === "bars" ? ((m.i + 0.5) / slots.length) * 100 : (m.i / Math.max(1, slots.length - 1)) * 100;
+            const y = Math.max(0, Math.min(100, sc.fr(sl.v) * 100));
+            return html`<div class="pmark ${m.kind}" style="left:${x}%;bottom:${y}%"><span>${m.kind === "max" ? "▲" : "▼"} ${sl.v.toFixed(2).replace(".", ",")}</span></div>`;
+          })}
           <div class="nowline" data-now="${this._t("now")}" style="left:${nowFrac * 100}%"></div>
+          ${sel && this._tapLock ? (() => {
+            const i = slots.findIndex((x) => x.t === sel.t);
+            if (i < 0) return nothing;
+            const x = profile.chart_style === "bars" ? ((i + 0.5) / slots.length) * 100 : (i / Math.max(1, slots.length - 1)) * 100;
+            return html`<div class="cursor" style="left:${x}%"></div>`;
+          })() : nothing}
         </div>
         <div class="xaxis ${showRel ? "abs" : ""}">
-          ${labels.map((l) => b`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          ${labels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
         </div>
-        ${showRel ? b`
+        ${showRel ? html`
           <div class="xaxis rel">
-            ${relLabels.map((l) => b`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
-          </div>` : A}
+            ${relLabels.map((l) => html`<span class="tick" style="left:${l.frac * 100}%">${l.text}</span>`)}
+          </div>` : nothing}
       </div>
+      ${this._scrubber(
+        sel ? (slots.findIndex((s) => s.t === sel.t) + 0.5) / slots.length : nowFrac,
+        (f) => {
+          const i = Math.max(0, Math.min(slots.length - 1, Math.floor(f * slots.length)));
+          const s = slots[i];
+          if (s && s.v !== null) { this._selectedSlot = s; this._tapLock = true; this.requestUpdate(); }
+        },
+      )}
     `;
   }
 
-  _priceBarsBody(slots, maxV, stops, sel, profile) {
+  _priceBarsBody(slots, sc, stops, sel, profile) {
     const GREY = "#6b7280";
     const radiusStyle = profile?.bar_radius ? `;border-radius:${profile.bar_radius}` : "";
-    return b`
+    // Bars grow from the zero line (or from the bottom when the axis doesn't reach 0),
+    // so negative prices point downwards.
+    const base = Math.max(sc.lo, Math.min(sc.hi, 0));
+    const geo = (v) => {
+      const a = sc.fr(Math.max(v, base)), b = sc.fr(Math.min(v, base));
+      return `bottom:${(b * 100).toFixed(2)}%;height:${Math.max(1.5, (a - b) * 100).toFixed(2)}%`;
+    };
+    return html`
       <div class="bars">
         ${slots.map((s) => {
           if (s.v === null) {
             if (profile?.grey_unknown_value != null) {
-              const h = Math.max(2, Math.min(100, (profile.grey_unknown_value / maxV) * 100));
-              return b`<div class="bar unknown" style="height:${h}%;background:${GREY}${radiusStyle}"></div>`;
+              const uv = Math.max(sc.lo, Math.min(sc.hi, profile.grey_unknown_value));
+              return html`<div class="bcol"><div class="bar unknown" style="${geo(uv)};background:${GREY}${radiusStyle}"></div></div>`;
             }
-            return b`<div class="bar empty-slot"></div>`;
+            return html`<div class="bcol"><div class="bar empty-slot"></div></div>`;
           }
-          const h = Math.max(2, (s.v / maxV) * 100);
           let col;
           if (profile?.highlight_now) {
             // Not price-based: a flat bar color, except the bar for the current hour.
@@ -1999,14 +4742,14 @@ class EnergyFlowPriceCard extends i {
           }
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-          return b`<div
-            class="bar ${isSel ? "sel" : ""}"
-            style="height:${h}%;background:${col}${radiusStyle}"
+          return html`<div class="bcol"><div
+            class="bar ${isSel ? "sel" : ""} ${s.v < 0 ? "neg" : ""}"
+            style="${geo(s.v)};background:${col}${radiusStyle}"
             title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
             @mouseenter=${() => this._hoverSlot(s)}
             @mouseleave=${() => this._hoverSlot(null)}
             @click=${() => this._tapSlot(s)}
-          ></div>`;
+          ></div></div>`;
         })}
       </div>
     `;
@@ -2015,7 +4758,7 @@ class EnergyFlowPriceCard extends i {
   // Smooth-line layout profiles ("line" / "line-threshold"): only the leading
   // contiguous run of known values is drawn as a curve; a trailing gap (e.g.
   // tomorrow's prices not published yet) keeps the familiar hatched placeholder.
-  _priceLineBody(slots, maxV, profile, sel) {
+  _priceLineBody(slots, sc, profile, sel) {
     let runEnd = 0;
     while (runEnd < slots.length && slots[runEnd].v !== null) runEnd++;
     const run = slots.slice(0, runEnd);
@@ -2023,27 +4766,28 @@ class EnergyFlowPriceCard extends i {
     const n = Math.max(1, slots.length - 1);
     const pts = run.map((s, i) => ({
       x: (i / n) * 100,
-      y: 100 - Math.max(0, Math.min(100, (s.v / maxV) * 100)),
+      y: 100 - Math.max(0, Math.min(100, sc.fr(s.v) * 100)),
     }));
 
     const pathD = pts.length ? catmullRomToBezierPath(pts) : "";
+    const yBase = (100 - sc.fr(Math.max(sc.lo, Math.min(sc.hi, 0))) * 100).toFixed(2);
     const areaD = pathD && pts.length > 1
-      ? `${pathD} L${pts[pts.length - 1].x.toFixed(2)},100 L${pts[0].x.toFixed(2)},100 Z`
+      ? `${pathD} L${pts[pts.length - 1].x.toFixed(2)},${yBase} L${pts[0].x.toFixed(2)},${yBase} Z`
       : "";
 
     let stroke = profile.line_color || "#7dd3fc";
     let fill = "none";
-    let defs = A;
+    let defs = nothing;
 
     if (profile.chart_style === "line-threshold" && run.length) {
       const avg = run.reduce((a, s) => a + s.v, 0) / run.length;
-      const avgFrac = Math.max(0, Math.min(1, 1 - Math.min(1, avg / maxV)));
+      const avgFrac = Math.max(0, Math.min(1, 1 - sc.fr(avg)));
       // Soft band around the average instead of a hard cut, for a smooth orange->teal blend.
       const band = 0.14;
       const topOff = Math.max(0, avgFrac - band / 2);
       const botOff = Math.min(1, avgFrac + band / 2);
       const gradId = `efp-grad-${this._uid}`;
-      defs = w`<defs>
+      defs = svg`<defs>
         <linearGradient id="${gradId}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="100">
           <stop offset="0" stop-color="${profile.color_above}"></stop>
           <stop offset="${topOff.toFixed(4)}" stop-color="${profile.color_above}"></stop>
@@ -2055,18 +4799,18 @@ class EnergyFlowPriceCard extends i {
       fill = `url(#${gradId})`;
     }
 
-    return b`
+    return html`
       <svg class="priceline" viewBox="0 0 100 100" preserveAspectRatio="none">
         ${defs}
-        ${areaD && fill !== "none" ? w`<path d="${areaD}" fill="${fill}" fill-opacity="0.32" stroke="none"></path>` : A}
-        ${pathD ? w`<path d="${pathD}" fill="none" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"></path>` : A}
+        ${areaD && fill !== "none" ? svg`<path d="${areaD}" fill="${fill}" fill-opacity="0.32" stroke="none"></path>` : nothing}
+        ${pathD ? svg`<path d="${pathD}" fill="none" stroke="${stroke}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"></path>` : nothing}
       </svg>
       <div class="hits">
         ${slots.map((s) => {
-          if (s.v === null) return b`<div class="hit empty-slot"></div>`;
+          if (s.v === null) return html`<div class="hit empty-slot"></div>`;
           const isSel = sel && sel.t === s.t;
           const timeTxt = new Date(s.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-          return b`<div
+          return html`<div
             class="hit ${isSel ? "sel" : ""}"
             title="${timeTxt} — ${s.v.toFixed(3).replace(".", ",")} €/kWh"
             @mouseenter=${() => this._hoverSlot(s)}
@@ -2096,16 +4840,64 @@ class EnergyFlowPriceCard extends i {
   }
 
   static get styles() {
-    return i$3`
+    return css`
       ha-card { padding: 12px; }
       .stack { display: flex; flex-direction: column; gap: 12px; }
+      .flowwrap { position: relative; }
+      .flowwrap.past .val, .flowwrap.past .sub { display: none; }
+      .plabel { position: absolute; top: -2px; left: 50%; transform: translateX(-50%); z-index: 4; display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600;
+        color: var(--primary-color); background: var(--card-background-color, #1c1c1c); border: 1px solid var(--primary-color); border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
+      .plabel ha-icon { --mdc-icon-size: 13px; }
+      .rng.period { display: inline-flex; align-items: center; gap: 4px; }
+      .rng.period ha-icon { --mdc-icon-size: 13px; }
+      .datebar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+      .datebar select, .datebar .ddate { padding: 4px 6px; border-radius: 8px; border: 1px solid var(--divider-color); background: var(--card-background-color); color: var(--primary-text-color); font-size: 12px; }
+      .dnav { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--primary-text-color); border-radius: 8px; width: 28px; height: 28px; font-size: 16px; line-height: 1; }
+      .dnav[disabled] { opacity: .35; cursor: default; }
+      .dlabel { position: relative; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--divider-color); cursor: pointer; flex: 1; justify-content: center; min-width: 120px; }
+      .dlabel ha-icon { --mdc-icon-size: 16px; color: var(--primary-color); }
+      .dhidden { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; border: 0; padding: 0; }
+      .dsep { color: var(--secondary-text-color); }
+      .dtoday { cursor: pointer; border: 1px solid var(--primary-color); background: transparent; color: var(--primary-color); border-radius: 8px; padding: 4px 10px; font-size: 12px; }
       .flow { position: relative; height: 190px; }
-      .housepic { position: absolute; top: 0; left: 50%; height: 100%; width: auto; max-width: none; transform: translateX(-50%); pointer-events: none; z-index: 0; }
+      .flow.tall { height: 236px; }
+      .node.tl, .node.tr { align-items: flex-start; }
+      .node.bl, .node.br { align-items: flex-end; }
+      .devrow { position: relative; z-index: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 22px 6px; margin-top: 22px; }
+      .devitem { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 1px; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; min-width: 0; }
+      .devitem.idle { opacity: .55; }
+      .devtoggle { position: relative; z-index: 2; display: flex; align-items: center; gap: 4px; margin: 8px auto 0; cursor: pointer; border: 1px solid var(--divider-color);
+        background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 2px 12px 2px 8px; font-size: 11.5px; }
+      .devtoggle ha-icon { --mdc-icon-size: 16px; }
+      .devtoggle:hover { color: var(--primary-text-color); border-color: var(--primary-color); }
+      .ratios { position: relative; z-index: 2; display: flex; justify-content: center; gap: 28px; margin-top: 14px; flex-wrap: wrap; }
+      .ratio { display: flex; align-items: center; gap: 8px; }
+      .rring { position: relative; width: 40px; height: 40px; }
+      .rring svg { position: absolute; inset: 0; }
+      .rring ha-icon { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; --mdc-icon-size: 17px; }
+      .rtxt { display: flex; flex-direction: column; line-height: 1.15; }
+      .rv { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+      .rl { font-size: 10.5px; color: var(--secondary-text-color); }
+      .devitem .ic { width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; margin-bottom: 3px; }
+      .devitem .ic ha-icon { --mdc-icon-size: 21px; }
+      .devitem .socwrap.sm { width: 38px; height: 38px; margin-bottom: 3px; }
+      .devitem .socwrap.sm .ic { width: 38px; height: 38px; margin: 0; }
+      .devitem .lbl { font-size: 10.5px; color: var(--secondary-text-color); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .devitem .val { font-size: 14px; font-weight: 700; line-height: 1.1; }
+      .devitem .sub { font-size: 9px; text-transform: uppercase; letter-spacing: .4px; opacity: .85; }
+      .housepic { position: absolute; top: 50%; left: 50%; height: 100%; width: auto; max-width: none; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
+      .pmark { position: absolute; transform: translate(-50%, 0); pointer-events: none; z-index: 2; display: flex; flex-direction: column; align-items: center; }
+      .pmark span { font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 4px; margin-bottom: 3px; white-space: nowrap; color: #fff; line-height: 14px; }
+      .pmark::after { content: ""; width: 7px; height: 7px; border-radius: 50%; margin-bottom: -3.5px; box-shadow: 0 0 0 2px var(--card-background-color, #1c1c1c); }
+      .pmark.max span, .pmark.max::after { background: #ef4444; }
+      .pmark.min span, .pmark.min::after { background: #16a34a; }
       .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
       .wire { fill: none; stroke: rgba(255,255,255,.07); stroke-width: 2.5; }
       .live { stroke-width: 2.5; fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 1; transition: opacity 1s ease; }
       .live.dashed { stroke-dasharray: 5 9; animation-name: flow; animation-duration: 1s; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.dashed.still { stroke-dashoffset: 0; }
+      .live.neon.glow { stroke-width: 8; stroke-opacity: .28; stroke-linecap: round; }
+      .live { will-change: stroke-dashoffset; }
       .live.neon { stroke-width: 3; stroke-dasharray: 90 500; animation-name: neonsweep; animation-duration: 1s; animation-timing-function: linear; animation-iteration-count: infinite; }
       .live.neon.still { stroke-dashoffset: 0; }
       @keyframes neonsweep { to { stroke-dashoffset: -590; } }
@@ -2116,10 +4908,26 @@ class EnergyFlowPriceCard extends i {
       .node { position: absolute; display: flex; align-items: center; gap: 8px; z-index: 2; }
       .node.tl { left: 6px; top: 8px; }
       .node.tr { right: 6px; top: 8px; flex-direction: row-reverse; text-align: right; }
+      .node { cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+      .node .ic, .node .socwrap { transition: transform .15s ease; }
+      .node:active .ic, .node:active .socwrap { transform: scale(.94); }
+      .day { display: inline-flex; align-items: center; gap: 3px; font-size: 12.5px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; margin-top: 2px; line-height: 1.15; }
+      .day .dic { position: relative; display: inline-flex; width: 18px; height: 18px; align-items: center; justify-content: center; }
+      .day .dic ha-icon, .day .dic .efp-icon { --mdc-icon-size: 17px; }
+      .ic .efp-icon { width: 25px; height: 25px; }
+      .devitem .ic .efp-icon { width: 23px; height: 23px; }
+      .efp-icon { width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px); display: block; flex: 0 0 auto; }
+      .day .dic ha-icon.badge { position: absolute; right: -5px; bottom: -4px; --mdc-icon-size: 11px; background: var(--card-background-color, #1c1c1c); border-radius: 50%; }
+      .day.in { color: var(--efp-day-in); }
+      .day.out { color: var(--efp-day-out); }
+      .day.home { color: var(--efp-day-home); }
+      .day.cost { color: var(--success-color, #34d399); }
+      .day.fc { color: var(--secondary-text-color); font-weight: 500; }
+      .usage-legend-item i.dash { width: 12px; height: 0; border-radius: 0; border-top: 2px dashed; background: none; }
       .node.bl { left: 6px; bottom: 8px; }
       .node.muted { opacity: .55; }
       .node.muted .val, .node.muted .sub { opacity: .8; }
-      .node.br { right: 6px; bottom: 8px; flex-direction: row; justify-content: flex-end; text-align: right; }
+      .node.br { right: 6px; bottom: 8px; flex-direction: row-reverse; text-align: right; }
       .node.br .txt { align-items: flex-end; }
       .node .ic, .node-car .ic { width: 44px; height: 44px; border-radius: 12px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; border: 1.5px solid transparent; }
       .node .ic ha-icon, .node-car .ic ha-icon { --mdc-icon-size: 24px; }
@@ -2141,10 +4949,14 @@ class EnergyFlowPriceCard extends i {
       .cardots { display: flex; gap: 4px; margin-top: 3px; justify-content: flex-end; }
       .cardots .dot { width: 6px; height: 6px; border-radius: 50%; transition: background .3s; }
 
+      .huis { cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+
+      .anc-home { width: 1px; height: 1px; }
       .huis { position: absolute; left: 50%; top: 54.7%; transform: translate(-50%, -29px); z-index: 3; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
       .huis.huis-visual { left: 50%; top: 50%; align-items: flex-end; text-align: right; transform: translate(calc(-100% - 110px), -50%); }
       .huis.huis-visual .lbl, .huis.huis-visual .val { text-shadow: 0 1px 3px rgba(0,0,0,.8), 0 0 6px rgba(0,0,0,.6); }
       .huis.huis-visual.no-fx .lbl, .huis.huis-visual.no-fx .val { text-shadow: none; }
+
       .huis-wire { position: absolute; top: 50%; left: calc(50% - 110px); width: 15px; height: 2px; background: rgba(255,255,255,.12); transform: translateY(-50%); pointer-events: none; z-index: 0; }
       .huis .ic { width: 58px; height: 58px; border-radius: 16px; border: 1.5px solid transparent; display: flex; align-items: center; justify-content: center; }
       .huis .ic ha-icon { --mdc-icon-size: 30px; }
@@ -2153,12 +4965,29 @@ class EnergyFlowPriceCard extends i {
 
       .chdr { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
       .chdr .t { font-size: 13px; font-weight: 600; color: var(--primary-text-color); }
-      .chdr-right { display: flex; align-items: baseline; gap: 12px; }
+      .chdr-right { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; justify-content: flex-end; }
       .chdr .now { display: inline-flex; align-items: center; gap: 4px; }
       .chdr .now ha-icon { --mdc-icon-size: 13px; color: var(--info-color, #7dd3fc); }
+      .chdr .now.cost ha-icon { color: var(--success-color, #34d399); }
+      .chdr .now.cost b { color: var(--success-color, #34d399); }
+      .chdr .now.cost small { margin-left: 4px; opacity: .75; font-size: 10.5px; }
       .chdr .now.gas ha-icon { color: var(--warning-color, #f5a623); }
       .chdr .now.gas b { color: var(--warning-color, #f5a623); }
-      .tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+      .tabs { display: flex; gap: 6px; margin-bottom: 8px; overflow-x: auto; scrollbar-width: none; }
+      .tabs::-webkit-scrollbar { display: none; }
+      .tab { flex: 0 0 auto; }
+      .ranges { display: flex; gap: 4px; margin-bottom: 8px; flex-wrap: wrap; }
+      .rng { cursor: pointer; border: 1px solid transparent; background: rgba(127,127,127,.12); color: var(--secondary-text-color); border-radius: 6px; padding: 1px 8px; font-size: 11px; }
+      .rng.on { border-color: var(--primary-color); color: var(--primary-color); background: transparent; }
+      .scrub { margin-top: -8px; padding-left: 34px; }
+      .scrub input[type="range"] { display: block; width: calc(100% + 14px); margin: 0 -7px; accent-color: var(--primary-color); height: 22px; cursor: pointer; }
+      .scrub-now { cursor: pointer; border: none; background: rgba(127,127,127,.18); color: var(--primary-text-color); border-radius: 50%; width: 18px; height: 18px; padding: 0; font-size: 10px; line-height: 18px; margin-left: 6px; }
+      .cursor { position: absolute; top: 0; bottom: 0; width: 3px; margin-left: -1.5px; background: #fff; border-radius: 2px; pointer-events: none; z-index: 3;
+        box-shadow: 0 0 4px rgba(255,255,255,.95), 0 0 10px rgba(255,255,255,.6), 0 0 0 1px rgba(0,0,0,.35); }
+      .cdot { z-index: 4; }
+      .cdot { position: absolute; width: 10px; height: 10px; border-radius: 50%; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px var(--card-background-color, #1c1c1c); pointer-events: none; }
+      .empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--secondary-text-color); }
+      .chdr .now.sel b { color: var(--primary-color); }
       .tab { cursor: pointer; border: 1px solid var(--divider-color); background: transparent; color: var(--secondary-text-color); border-radius: 999px; padding: 3px 12px; font-size: 12px; transition: all .2s; }
       .tab.on { background: var(--primary-color); border-color: var(--primary-color); color: var(--text-primary-color, #fff); }
       .chartbody.run { animation: chartfade .4s ease; }
@@ -2172,12 +5001,14 @@ class EnergyFlowPriceCard extends i {
       .chart.has-rel .yaxis { bottom: 48px; }
       .plot { position: absolute; left: 34px; right: 0; top: 0; bottom: 34px; }
       .chart.has-rel .plot { bottom: 48px; }
-      .bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap: 1px; }
-      .bar { flex: 1; border-radius: 0; cursor: pointer; transition: opacity .15s; }
+      .bars { position: absolute; inset: 0; display: flex; align-items: stretch; gap: 1px; }
+      .bcol { flex: 1; position: relative; min-width: 0; }
+      .bar { position: absolute; left: 0; right: 0; border-radius: 0; cursor: pointer; transition: opacity .15s; }
+      .zeroline { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid rgba(255,255,255,.35); pointer-events: none; }
       .bar:hover { opacity: .8; }
       .bar.sel { outline: 1.5px solid var(--primary-text-color); outline-offset: -1px; }
       .chdr .now.sel b { color: var(--primary-color); }
-      .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); height: 100%; border-radius: 0; align-self: stretch; }
+      .bar.empty-slot { background: repeating-linear-gradient(45deg, rgba(255,255,255,.03), rgba(255,255,255,.03) 3px, transparent 3px, transparent 6px); top: 0; bottom: 0; border-radius: 0; }
       .bar.unknown { cursor: default; opacity: .55; }
       .bar.unknown:hover { opacity: .55; }
       .priceline { position: absolute; inset: 0; width: 100%; height: 100%; }
@@ -2201,7 +5032,43 @@ class EnergyFlowPriceCard extends i {
       .xaxis .tick::before { content: ""; position: absolute; top: -6px; left: 50%; width: 1px; height: 4px; background: var(--divider-color, rgba(255,255,255,.2)); }
 
       /* Usage tab: last-hour power (W) line chart, split by source. */
-      .usage-legend { display: flex; align-items: baseline; gap: 10px; }
+      .usage-legend { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; margin: -4px 0 8px; }
+      .usage-legend-item b { font-weight: 700; margin-left: 2px; }
+      .vsw { display: inline-flex; gap: 2px; margin-left: 10px; vertical-align: middle; }
+      .vbtn { cursor: pointer; border: 1px solid transparent; background: rgba(127,127,127,.12); color: var(--secondary-text-color); border-radius: 6px; width: 26px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+      .vbtn ha-icon { --mdc-icon-size: 15px; }
+      .vbtn.on { border-color: var(--primary-color); color: var(--primary-color); background: transparent; }
+      .rank { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
+      .rrow { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+      .rname { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--primary-text-color); }
+      .rico { display: inline-flex; --mdc-icon-size: 15px; }
+      .rico .efp-icon { width: 15px; height: 15px; }
+      .rbarw { height: 14px; background: rgba(127,127,127,.12); border-radius: 4px; overflow: hidden; }
+      .rbar { display: block; height: 100%; border-radius: 4px; box-sizing: border-box; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 45%, transparent); }
+      .rval { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .rcost { font-style: normal; font-weight: 600; color: var(--success-color, #34d399); margin-left: 7px; font-variant-numeric: tabular-nums; }
+      .usage-legend-item .rcost { margin-left: 4px; font-size: 11px; }
+      .stalewrap { position: relative; }
+      .stalewrap > :not(.staleov) { opacity: .45; transition: opacity .2s; }
+      .staleov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+      .staleov ha-icon { --mdc-icon-size: 32px; color: var(--primary-color); }
+      .spin { animation: efpspin 1s linear infinite; }
+      @keyframes efpspin { to { transform: rotate(360deg); } }
+      .rval small { font-weight: 400; color: var(--secondary-text-color); margin-left: 5px; }
+      .donutwrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
+      .donut { width: 170px; height: 170px; flex: 0 0 auto; }
+      .donut path { cursor: pointer; }
+      .donut .dt1 { font-size: 6px; fill: var(--secondary-text-color); }
+      .donut .dt2 { font-size: 8px; font-weight: 700; fill: var(--primary-text-color); }
+      .dlist { display: flex; flex-direction: column; gap: 4px; min-width: 140px; }
+      .sankeywrap { width: 100%; }
+      .sankey { width: 100%; height: auto; display: block; }
+      .sankey .sk { font-size: 6px; fill: var(--primary-text-color); dominant-baseline: middle; }
+      .sankey .sk.b { font-weight: 700; }
+      .usage-legend-item.tog { cursor: pointer; user-select: none; border-radius: 6px; padding: 1px 5px; margin: 0 -5px; transition: opacity .15s, background .15s; }
+      .usage-legend-item.tog:hover { background: rgba(127,127,127,.12); }
+      .usage-legend-item.off { opacity: .38; text-decoration: line-through; }
+      .usage-legend-item.off i { background: transparent !important; outline: 1.5px solid currentColor; outline-offset: -1.5px; }
       .usage-legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--secondary-text-color); }
       .usage-legend-item i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
     `;
@@ -2210,13 +5077,14 @@ class EnergyFlowPriceCard extends i {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-console.info("%c energy-flow-price-card %c v1.12.2 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.32.3";
+console.info("%c HA Energy Flow Card %c v1.32.3 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
   type: "energy-flow-price-card",
-  name: "Energy Flow & Price Card",
-  description: "Compact energy flow (solar/battery/home/grid/cars) plus dynamic electricity & gas prices.",
+  name: "HA Energy Flow Card",
+  description: "Energy flow (grid/solar/battery/home/devices) with daily kWh, costs, history charts and dynamic electricity prices.",
   preview: true,
-  documentationURL: "https://github.com/dennisbest85/energy-flow-price-card",
+  documentationURL: "https://github.com/IngoPodolak/energy-flow-price-card",
 });
