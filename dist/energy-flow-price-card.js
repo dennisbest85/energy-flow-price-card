@@ -2586,31 +2586,36 @@ class EnergyFlowPriceCard extends LitElement {
     const period = span <= 8 * 86400000 ? "5minute" : span <= 62 * 86400000 ? "hour" : "day";
     const step = { "5minute": 300000, hour: 3600000, day: 86400000 }[period];
     const sIso = new Date(P.start).toISOString(), eIso = new Date(end).toISOString();
+    // all requests in parallel (they used to run one after another, one per energy meter)
+    const statsPeriod = span <= 35 * 86400000 ? "hour" : span <= 400 * 86400000 ? "day" : "month";
+    const pPowers = powers.length && span > 0
+      ? this.hass.callWS({ type: "recorder/statistics_during_period", start_time: sIso, end_time: eIso, statistic_ids: powers, period, types: ["mean"] }).catch(() => ({}))
+      : Promise.resolve({});
+    const pEnergies = energies.length && span > 0
+      ? this.hass.callWS({ type: "recorder/statistics_during_period", start_time: sIso, end_time: eIso, statistic_ids: energies, period: statsPeriod, types: ["change"], units: { energy: "kWh" } }).catch(() => ({}))
+      : Promise.resolve({});
+    const pPrices = this._priceHistory(P.start, end, span);
+    const [rp, re, priceHist] = await Promise.all([pPowers, pEnergies, pPrices]);
     const rows = {};
-    if (powers.length && span > 0) {
+    for (const id of powers) {
+      const arr = rp?.[id];
+      if (!Array.isArray(arr) || !arr.length) continue;
+      const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
+      rows[id] = arr.map((x) => ({ t: typeof x.start === "number" ? x.start : Date.parse(x.start), dur: step, v: (x.mean || 0) * f }))
+        .filter((x) => !isNaN(x.t));
+    }
+    const missing = powers.filter((id) => !rows[id]);
+    if (missing.length && span <= 3 * 86400000) {
       try {
-        const r = await this.hass.callWS({ type: "recorder/statistics_during_period", start_time: sIso, end_time: eIso, statistic_ids: powers, period, types: ["mean"] });
-        for (const id of powers) {
-          const arr = r?.[id];
+        const res = await this.hass.callApi("GET", `history/period/${sIso}?filter_entity_id=${missing.join(",")}&end_time=${encodeURIComponent(eIso)}&minimal_response&no_attributes`);
+        for (const arr of Array.isArray(res) ? res : []) {
           if (!Array.isArray(arr) || !arr.length) continue;
+          const id = arr[0].entity_id;
           const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
-          rows[id] = arr.map((x) => ({ t: typeof x.start === "number" ? x.start : Date.parse(x.start), dur: step, v: (x.mean || 0) * f }))
-            .filter((x) => !isNaN(x.t));
+          const pts = arr.map((x) => ({ t: Math.max(P.start, Date.parse(x.last_changed || x.last_updated)), v: (parseFloat(x.state) || 0) * f }));
+          rows[id] = pts.map((p2, i) => ({ ...p2, dur: (i + 1 < pts.length ? pts[i + 1].t : end) - p2.t }));
         }
-      } catch (e) { /* fall back below */ }
-      const missing = powers.filter((id) => !rows[id]);
-      if (missing.length && span <= 3 * 86400000) {
-        try {
-          const res = await this.hass.callApi("GET", `history/period/${sIso}?filter_entity_id=${missing.join(",")}&end_time=${encodeURIComponent(eIso)}&minimal_response&no_attributes`);
-          for (const arr of Array.isArray(res) ? res : []) {
-            if (!Array.isArray(arr) || !arr.length) continue;
-            const id = arr[0].entity_id;
-            const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
-            const pts = arr.map((x) => ({ t: Math.max(P.start, Date.parse(x.last_changed || x.last_updated)), v: (parseFloat(x.state) || 0) * f }));
-            rows[id] = pts.map((p2, i) => ({ ...p2, dur: (i + 1 < pts.length ? pts[i + 1].t : end) - p2.t }));
-          }
-        } catch (e) { /* no data */ }
-      }
+      } catch (e) { /* no data */ }
     }
     const integ = {};
     for (const [id, arr] of Object.entries(rows)) {
@@ -2625,27 +2630,25 @@ class EnergyFlowPriceCard extends LitElement {
     }
     const stats = {};
     for (const id of energies) {
-      try {
-        const r = await this.hass.callWS({
-          type: "recorder/statistic_during_period", statistic_id: id,
-          fixed_period: { start_time: sIso, end_time: eIso }, types: ["change"], units: { energy: "kWh" },
-        });
-        if (r && typeof r.change === "number") stats[id] = r.change;
-      } catch (e) { /* no statistics */ }
-    }
-    let priceHist = [];
-    if (c.price_entity && !c.price_use_tibber_service && span <= 93 * 86400000) {
-      try {
-        const res = await this.hass.callApi("GET", `history/period/${new Date(P.start - 3600000).toISOString()}?filter_entity_id=${c.price_entity}&end_time=${encodeURIComponent(eIso)}&minimal_response&no_attributes`);
-        const arr = Array.isArray(res) && res[0] ? res[0] : [];
-        priceHist = arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
-          .filter((x) => !isNaN(x.v) && !isNaN(x.t));
-      } catch (e) { /* no price history */ }
-    } else if (c.price_use_tibber_service && span <= 93 * 86400000) {
-      priceHist = await this._tibberRange(P.start, end);
+      const arr = re?.[id];
+      if (Array.isArray(arr) && arr.length) stats[id] = arr.reduce((a, x) => a + (typeof x.change === "number" ? x.change : 0), 0);
     }
     this._pd = { key, ps: P.start, pe: P.end, busy: false, fetched: Date.now(), final: P.end <= now, rows, integ, stats, priceHist };
     this.requestUpdate();
+  }
+
+  // Price history for a period: Tibber service or the history of the price entity.
+  async _priceHistory(start, end, span) {
+    const c = this._config;
+    if (span > 93 * 86400000) return [];
+    if (c.price_use_tibber_service) return this._tibberRange(start, end);
+    if (!c.price_entity) return [];
+    try {
+      const res = await this.hass.callApi("GET", `history/period/${new Date(start - 3600000).toISOString()}?filter_entity_id=${c.price_entity}&end_time=${encodeURIComponent(new Date(end).toISOString())}&minimal_response&no_attributes`);
+      const arr = Array.isArray(res) && res[0] ? res[0] : [];
+      return arr.map((x) => ({ t: Date.parse(x.last_changed || x.last_updated), v: normalizePrice(parseFloat(x.state)) }))
+        .filter((x) => !isNaN(x.v) && !isNaN(x.t));
+    } catch (e) { return []; }
   }
 
   _pdFor(P) {
@@ -4090,6 +4093,12 @@ class EnergyFlowPriceCard extends LitElement {
   // Energy-dashboard style usage bars: per hour/day the consumption by source above zero
   // (PV used directly, battery discharge, grid import) and battery charge / grid export below.
   _usageBars(c, spec) {
+    const out = this._usageBars2(c, spec);
+    const d = this._devEnergy(spec);
+    return d && d.stale ? html`<div class="stalewrap">${out}<div class="staleov"><ha-icon icon="mdi:loading" class="spin"></ha-icon></div></div>` : out;
+  }
+
+  _usageBars2(c, spec) {
     const T = (k) => this._t(k);
     const lang = resolveLang(c.language, this.hass);
     const data = this._devEnergy(spec);
@@ -4174,7 +4183,8 @@ class EnergyFlowPriceCard extends LitElement {
     const c = this._config;
     const devs = this._devices().map((d, i) => ({ ...d, idx: i })).filter((d) => d.power || d.energy);
     const span = Math.max(1, spec.end - spec.start);
-    const period = span <= 2.1 * 86400000 ? "hour" : span <= 92 * 86400000 ? "day" : "month";
+    const period = span <= 2.1 * 86400000 ? "hour" : span <= 92 * 86400000 ? "day" : "month";   // display buckets
+    const fetchPeriod = span <= 35 * 86400000 ? "hour" : period === "month" ? "month" : "day";   // data resolution
     const gs = this._src("grid"), bs = this._src("battery");
     const base = [c.solar_power, ...gs.entities, ...bs.entities].filter(Boolean);
     const ids = [...new Set([...devs.map((d) => d.energy || d.power), ...base].filter(Boolean))];
@@ -4185,14 +4195,14 @@ class EnergyFlowPriceCard extends LitElement {
     if (!cached || (!cached.busy && Date.now() - cached.fetched > maxAge)) {
       this._dcache[key] = { ...(cached || {}), busy: true, fetched: Date.now() };
       (async () => {
-        let r = {};
-        try {
-          r = await this.hass.callWS({
+        const [r, priceHist] = await Promise.all([
+          this.hass.callWS({
             type: "recorder/statistics_during_period", start_time: new Date(spec.start).toISOString(), end_time: new Date(spec.end).toISOString(),
-            statistic_ids: ids, period, types: ["change", "mean"], units: { energy: "kWh" },
-          }) || {};
-        } catch (e) { r = {}; }
-        // bucket list
+            statistic_ids: ids, period: fetchPeriod, types: ["change", "mean"], units: { energy: "kWh" },
+          }).catch(() => ({})),
+          this._priceHistory(spec.start, Math.min(spec.end, Date.now()), span),
+        ]);
+        // display buckets
         const buckets = [];
         const d0 = new Date(spec.start);
         if (period === "hour") d0.setMinutes(0, 0, 0); else d0.setHours(0, 0, 0, 0);
@@ -4204,41 +4214,105 @@ class EnergyFlowPriceCard extends LitElement {
           t = n.getTime();
         }
         const idxOf = (t) => { for (let i = buckets.length - 1; i >= 0; i--) if (t >= buckets[i].t) return i; return -1; };
-        const series = (id, kind) => {          // kWh per bucket; kind "energy" or "power" (signed kWh)
-          const out = buckets.map(() => null);
+        // per entity: Map(rowStart -> kWh) at data resolution
+        const rowMap = (id, kind) => {
+          const m = new Map();
           const f = unitFactor(this.hass.states[id]?.attributes?.unit_of_measurement);
-          for (const x of r[id] || []) {
+          for (const x of r?.[id] || []) {
             const t = typeof x.start === "number" ? x.start : Date.parse(x.start);
-            const i = idxOf(t);
-            if (i < 0) continue;
+            if (isNaN(t)) continue;
             const te = typeof x.end === "number" ? x.end : Date.parse(x.end);
-            const dur = (isNaN(te) ? buckets[i].e : te) - t;
+            const dur = (isNaN(te) ? t + 3600000 : te) - t;
             const v = kind === "energy" ? (x.change ?? null) : x.mean != null ? (x.mean * f * dur) / 3600000 / 1000 : null;
-            if (v != null) out[i] = (out[i] || 0) + v;
+            if (v != null) m.set(t, (m.get(t) || 0) + v);
           }
+          return m;
+        };
+        const toBuckets = (m, fn = (v) => v) => {
+          const out = buckets.map(() => null);
+          for (const [t, v] of m) { const i = idxOf(t); if (i >= 0) out[i] = (out[i] || 0) + fn(v); }
           return out;
         };
-        const per = devs.map((d) => ({ d, vals: d.energy ? series(d.energy, "energy") : series(d.power, "power").map((v) => (v == null ? null : Math.max(0, v))) }));
-        // sources per bucket (kWh): solar, grid import/export, battery discharge/charge
-        const src = (s2) => {
-          if (!s2.entities.length) return { pos: buckets.map(() => 0), neg: buckets.map(() => 0) };
+        const devMaps = devs.map((d) => {
+          const m = d.energy ? rowMap(d.energy, "energy") : rowMap(d.power, "power");
+          for (const [t, v] of m) m.set(t, Math.max(0, v));
+          return m;
+        });
+        const per = devs.map((d, k) => ({ d, vals: toBuckets(devMaps[k]) }));
+        const srcMaps = (s2) => {
+          if (!s2.entities.length) return { pos: new Map(), neg: new Map() };
+          const pos = new Map(), neg = new Map();
           if (!s2.dual) {
-            const v = series(s2.signed, "power").map((x) => (x || 0) * s2.sign);
-            return { pos: v.map((x) => Math.max(0, x)), neg: v.map((x) => Math.max(0, -x)) };
+            for (const [t, v0] of rowMap(s2.signed, "power")) { const v = v0 * s2.sign; pos.set(t, Math.max(0, v)); neg.set(t, Math.max(0, -v)); }
+          } else {
+            for (const [t, v] of rowMap(s2.pos, "power")) pos.set(t, Math.abs(v));
+            for (const [t, v] of rowMap(s2.neg, "power")) neg.set(t, Math.abs(v));
           }
-          return { pos: series(s2.pos, "power").map((x) => Math.abs(x || 0)), neg: series(s2.neg, "power").map((x) => Math.abs(x || 0)) };
+          return { pos, neg };
         };
-        const solar = c.solar_power ? series(c.solar_power, "power").map((x) => Math.max(0, x || 0)) : buckets.map(() => 0);
-        const grid = src(gs), batt = src(bs);
-        const home = buckets.map((_, i) => Math.max(0, solar[i] + grid.pos[i] - grid.neg[i] + batt.pos[i] - batt.neg[i]));
-        this._dcache[key] = { busy: false, fetched: Date.now(), loaded: true, period, buckets, per, home, solar, grid, batt };
+        const solarM = c.solar_power ? rowMap(c.solar_power, "power") : new Map();
+        const gM = srcMaps(gs), bM = srcMaps(bs);
+        const times = [...new Set([...solarM.keys(), ...gM.pos.keys(), ...gM.neg.keys(), ...bM.pos.keys(), ...bM.neg.keys()])].sort((a, b) => a - b);
+        const homeM = new Map();
+        for (const t of times) {
+          homeM.set(t, Math.max(0, Math.max(0, solarM.get(t) || 0) + (gM.pos.get(t) || 0) - (gM.neg.get(t) || 0) + (bM.pos.get(t) || 0) - (bM.neg.get(t) || 0)));
+        }
+        const solar = toBuckets(solarM, (v) => Math.max(0, v)).map((x) => x || 0);
+        const grid = { pos: toBuckets(gM.pos).map((x) => x || 0), neg: toBuckets(gM.neg).map((x) => x || 0) };
+        const batt = { pos: toBuckets(bM.pos).map((x) => x || 0), neg: toBuckets(bM.neg).map((x) => x || 0) };
+        const home = toBuckets(homeM).map((x) => x || 0);
+        // costs: grid import of each row x price at that time, shared out to the devices by
+        // their share of the home consumption in that row (sum of devices + untracked = total)
+        let costs = null;
+        const prices = [...priceHist, ...((this._priceData && this._priceData().points) || [])]
+          .filter((x) => x && !isNaN(x.t) && x.v != null && !isNaN(x.v)).sort((a, b) => a.t - b.t);
+        if (prices.length && gM.pos.size) {
+          const priceAt = (t) => {
+            let lo = 0, hi = prices.length - 1, best = null;
+            while (lo <= hi) { const m = (lo + hi) >> 1; if (prices[m].t <= t) { best = prices[m]; lo = m + 1; } else hi = m - 1; }
+            return best ? best.v : null;
+          };
+          const rowLen = fetchPeriod === "hour" ? 3600000 : 86400000;
+          const avgPrice = (t) => {
+            if (fetchPeriod === "hour") return priceAt(t + rowLen / 2);
+            let sum = 0, n = 0;
+            for (let h = 0; h < 24; h++) { const p2 = priceAt(t + h * 3600000 + 1800000); if (p2 != null) { sum += p2; n++; } }
+            return n ? sum / n : null;
+          };
+          const dev = devs.map(() => 0);
+          let total = 0, tracked = 0;
+          for (const [t, gin] of gM.pos) {
+            const pr = avgPrice(t);
+            if (pr == null || !gin) continue;
+            const cost = gin * pr;
+            total += cost;
+            const h = homeM.get(t) || 0;
+            const sumDev = devMaps.reduce((a, m) => a + (m.get(t) || 0), 0);
+            const denom = Math.max(h, sumDev);
+            if (denom <= 0) continue;
+            devMaps.forEach((m, k) => { const share = (m.get(t) || 0) / denom; dev[k] += cost * share; tracked += cost * share; });
+          }
+          costs = { dev, total, untracked: Math.max(0, total - tracked) };
+        }
+        const res = { busy: false, fetched: Date.now(), loaded: true, period, buckets, per, home, solar, grid, batt, costs };
+        this._dcache[key] = res;
+        this._dlast = res;
         this.requestUpdate();
       })();
     }
-    return this._dcache[key];
+    const cur = this._dcache[key];
+    // while a new range is loading keep showing the previous result (dimmed)
+    if (!cur.loaded && this._dlast) return { ...this._dlast, stale: true };
+    return cur;
   }
 
   _devicesAltChart(c, spec, view) {
+    const out = this._devicesAltChart2(c, spec, view);
+    const d = this._devEnergy(spec);
+    return d && d.stale ? html`<div class="stalewrap">${out}<div class="staleov"><ha-icon icon="mdi:loading" class="spin"></ha-icon></div></div>` : out;
+  }
+
+  _devicesAltChart2(c, spec, view) {
     const T = (k) => this._t(k);
     const lang = resolveLang(c.language, this.hass);
     const data = this._devEnergy(spec);
@@ -4254,13 +4328,14 @@ class EnergyFlowPriceCard extends LitElement {
       this.requestUpdate();
     };
     const GREY = "#6b7280";
-    const items = data.per.map(({ d, vals }) => ({
+    const items = data.per.map(({ d, vals }, k) => ({
       name: d.name || T("dev_" + d.type), color: this._devColors()[d.idx], icon: this._deviceIcon(d),
-      vals, total: vals.reduce((a, v) => a + (v || 0), 0),
+      vals, total: vals.reduce((a, v) => a + (v || 0), 0), cost: data.costs ? data.costs.dev[k] : null,
     }));
     const homeTotal = data.home.reduce((a, v) => a + v, 0);
     const trackedTotal = items.reduce((a, x) => a + x.total, 0);
-    const untracked = { name: T("untracked"), color: GREY, icon: "mdi:help-circle-outline", vals: data.home.map((h, i) => Math.max(0, h - items.reduce((a, x) => a + (x.vals[i] || 0), 0))), total: Math.max(0, homeTotal - trackedTotal) };
+    const untracked = { name: T("untracked"), color: GREY, icon: "mdi:help-circle-outline", vals: data.home.map((h, i) => Math.max(0, h - items.reduce((a, x) => a + (x.vals[i] || 0), 0))), total: Math.max(0, homeTotal - trackedTotal), cost: data.costs ? data.costs.untracked : null };
+    const eur = (x) => (x == null ? "" : x.toFixed(2).replace(".", ",") + " €");
     const all = [...items, ...(c.solar_power || this._src("grid").entities.length ? [untracked] : [])];
     const vis = all.filter((x) => !hidden.has(x.name));
     const kwh = (x) => `${fmtKWh(x)} kWh`;
@@ -4319,7 +4394,7 @@ class EnergyFlowPriceCard extends LitElement {
           <div class="rrow" @click=${() => toggle(x.name)}>
             <span class="rname"><span class="rico" style="color:${x.color}">${renderIcon(x.icon)}</span>${x.name}</span>
             <span class="rbarw"><span class="rbar" style="width:${(x.total / maxV) * 100}%;--c:${x.color}"></span></span>
-            <span class="rval">${kwh(x.total)}<small>${total ? Math.round((x.total / total) * 100) : 0} %</small></span>
+            <span class="rval">${kwh(x.total)}${x.cost != null ? html`<em class="rcost">${eur(x.cost)}</em>` : nothing}<small>${total ? Math.round((x.total / total) * 100) : 0} %</small></span>
           </div>`)}</div>`;
     }
 
@@ -4346,7 +4421,7 @@ class EnergyFlowPriceCard extends LitElement {
           </svg>
           <div class="dlist">${all.map((x) => {
             const off = hidden.has(x.name);
-            return html`<span class="usage-legend-item tog ${off ? "off" : ""}" @click=${() => toggle(x.name)}><i style="background:${x.color}"></i>${x.name} <b style="color:${x.color}">${kwh(x.total)}</b></span>`;
+            return html`<span class="usage-legend-item tog ${off ? "off" : ""}" @click=${() => toggle(x.name)}><i style="background:${x.color}"></i>${x.name} <b style="color:${x.color}">${kwh(x.total)}</b>${x.cost != null ? html`<em class="rcost">${eur(x.cost)}</em>` : nothing}</span>`;
           })}</div>
         </div>`;
     }
@@ -4939,13 +5014,21 @@ class EnergyFlowPriceCard extends LitElement {
       .vbtn ha-icon { --mdc-icon-size: 15px; }
       .vbtn.on { border-color: var(--primary-color); color: var(--primary-color); background: transparent; }
       .rank { display: flex; flex-direction: column; gap: 5px; margin-top: 2px; }
-      .rrow { display: grid; grid-template-columns: minmax(80px, 34%) 1fr auto; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+      .rrow { display: grid; grid-template-columns: minmax(80px, 30%) 1fr auto; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
       .rname { display: inline-flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--primary-text-color); }
       .rico { display: inline-flex; --mdc-icon-size: 15px; }
       .rico .efp-icon { width: 15px; height: 15px; }
       .rbarw { height: 14px; background: rgba(127,127,127,.12); border-radius: 4px; overflow: hidden; }
       .rbar { display: block; height: 100%; border-radius: 4px; box-sizing: border-box; border: 1.5px solid var(--c); background: color-mix(in srgb, var(--c) 45%, transparent); }
       .rval { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+      .rcost { font-style: normal; font-weight: 600; color: var(--success-color, #34d399); margin-left: 7px; font-variant-numeric: tabular-nums; }
+      .usage-legend-item .rcost { margin-left: 4px; font-size: 11px; }
+      .stalewrap { position: relative; }
+      .stalewrap > :not(.staleov) { opacity: .45; transition: opacity .2s; }
+      .staleov { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+      .staleov ha-icon { --mdc-icon-size: 32px; color: var(--primary-color); }
+      .spin { animation: efpspin 1s linear infinite; }
+      @keyframes efpspin { to { transform: rotate(360deg); } }
       .rval small { font-weight: 400; color: var(--secondary-text-color); margin-left: 5px; }
       .donutwrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; justify-content: center; }
       .donut { width: 170px; height: 170px; flex: 0 0 auto; }
@@ -4969,8 +5052,8 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-window.__EFPC_VERSION = "1.31.1";
-console.info("%c HA Energy Flow Card %c v1.31.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.32.0";
+console.info("%c HA Energy Flow Card %c v1.32.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.32.0
+
+- Geräte (Rangliste und Ring): Stromkosten je Gerät neben kWh und %. Die Netzbezugskosten werden je Stunde nach Anteil am Hausverbrauch auf die Geräte verteilt (Summe = Kosten unter „Haus“).
+- Deutlich schneller beim Wechsel der Zeitspanne: eine gemeinsame Statistik-Abfrage für alle kWh-Zähler statt einer Abfrage pro Gerät nacheinander; Leistungs-, Zähler- und Preisdaten werden parallel geladen.
+- Beim Laden einer neuen Zeitspanne bleiben die bisherigen Werte abgedunkelt mit Ladeanzeige stehen.
+
 ## v1.31.1
 
 - Umbenannt in **HA Energy Flow Card** (Anzeigename in Kartenauswahl, HACS, Editor, README). Kartentyp `custom:energy-flow-price-card` und Dateiname bleiben unverändert – bestehende Dashboards laufen weiter.
