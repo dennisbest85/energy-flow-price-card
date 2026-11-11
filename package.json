@@ -1,6 +1,6 @@
 {
   "name": "energy-flow-price-card",
-  "version": "1.32.0",
+  "version": "1.32.1",
   "description": "HA Energy Flow Card – energy flow, daily kWh, costs, history charts and dynamic prices for Home Assistant.",
   "type": "module",
   "main": "dist/energy-flow-price-card.js",

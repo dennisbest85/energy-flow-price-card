@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.32.1
+
+- Ladeanzeige blieb bei 1h/6h/24h/48h/7 Tage dauerhaft stehen (rollierender Startzeitpunkt erzeugte ständig neue Abfragen) – behoben.
+
 ## v1.32.0
 
 - Geräte (Rangliste und Ring): Stromkosten je Gerät neben kWh und %. Die Netzbezugskosten werden je Stunde nach Anteil am Hausverbrauch auf die Geräte verteilt (Summe = Kosten unter „Haus“).

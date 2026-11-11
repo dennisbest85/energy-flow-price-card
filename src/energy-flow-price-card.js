@@ -2481,7 +2481,10 @@ class EnergyFlowPriceCard extends LitElement {
     const gs = this._src("grid"), bs = this._src("battery");
     const base = [c.solar_power, ...gs.entities, ...bs.entities].filter(Boolean);
     const ids = [...new Set([...devs.map((d) => d.energy || d.power), ...base].filter(Boolean))];
-    const key = `${spec.id}|${spec.start}|${period}|${ids.join(",")}`;
+    // rolling ranges (1h, 6h, 24h, 48h, 7d) move their start every render: key them by a
+    // 10-minute slot so the same range is not fetched again and again
+    const fixedStart = spec.past || spec.id === "today" || String(spec.id).startsWith("p");
+    const key = `${spec.id}|${fixedStart ? spec.start : Math.floor(spec.start / 600000)}|${period}|${ids.join(",")}`;
     this._dcache = this._dcache || {};
     const cached = this._dcache[key];
     const maxAge = spec.past ? Infinity : 300000;
@@ -3345,8 +3348,8 @@ class EnergyFlowPriceCard extends LitElement {
 
 customElements.define("energy-flow-price-card", EnergyFlowPriceCard);
 
-window.__EFPC_VERSION = "1.32.0";
-console.info("%c HA Energy Flow Card %c v1.32.0 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
+window.__EFPC_VERSION = "1.32.1";
+console.info("%c HA Energy Flow Card %c v1.32.1 ", "background:#7dd3fc;color:#0a1420;font-weight:700", "background:#333;color:#fff");
 
 window.customCards = window.customCards || [];
 window.customCards.push({
